@@ -1,0 +1,210 @@
+/* ============================================================
+   REPLIK.AI — Foundations
+   Liquid Morphism · Apple-inspired · Light Mode
+   ============================================================ */
+
+:root {
+  /* ---------- Type stacks ---------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ---------- Type scale ---------- */
+  --t-display-size: 34px;
+  --t-display-weight: 700;
+  --t-display-tracking: -0.5px;
+
+  --t-title-size: 22px;
+  --t-title-weight: 600;
+  --t-title-tracking: -0.3px;
+
+  --t-headline-size: 17px;
+  --t-headline-weight: 600;
+
+  --t-body-size: 15px;
+  --t-body-weight: 400;
+  --t-body-leading: 1.6;
+
+  --t-callout-size: 13px;
+  --t-callout-weight: 500;
+
+  --t-caption-size: 11px;
+  --t-caption-weight: 400;
+  --t-caption-tracking: 0.2px;
+
+  /* ---------- Base palette ---------- */
+  --bg-page: #f5f5f7;
+  --bg-page-alt: #fafafa;
+
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-elevated: rgba(255, 255, 255, 0.90);
+  --surface-solid: #ffffff;
+
+  --fg-1: #1d1d1f;          /* primary body */
+  --fg-2: #6e6e73;          /* secondary label */
+  --fg-3: #aeaeb2;          /* muted */
+
+  --border-default: rgba(0, 0, 0, 0.06);
+  --border-active:  rgba(0, 0, 0, 0.15);
+  --border-glass:   rgba(255, 255, 255, 0.80);
+
+  /* ---------- Mode accents ---------- */
+  /* Website (Shopify / Apple Green) */
+  --mode-web: #30d158;
+  --mode-web-rgb: 48, 209, 88;
+  --mode-web-glow: radial-gradient(circle, rgba(48,209,88,0.18) 0%, transparent 70%);
+  --mode-web-badge-bg: rgba(48, 209, 88, 0.12);
+  --mode-web-badge-fg: #1a7a34;
+
+  /* Creative (Videos / Apple Amber) */
+  --mode-creative: #ff9f0a;
+  --mode-creative-rgb: 255, 159, 10;
+  --mode-creative-glow: radial-gradient(circle, rgba(255,159,10,0.18) 0%, transparent 70%);
+  --mode-creative-badge-bg: rgba(255, 159, 10, 0.12);
+  --mode-creative-badge-fg: #8a5200;
+
+  /* Trafficker (Meta Ads / Apple Red) */
+  --mode-traffic: #ff453a;
+  --mode-traffic-rgb: 255, 69, 58;
+  --mode-traffic-glow: radial-gradient(circle, rgba(255,69,58,0.15) 0%, transparent 70%);
+  --mode-traffic-badge-bg: rgba(255, 69, 58, 0.10);
+  --mode-traffic-badge-fg: #a30f0a;
+
+  /* Dashboard / Live (Apple Blue) */
+  --mode-live: #0a84ff;
+  --mode-live-rgb: 10, 132, 255;
+  --mode-live-glow: radial-gradient(circle, rgba(10,132,255,0.15) 0%, transparent 70%);
+  --mode-live-badge-bg: rgba(10, 132, 255, 0.10);
+  --mode-live-badge-fg: #0040aa;
+
+  /* System / Loading (Apple Purple) */
+  --mode-system: #bf5af2;
+  --mode-system-rgb: 191, 90, 242;
+  --mode-system-glow: radial-gradient(circle, rgba(191,90,242,0.18) 0%, transparent 70%);
+  --mode-system-badge-bg: rgba(191, 90, 242, 0.12);
+  --mode-system-badge-fg: #6b1f9a;
+
+  /* ---------- Hero gradients ---------- */
+  --grad-green:  linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  --grad-amber:  linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  --grad-red:    linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  --grad-blue:   linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  --grad-purple: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+
+  /* ---------- Radii ---------- */
+  --r-pill: 100px;
+  --r-card: 20px;
+  --r-control: 12px;
+  --r-tight: 8px;
+  --r-snug: 6px;
+
+  /* ---------- Shadows / elevation ---------- */
+  --shadow-card:
+    0 2px 8px rgba(0,0,0,0.04),
+    0 8px 32px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.90);
+  --shadow-soft: 0 8px 32px rgba(0,0,0,0.08);
+  --shadow-tight: 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-pill: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-thumb: 0 2px 6px rgba(0,0,0,0.15);
+
+  /* ---------- Spacing (4-pt) ---------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* ---------- Motion ---------- */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-quick: 100ms;
+  --dur-base: 200ms;
+  --dur-screen: 250ms;
+  --dur-mode: 300ms;
+
+  /* ---------- Glass ---------- */
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-blur-strong: blur(28px) saturate(200%);
+}
+
+/* ============================================================
+   Semantic resets
+   ============================================================ */
+html, body {
+  background: var(--bg-page);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-leading);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, .display {
+  font-size: var(--t-display-size);
+  font-weight: var(--t-display-weight);
+  letter-spacing: var(--t-display-tracking);
+  color: var(--fg-1);
+  line-height: 1.15;
+  margin: 0;
+}
+h2, .title {
+  font-size: var(--t-title-size);
+  font-weight: var(--t-title-weight);
+  letter-spacing: var(--t-title-tracking);
+  color: var(--fg-1);
+  line-height: 1.25;
+  margin: 0;
+}
+h3, .headline {
+  font-size: var(--t-headline-size);
+  font-weight: var(--t-headline-weight);
+  color: var(--fg-1);
+  line-height: 1.35;
+  margin: 0;
+}
+p, .body {
+  font-size: var(--t-body-size);
+  font-weight: var(--t-body-weight);
+  line-height: var(--t-body-leading);
+  color: var(--fg-1);
+  margin: 0;
+}
+.callout {
+  font-size: var(--t-callout-size);
+  font-weight: var(--t-callout-weight);
+  color: var(--fg-2);
+}
+.caption {
+  font-size: var(--t-caption-size);
+  font-weight: var(--t-caption-weight);
+  letter-spacing: var(--t-caption-tracking);
+  color: var(--fg-2);
+}
+.eyebrow {
+  font-size: var(--t-caption-size);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+code, kbd, .mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-1);
+}
+
+/* Metric/numeric emphasis */
+.metric {
+  font-size: var(--t-display-size);
+  font-weight: 700;
+  letter-spacing: var(--t-display-tracking);
+  font-variant-numeric: tabular-nums;
+}

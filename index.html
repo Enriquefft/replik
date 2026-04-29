@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Replik.ai — Testea productos en piloto automático</title>
+<link rel="icon" href="assets/app-icon.svg"/>
+<link rel="stylesheet" href="styles/foundations.css"/>
+<style>
+  body { background: #fafafa; min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .nav-cta { height: 40px; padding: 0 18px; border-radius: 100px; background: #1d1d1f; color: #fff; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .hero { padding: 64px 0 80px; text-align: center; position: relative; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border-radius: 100px; background: rgba(48,209,88,0.10); color: #1a7a34; font-size: 12px; font-weight: 600; letter-spacing: 0.3px; }
+  .hero-eyebrow .dot { width: 8px; height: 8px; border-radius: 4px; background: #30d158; box-shadow: 0 0 0 4px rgba(48,209,88,0.18); }
+  .hero h1 { font-size: 64px; line-height: 1.05; letter-spacing: -1.5px; max-width: 880px; margin: 22px auto 0; font-weight: 700; }
+  .hero h1 .grad { background: linear-gradient(135deg,#30d158 0%, #ff9f0a 50%, #ff453a 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero p { font-size: 19px; color: #6e6e73; max-width: 640px; margin: 22px auto 0; line-height: 1.55; }
+  .hero-cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 32px; }
+  .btn-primary { height: 52px; padding: 0 26px; border-radius: 14px; background: #1d1d1f; color: #fff; border: none; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-secondary { height: 52px; padding: 0 26px; border-radius: 14px; background: #fff; color: #1d1d1f; border: 1.5px solid rgba(0,0,0,0.10); font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  .meta-row { display: flex; gap: 24px; justify-content: center; margin-top: 24px; align-items: center; }
+  .meta-row span { font-size: 12px; color: #6e6e73; display: inline-flex; align-items: center; gap: 6px; }
+  .section { padding: 60px 0; }
+  .section h2 { font-size: 44px; letter-spacing: -1px; line-height: 1.1; max-width: 740px; }
+  .section .lead { font-size: 17px; color: #6e6e73; margin-top: 12px; max-width: 560px; line-height: 1.55; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 36px; }
+  .modecard { border-radius: 22px; padding: 28px; background: #fff; border: 1px solid rgba(0,0,0,0.05); position: relative; overflow: hidden; }
+  .modecard::before { content: ''; position: absolute; top: -60px; right: -60px; width: 180px; height: 180px; border-radius: 50%; opacity: 0.16; filter: blur(40px); }
+  .modecard.web::before { background: #30d158; }
+  .modecard.creative::before { background: #ff9f0a; }
+  .modecard.traffic::before { background: #ff453a; }
+  .modecard .badge { display: inline-flex; height: 26px; padding: 0 11px; border-radius: 100px; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; align-items: center; gap: 6px; }
+  .web .badge { background: rgba(48,209,88,0.12); color: #1a7a34; }
+  .creative .badge { background: rgba(255,159,10,0.12); color: #8a5200; }
+  .traffic .badge { background: rgba(255,69,58,0.10); color: #a30f0a; }
+  .modecard h3 { font-size: 22px; margin-top: 16px; letter-spacing: -0.4px; }
+  .modecard p { color: #6e6e73; margin-top: 8px; line-height: 1.5; font-size: 14px; }
+  .modecard ul { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  .modecard li { display: flex; gap: 8px; font-size: 13px; color: #1d1d1f; align-items: flex-start; }
+  .modecard li::before { content: '✓'; color: #30d158; font-weight: 700; flex-shrink: 0; }
+  .creative li::before { color: #ff9f0a; }
+  .traffic li::before { color: #ff453a; }
+  .steps { padding: 80px 0; background: #1d1d1f; color: #fff; border-radius: 32px; margin: 40px 0; }
+  .steps h2 { color: #fff; padding: 0 40px; }
+  .steps .lead { color: rgba(255,255,255,0.6); padding: 0 40px; }
+  .steps-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; padding: 0 40px; margin-top: 40px; position: relative; }
+  .step { padding: 20px 16px 0 0; position: relative; }
+  .step .num { font-family: 'SF Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; letter-spacing: 1px; }
+  .step h4 { color: #fff; font-size: 16px; margin: 8px 0 6px; letter-spacing: -0.2px; }
+  .step p { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5; }
+  .step::before { content: ''; position: absolute; top: 14px; left: -8px; width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.25); }
+  .step:nth-child(1)::before { background: #30d158; }
+  .step:nth-child(2)::before { background: #ff9f0a; }
+  .step:nth-child(3)::before { background: #ff9f0a; }
+  .step:nth-child(4)::before { background: #30d158; }
+  .step:nth-child(5)::before { background: #ff453a; }
+  .footer-cta { padding: 80px 0; text-align: center; }
+  .footer-cta h2 { margin: 0 auto; }
+  .footer-cta p { color: #6e6e73; margin: 16px auto 28px; font-size: 17px; }
+  footer { padding: 30px 0 50px; color: #aeaeb2; font-size: 12px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <img src="assets/logo.svg" style="height:24px" alt="replik.ai"/>
+    <a href="Replik App.html"><button class="nav-cta">Entrar a la app →</button></a>
+  </div>
+
+  <div class="hero">
+    <span class="hero-eyebrow"><span class="dot"></span>Hecho para dropshippers de LATAM</span>
+    <h1>Tú me dices el producto. <span class="grad">Yo me encargo del resto.</span></h1>
+    <p>Replik testea productos por ti. Construye la landing, encuentra los videos, lanza la campaña en Meta — todo en automático. Tú solo decides qué ganador escalar.</p>
+    <div class="hero-cta-row">
+      <a href="Replik App.html"><button class="btn-primary">Empezar a testear gratis →</button></a>
+      <button class="btn-secondary">Ver demo · 90 segundos</button>
+    </div>
+    <div class="meta-row">
+      <span>● Sin tarjeta</span><span>● Conecta Shopify y Meta</span><span>● Soporte en español</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Lo que Replik hace por ti.</h2>
+    <p class="lead">Tres modos que trabajan en cadena. Tú das el producto, Replik entrega la prueba lista para correr.</p>
+    <div class="three">
+      <div class="modecard web">
+        <span class="badge"><span style="width:6px;height:6px;border-radius:3px;background:#30d158"></span>Website Mode</span>
+        <h3>Te creo tu landing en Shopify.</h3>
+        <p>Te muestro 3 templates ya armados, escoges el que va con tu producto y lo subo a tu tienda.</p>
+        <ul><li>Templates por ángulo de venta</li><li>Optimizado para móvil — el 90% de tu tráfico</li><li>Listo para EasySell (pago contra entrega)</li></ul>
+      </div>
+      <div class="modecard creative">
+        <span class="badge"><span style="width:6px;height:6px;border-radius:3px;background:#ff9f0a"></span>Creative Mode</span>
+        <h3>Te encuentro los videos.</h3>
+        <p>Busco creativos ganadores en Facebook Ad Library y TikTok. Los agrupo por ángulo de venta para que escojas.</p>
+        <ul><li>Solo videos performers de los últimos 30 días</li><li>Subtitulado automático en español</li><li>Variaciones para esquivar duplicados</li></ul>
+      </div>
+      <div class="modecard traffic">
+        <span class="badge"><span style="width:6px;height:6px;border-radius:3px;background:#ff453a"></span>Trafficker Mode</span>
+        <h3>Te lanzo la campaña en Meta.</h3>
+        <p>Subo tus creativos, escribo los copies, configuro objetivo, conjunto y anuncios. Tú solo apruebas.</p>
+        <ul><li>CBO o ABO — el que mejor te sirva</li><li>Copies generados por ángulo</li><li>Pixel + landing verificados antes de salir</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <h2>De producto a campaña corriendo en 5 pasos.</h2>
+    <p class="lead">Sin pelearte con Shopify, sin buscar creativos a mano, sin armar campañas a las 2 am.</p>
+    <div class="steps-grid">
+      <div class="step"><div class="num">PASO 01</div><h4>Pegas el producto</h4><p>URL de la competencia o nombre + foto.</p></div>
+      <div class="step"><div class="num">PASO 02</div><h4>Eliges creativos</h4><p>Te muestro los videos por ángulo de venta.</p></div>
+      <div class="step"><div class="num">PASO 03</div><h4>Edito los videos</h4><p>Subtítulos automáticos. Tú decides cuáles.</p></div>
+      <div class="step"><div class="num">PASO 04</div><h4>Armo la landing</h4><p>3 templates. El que prefieras va a Shopify.</p></div>
+      <div class="step"><div class="num">PASO 05</div><h4>Lanzo la campaña</h4><p>Meta Ads configurada y publicada por mí.</p></div>
+    </div>
+  </div>
+
+  <div class="footer-cta">
+    <h2 style="font-size:48px; line-height:1.05; letter-spacing:-1.2px;">Tú no sabes de Shopify.<br/>Tampoco de Meta Ads. <span class="grad" style="background: linear-gradient(135deg,#30d158 0%, #ff9f0a 50%, #ff453a 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">No importa.</span></h2>
+    <p>Replik se encarga. Tú solo testea más productos.</p>
+    <a href="Replik App.html"><button class="btn-primary">Probar Replik gratis →</button></a>
+  </div>
+
+  <footer>
+    <span>© 2026 Replik.ai · Lima, Perú</span>
+    <span style="display:flex;gap:18px"><span>Términos</span><span>Privacidad</span><span>Soporte</span></span>
+  </footer>
+</div>
+</body>
+</html>
