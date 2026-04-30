@@ -11,6 +11,11 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
+import type { z } from "zod"
+
+import type { SalesAngle } from "@/lib/ai/taxonomies.ts"
+
+type SalesAngleT = z.infer<typeof SalesAngle>
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -101,7 +106,7 @@ export const creatives = pgTable("creatives", {
     .references(() => users.id, { onDelete: "cascade" }),
   source: creativeSourceEnum("source").notNull(),
   scrapeUrl: text("scrape_url").notNull(),
-  angle: text("angle"),
+  angle: text("angle").$type<SalesAngleT | null>(),
   transcriptText: text("transcript_text"),
   language: text("language"),
   selectedBool: boolean("selected_bool").notNull().default(false),

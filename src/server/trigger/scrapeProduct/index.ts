@@ -11,24 +11,22 @@ import "server-only"
  *   3. transcribeAds — for each creative, download video, push original to
  *      UploadThing, transcribe with Whisper (skip if > 25 MB), strip Amara
  *      hallucinations, persist transcript + language.
- *   4. classifyAngles — single LLM call labels every transcripted creative
- *      with a 1-3-word Spanish sales angle.
+ *   4. classifyAngle — §12 self-consistency classifier (5 parallel Sonnet
+ *      calls, majority/tie-break vote) → SalesAngle | null per creative.
  *
  * Idempotency: a row in `idempotency_keys` keyed by
  * `scrape_${productId}_${attempt}` short-circuits a duplicate run with the
  * last-known summary.
  */
 
-import { anthropic } from "@ai-sdk/anthropic"
 import { logger, task } from "@trigger.dev/sdk"
-import { generateText, Output } from "ai"
 import { and, eq } from "drizzle-orm"
 import { UTApi } from "uploadthing/server"
-import { z } from "zod"
 
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { extractKeywords } from "@/lib/agent/scrape"
+import { classifyAngle } from "@/lib/ai/angle-classify.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
@@ -37,7 +35,6 @@ const TASK_ID = "scrape-product"
 const MAX_ADS = 20
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
 const TRANSCRIBE_CONCURRENCY = 3
-const CLASSIFY_MODEL = "claude-sonnet-4-5"
 const IDEMPOTENCY_TTL_DAYS = 7
 
 interface ScrapeSummary {
@@ -46,17 +43,6 @@ interface ScrapeSummary {
   withAngle: number
   source: "meta_ad_library" | "apify_fb" | "none"
 }
-
-const AnglesSchema = z.object({
-  angles: z
-    .array(
-      z.object({
-        id: z.string(),
-        angle: z.string().min(1).max(40),
-      }),
-    )
-    .min(0),
-})
 
 let cachedUTApi: UTApi | undefined
 
@@ -280,52 +266,6 @@ async function runWithConcurrency<T, R>(
   return out
 }
 
-async function classifyAngles(
-  rows: { id: string; transcriptText: string | null }[],
-): Promise<Map<string, string>> {
-  const result = new Map<string, string>()
-  const withText = rows.filter(
-    (r): r is { id: string; transcriptText: string } =>
-      typeof r.transcriptText === "string" && r.transcriptText.length > 0,
-  )
-  for (const r of rows) {
-    if (!withText.find((w) => w.id === r.id)) {
-      result.set(r.id, "sin clasificar")
-    }
-  }
-  if (withText.length === 0) return result
-
-  try {
-    const { output } = await generateText({
-      model: anthropic(CLASSIFY_MODEL),
-      output: Output.object({ schema: AnglesSchema }),
-      system: [
-        "Clasifica cada video por su 'ángulo de venta' (sales angle) — etiqueta libre 1-3 palabras en español.",
-        "Ejemplos: 'precio bajo', 'demostración', 'testimonio', 'antes/después', 'urgencia'.",
-        "Devuelve EXACTAMENTE un objeto por cada id de entrada.",
-      ].join(" "),
-      prompt: JSON.stringify(withText.map((c) => ({ id: c.id, transcript: c.transcriptText }))),
-    })
-    for (const a of output.angles) {
-      result.set(a.id, a.angle.trim().slice(0, 40))
-    }
-  } catch (err) {
-    logger.warn("classify_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    })
-    for (const w of withText) {
-      if (!result.has(w.id)) result.set(w.id, "sin clasificar")
-    }
-  }
-
-  // Anything we expected but the model omitted defaults to 'sin clasificar'.
-  for (const w of withText) {
-    if (!result.has(w.id)) result.set(w.id, "sin clasificar")
-  }
-
-  return result
-}
-
 interface ScrapePayload {
   productId: string
   userId: string
@@ -365,7 +305,7 @@ export const scrapeProduct = task({
       return {
         creativeCount: summary.length,
         withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
-        withAngle: summary.filter((s) => typeof s.angle === "string").length,
+        withAngle: summary.filter((s) => s.angle !== null).length,
         source: "none",
       }
     }
@@ -397,7 +337,7 @@ export const scrapeProduct = task({
       return {
         creativeCount: summary.length,
         withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
-        withAngle: summary.filter((s) => typeof s.angle === "string").length,
+        withAngle: summary.filter((s) => s.angle !== null).length,
         source: "none",
       }
     }
@@ -503,33 +443,39 @@ export const scrapeProduct = task({
         r.status === "fulfilled" && r.value.transcribed,
     ).length
 
-    // ---------- Step 4 — classifyAngles ----------
+    // ---------- Step 4 — classifyAngle (§12) ----------
     logger.info("classify_started", { count: insertedCreatives.length })
     const rows = await withUser(userId, async (db) => {
       return await db
         .select({
           id: creatives.id,
           transcriptText: creatives.transcriptText,
+          language: creatives.language,
         })
         .from(creatives)
         .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
     })
 
-    const angleMap = await classifyAngles(rows)
-    logger.info("classify_done", { count: angleMap.size })
+    const classifyInput = rows.map((r) => ({
+      id: r.id,
+      transcript: r.transcriptText ?? "",
+      language: r.language ?? "es",
+    }))
+    const classification = await classifyAngle({ creatives: classifyInput })
+    logger.info("classify_done", { count: classification.angles.length })
 
     await withUser(userId, async (db) => {
       await Promise.all(
-        Array.from(angleMap.entries()).map(([id, angle]) =>
+        classification.angles.map((entry) =>
           db
             .update(creatives)
-            .set({ angle })
-            .where(and(eq(creatives.id, id), eq(creatives.userId, userId))),
+            .set({ angle: entry.angle })
+            .where(and(eq(creatives.id, entry.creativeId), eq(creatives.userId, userId))),
         ),
       )
     })
 
-    const withAngle = Array.from(angleMap.values()).filter((a) => a !== "sin clasificar").length
+    const withAngle = classification.angles.filter((a) => a.angle !== null).length
 
     // Final status flip.
     await withUser(userId, async (db) => {
