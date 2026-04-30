@@ -1,5 +1,6 @@
 import "server-only"
 import { type AdminRestApiClient, createAdminRestApiClient } from "@shopify/admin-api-client"
+import { z } from "zod"
 import { ShopifyAuthError } from "./errors"
 
 export interface ShopifyCreds {
@@ -32,7 +33,7 @@ function buildClient(creds: ShopifyCreds): AdminRestApiClient {
 }
 
 interface JsonInit {
-  body?: unknown
+  body?: Record<string, unknown>
   searchParams?: Record<string, string | number>
 }
 
@@ -40,11 +41,15 @@ interface JsonInit {
  * Single internal helper centralizing headers + JSON parse + error mapping.
  * Using `@shopify/admin-api-client`'s REST client gives us retries + correct
  * `X-Shopify-Access-Token` injection while letting us stay path-driven.
+ *
+ * Callers pass a `z.ZodType<T>` to get Zod-validated output instead of an
+ * unsafe cast.
  */
 async function shopifyFetch<T>(
   creds: ShopifyCreds,
   method: "GET" | "POST" | "PUT" | "DELETE",
   path: string,
+  schema: z.ZodType<T>,
   init: JsonInit = {},
 ): Promise<T> {
   const client = buildClient(creds)
@@ -53,7 +58,7 @@ async function shopifyFetch<T>(
     searchParams?: Record<string, string | number>
   } = {}
   if (init.body !== undefined) {
-    opts.data = init.body as Record<string, unknown>
+    opts.data = init.body
   }
   if (init.searchParams) {
     opts.searchParams = init.searchParams
@@ -92,7 +97,7 @@ async function shopifyFetch<T>(
       text,
     )
   }
-  return (await response.json()) as T
+  return schema.parse(await response.json())
 }
 
 // ---------- Domain types ----------
@@ -113,17 +118,17 @@ export interface PublishProductResult {
   shopify_page_handle: string
 }
 
-interface ProductCreateResponse {
-  product: { id: number; handle: string }
-}
+const ProductCreateResponseSchema = z.object({
+  product: z.object({ id: z.number(), handle: z.string() }),
+})
 
-interface PageCreateResponse {
-  page: { id: number; handle: string; template_suffix?: string }
-}
+const PageCreateResponseSchema = z.object({
+  page: z.object({ id: z.number(), handle: z.string(), template_suffix: z.string().optional() }),
+})
 
-interface ThemeListResponse {
-  themes: { id: number; role: string; name: string }[]
-}
+const ThemeListResponseSchema = z.object({
+  themes: z.array(z.object({ id: z.number(), role: z.string(), name: z.string() })),
+})
 
 function centsToPriceString(cents: number): string {
   if (!Number.isFinite(cents) || cents < 0) {
@@ -163,9 +168,15 @@ export async function publishProduct(
       variants,
     },
   }
-  const productResp = await shopifyFetch<ProductCreateResponse>(creds, "POST", "products.json", {
-    body: productPayload,
-  })
+  const productResp = await shopifyFetch(
+    creds,
+    "POST",
+    "products.json",
+    ProductCreateResponseSchema,
+    {
+      body: productPayload,
+    },
+  )
 
   const templateSuffix = `replik-${p.templateId.toString()}`
   const pagePayload = {
@@ -176,7 +187,7 @@ export async function publishProduct(
       template_suffix: templateSuffix,
     },
   }
-  const pageResp = await shopifyFetch<PageCreateResponse>(creds, "POST", "pages.json", {
+  const pageResp = await shopifyFetch(creds, "POST", "pages.json", PageCreateResponseSchema, {
     body: pagePayload,
   })
 
@@ -191,7 +202,7 @@ export async function publishProduct(
  * `templates/page.<handle>.json` asset against the right theme.
  */
 export async function getActiveThemeId(creds: ShopifyCreds): Promise<number> {
-  const resp = await shopifyFetch<ThemeListResponse>(creds, "GET", "themes.json", {
+  const resp = await shopifyFetch(creds, "GET", "themes.json", ThemeListResponseSchema, {
     searchParams: { role: "main" },
   })
   const main = resp.themes.find((t) => t.role === "main") ?? resp.themes[0]
@@ -212,7 +223,7 @@ export async function applyTemplate(
   key: string,
   content: unknown,
 ): Promise<void> {
-  await shopifyFetch<unknown>(creds, "PUT", `themes/${themeId.toString()}/assets.json`, {
+  await shopifyFetch(creds, "PUT", `themes/${themeId.toString()}/assets.json`, z.unknown(), {
     body: {
       asset: {
         key,
