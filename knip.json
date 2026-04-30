@@ -15,9 +15,9 @@
     "server-only",
     "postcss",
     "@radix-ui/react-label",
-    "bun-types",
     "tw-animate-css",
-    "shadcn"
+    "shadcn",
+    "@trigger.dev/core"
   ],
   "ignoreBinaries": ["trigger"],
   "ignoreExportsUsedInFile": true,
