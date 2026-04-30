@@ -23,13 +23,13 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { logger, task } from "@trigger.dev/sdk"
 import { generateText, Output } from "ai"
 import { and, eq } from "drizzle-orm"
-import OpenAI from "openai"
 import { UTApi } from "uploadthing/server"
 import { z } from "zod"
 
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { extractKeywords } from "@/lib/agent/scrape"
+import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
 
@@ -58,13 +58,7 @@ const AnglesSchema = z.object({
     .min(0),
 })
 
-let cachedOpenAI: OpenAI | undefined
 let cachedUTApi: UTApi | undefined
-
-function getOpenAI(): OpenAI {
-  cachedOpenAI ??= new OpenAI()
-  return cachedOpenAI
-}
 
 function getUTApi(): UTApi {
   cachedUTApi ??= new UTApi()
@@ -74,19 +68,6 @@ function getUTApi(): UTApi {
 function deriveProductName(businessInfo: string): string {
   const firstSentence = businessInfo.split(/[.!?\n]/)[0] ?? businessInfo
   return firstSentence.trim().slice(0, 80)
-}
-
-function cleanTranscript(text: string): string {
-  const amaraPattern = /amara/i
-  const seen: string[] = []
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim()
-    if (trimmed.length === 0) continue
-    if (amaraPattern.test(trimmed)) continue
-    if (seen[seen.length - 1] === trimmed) continue
-    seen.push(trimmed)
-  }
-  return seen.join("\n").trim()
 }
 
 interface FoundAd {
@@ -237,21 +218,13 @@ async function transcribeOne(
     return { transcribed: false, reason: "oversize" }
   }
 
-  // 3. Transcribe via Whisper.
-  let transcriptText: string | undefined
-  let language: string | undefined
+  // 3. Transcribe via the canonical AI transcribe entrypoint (§9, text mode).
+  let transcriptText: string
+  let language: string
   try {
-    const audioFile = new File([new Uint8Array(buffer)], `${creative.id}.mp4`, {
-      type: mime,
-    })
-    const verbose = await getOpenAI().audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["word"],
-    })
-    transcriptText = cleanTranscript(verbose.text)
-    language = verbose.language
+    const result = await transcribe({ mode: "text", audio: buffer })
+    transcriptText = result.transcriptText
+    language = result.language
   } catch (err) {
     logger.warn("whisper_failed", {
       creativeId: creative.id,
@@ -260,7 +233,7 @@ async function transcribeOne(
     return { transcribed: false, reason: "whisper_failed" }
   }
 
-  if (!transcriptText) {
+  if (transcriptText.length === 0) {
     return { transcribed: false, reason: "empty_transcript" }
   }
 

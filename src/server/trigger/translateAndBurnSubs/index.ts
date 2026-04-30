@@ -2,7 +2,8 @@ import { logger, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys } from "@/db/schema"
-import { burnSubs, transcribe, translateSrt, uploadEditedVideo, uploadSrt } from "@/lib/video"
+import { transcribe } from "@/lib/ai/transcribe.ts"
+import { burnSubs, translateSrt, uploadEditedVideo, uploadSrt } from "@/lib/video"
 
 interface TranslateAndBurnSubsPayload {
   creativeId: string
@@ -111,7 +112,17 @@ export const translateAndBurnSubsTask = task({
     // 4. Re-transcribe to obtain a real timed SRT. L3a only persists plain
     // text; we cannot fabricate timestamps from it.
     logger.info("transcribe_started", { creativeId })
-    const transcribed = await transcribe(originalAsset.url)
+    const videoResponse = await fetch(originalAsset.url, { redirect: "follow" })
+    if (!videoResponse.ok) {
+      throw new Error(
+        `original video download failed ${videoResponse.status.toString()} ${videoResponse.statusText}`,
+      )
+    }
+    const audioBuffer = Buffer.from(await videoResponse.arrayBuffer())
+    const transcribed = await transcribe({ mode: "srt", audio: audioBuffer })
+    if (transcribed.srt === null || transcribed.srt.length === 0) {
+      throw new Error(`transcribe returned empty SRT for creative ${creativeId}`)
+    }
     logger.info("transcribe_done", {
       creativeId,
       language: transcribed.language,
