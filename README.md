@@ -5,32 +5,53 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
 bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Multi-tenant data access
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+All Drizzle queries that read or write tenant-scoped tables MUST run inside
+`withUser(userId, async (db) => { ... })` from `@/db/client`. Inside the
+callback, every query MUST filter by `eq(table.userId, userId)`. The wrapper
+validates `userId` is a non-empty string and provides a `TenantDB` handle.
 
-## Learn More
+```ts
+import { withUser } from "@/db/client";
+import { products } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-To learn more about Next.js, take a look at the following resources:
+await withUser(userId, async (db) => {
+  return db.select().from(products).where(eq(products.userId, userId));
+});
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> P1 does not yet enforce this with a lint rule — direct `import { db }` from
+> `@/db/client` outside `withUser` is currently a manual code-review concern.
+> A custom ESLint rule that flags `db` imports outside the wrapper is TODO.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database migrations
 
-## Deploy on Vercel
+```bash
+DATABASE_URL=... bun run db:generate   # diff schema → SQL in drizzle/
+DATABASE_URL=... bun run db:push       # apply against Neon
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The first migration enables `pgcrypto` (used by `pgp_sym_encrypt`/`pgp_sym_decrypt`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Required env
+
+- `DATABASE_URL` — Neon Postgres connection string
+- `ENCRYPTION_KEY` — symmetric key for `pgp_sym_encrypt`
+- `META_AD_LIBRARY_TOKEN` — server-side Meta Ad Library access token (P2+)
+- Clerk + Trigger.dev keys (already wired in P0)
+
+## Tests
+
+```bash
+bun test --conditions=react-server
+```
+
+Round-trip tests live in `src/__tests__/p1.test.ts`. They auto-skip when
+`DATABASE_URL` and `ENCRYPTION_KEY` are not set.
