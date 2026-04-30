@@ -26,6 +26,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    ".claude/**",
+    ".agents/**",
     "next-env.d.ts",
     "eslint.config.mjs",
     "postcss.config.mjs",
