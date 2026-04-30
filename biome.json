@@ -6,19 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "src/**",
-      "!src/**/*.css",
-      "!.next",
-      "!node_modules",
-      "!.agents",
-      "!.claude",
-      "!dist",
-      "!build",
-      "!drizzle",
-      "!next-env.d.ts",
-      "!tsconfig.tsbuildinfo"
-    ],
+    "includes": ["src/**", "!src/**/*.css"],
     "ignoreUnknown": true
   },
   "formatter": {
