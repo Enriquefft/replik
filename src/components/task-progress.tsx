@@ -1,5 +1,6 @@
 "use client"
 
+import type { RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils.ts"
@@ -11,35 +12,18 @@ interface TaskProgressProps {
   className?: string
 }
 
-type RunStatus =
-  | "WAITING_FOR_DEPLOY"
-  | "QUEUED"
-  | "DEQUEUED"
-  | "EXECUTING"
-  | "REATTEMPTING"
-  | "FROZEN"
-  | "COMPLETED"
-  | "CANCELED"
-  | "FAILED"
-  | "CRASHED"
-  | "INTERRUPTED"
-  | "SYSTEM_FAILURE"
-  | "DELAYED"
-  | "EXPIRED"
-  | "TIMED_OUT"
-
 function getStatusConfig(status: RunStatus | undefined) {
   if (!status) {
     return { icon: Loader2, label: "Iniciando…", spin: true, color: "text-fg-2" }
   }
   switch (status) {
     case "QUEUED":
-    case "WAITING_FOR_DEPLOY":
+    case "PENDING_VERSION":
     case "DEQUEUED":
     case "DELAYED":
       return { icon: Clock, label: "En cola…", spin: false, color: "text-fg-2" }
     case "EXECUTING":
-    case "REATTEMPTING":
+    case "WAITING":
       return { icon: Loader2, label: "Procesando…", spin: true, color: "text-mode-live" }
     case "COMPLETED":
       return { icon: CheckCircle2, label: "Completado", spin: false, color: "text-mode-web" }
@@ -50,8 +34,6 @@ function getStatusConfig(status: RunStatus | undefined) {
     case "EXPIRED":
       return { icon: XCircle, label: "Error", spin: false, color: "text-mode-traffic" }
     case "CANCELED":
-    case "INTERRUPTED":
-    case "FROZEN":
       return { icon: XCircle, label: "Cancelado", spin: false, color: "text-fg-3" }
   }
 }
@@ -60,15 +42,13 @@ function getProgress(status: RunStatus | undefined): number {
   if (!status) return 0
   switch (status) {
     case "QUEUED":
-    case "WAITING_FOR_DEPLOY":
+    case "PENDING_VERSION":
     case "DELAYED":
       return 10
     case "DEQUEUED":
       return 25
     case "EXECUTING":
-    case "REATTEMPTING":
-      return 65
-    case "FROZEN":
+    case "WAITING":
       return 65
     case "COMPLETED":
       return 100
@@ -80,7 +60,7 @@ function getProgress(status: RunStatus | undefined): number {
 export function TaskProgress({ runId, step, detail, className }: TaskProgressProps) {
   const { run } = useRealtimeRun(runId)
 
-  const status = run?.status as RunStatus | undefined
+  const status = run?.status
   const config = getStatusConfig(status)
   const progress = getProgress(status)
   const Icon = config.icon
