@@ -27,16 +27,12 @@ export function ChatPanel({ messages, onSend, pending, className }: ChatPanelPro
   // messages.length is a primitive derived from the prop; Biome's exhaustive-deps
   // rule does not flag primitive expressions — only array/object references.
   const messageCount = messages.length
-  const prevCountRef = React.useRef(messageCount)
   React.useEffect(() => {
-    if (messageCount !== prevCountRef.current) {
-      prevCountRef.current = messageCount
-      const el = listRef.current
-      if (el) {
-        el.scrollTop = el.scrollHeight
-      }
+    const el = listRef.current
+    if (el) {
+      el.scrollTop = el.scrollHeight
     }
-  })
+  }, [messageCount])
 
   async function handleSend() {
     const text = input.trim()
