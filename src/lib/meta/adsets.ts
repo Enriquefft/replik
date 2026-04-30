@@ -9,6 +9,7 @@ import "server-only"
  * use everywhere for consistency.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetchJson } from "./http"
 import {
@@ -19,9 +20,7 @@ import {
   type MetaCreds,
 } from "./types"
 
-interface AdSetCreateResponse {
-  id: string
-}
+const AdSetCreateResponseSchema = z.object({ id: z.string() })
 
 function adAccountPath(creds: MetaCreds): string {
   const id = creds.ad_account_id.replace(/^act_/, "")
@@ -49,7 +48,7 @@ export async function adsetCreate(
   }
 
   const url = `${adAccountPath(creds)}/adsets`
-  const created = await metaFetchJson<AdSetCreateResponse>(url, {
+  const created = await metaFetchJson(url, AdSetCreateResponseSchema, {
     method: "POST",
     form,
     creds,

@@ -7,6 +7,7 @@ import "server-only"
  * id + creative id into a live (or paused) ad row.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetchJson } from "./http"
 import {
@@ -17,9 +18,7 @@ import {
   type MetaCreds,
 } from "./types"
 
-interface AdCreateResponse {
-  id: string
-}
+const AdCreateResponseSchema = z.object({ id: z.string() })
 
 function adAccountPath(creds: MetaCreds): string {
   const id = creds.ad_account_id.replace(/^act_/, "")
@@ -36,7 +35,7 @@ export async function adCreate(creds: MetaCreds, input: AdCreateInput): Promise<
     status: parsed.status,
   }
   const url = `${adAccountPath(creds)}/ads`
-  const created = await metaFetchJson<AdCreateResponse>(url, {
+  const created = await metaFetchJson(url, AdCreateResponseSchema, {
     method: "POST",
     form,
     creds,

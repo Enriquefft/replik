@@ -17,6 +17,7 @@ import "server-only"
  * window, retrying inside a chunk would corrupt offsets.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetch } from "./http"
 import {
@@ -33,22 +34,28 @@ function adAccountPath(creds: MetaCreds): string {
   return `${META_GRAPH_BASE}/act_${encodeURIComponent(id)}`
 }
 
-interface VideoStartResponse {
-  upload_session_id: string
-  video_id?: string
-  start_offset: string
-  end_offset: string
-}
+const VideoStartResponseSchema = z.object({
+  upload_session_id: z.string(),
+  video_id: z.string().optional(),
+  start_offset: z.string(),
+  end_offset: z.string(),
+})
 
-interface VideoTransferResponse {
-  start_offset: string
-  end_offset: string
-}
+const VideoTransferResponseSchema = z.object({
+  start_offset: z.string(),
+  end_offset: z.string(),
+})
 
-interface VideoFinishResponse {
-  success: boolean
-  video_id?: string
-}
+const VideoFinishResponseSchema = z.object({
+  success: z.boolean(),
+  video_id: z.string().optional(),
+})
+
+const AdImagesResponseSchema = z.object({
+  images: z
+    .record(z.string(), z.object({ hash: z.string().optional(), url: z.string().optional() }))
+    .optional(),
+})
 
 async function downloadFile(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url, { cache: "no-store" })
@@ -89,7 +96,7 @@ export async function videoUploadResumable(
     form: startForm,
     creds,
   })
-  const startBody = (await startRes.json()) as VideoStartResponse
+  const startBody = VideoStartResponseSchema.parse(await startRes.json())
 
   const sessionId = startBody.upload_session_id
   let startOffset = Number(startBody.start_offset)
@@ -116,7 +123,7 @@ export async function videoUploadResumable(
       creds,
       maxAttempts: 1,
     })
-    const transferBody = (await transferRes.json()) as VideoTransferResponse
+    const transferBody = VideoTransferResponseSchema.parse(await transferRes.json())
     const nextStart = Number(transferBody.start_offset)
     const nextEnd = Number(transferBody.end_offset)
     if (Number.isNaN(nextStart) || Number.isNaN(nextEnd) || nextStart < startOffset) {
@@ -141,7 +148,7 @@ export async function videoUploadResumable(
     form: finishForm,
     creds,
   })
-  const finishBody = (await finishRes.json()) as VideoFinishResponse
+  const finishBody = VideoFinishResponseSchema.parse(await finishRes.json())
   if (!finishBody.success) {
     throw new MetaError({
       code: 0,
@@ -159,10 +166,6 @@ export async function videoUploadResumable(
   }
 
   return VideoUploadResultSchema.parse({ video_id: videoId })
-}
-
-interface AdImagesResponse {
-  images?: Record<string, { hash?: string; url?: string }>
 }
 
 export async function imageUpload(
@@ -184,7 +187,7 @@ export async function imageUpload(
     body: formData,
     creds,
   })
-  const body = (await response.json()) as AdImagesResponse
+  const body = AdImagesResponseSchema.parse(await response.json())
 
   const entries = Object.values(body.images ?? {})
   const first = entries[0]

@@ -18,20 +18,23 @@ import "server-only"
  * retry + error-mapping invariants hold for every endpoint.
  */
 
+import { z } from "zod"
 import { markIntegrationExpired } from "./expiry"
 import { type MetaCreds, MetaError } from "./types"
 
-interface MetaApiError {
-  code?: number
-  error_subcode?: number
-  message?: string
-  type?: string
-  fbtrace_id?: string
-}
+const MetaApiErrorSchema = z.object({
+  code: z.number().optional(),
+  error_subcode: z.number().optional(),
+  message: z.string().optional(),
+  type: z.string().optional(),
+  fbtrace_id: z.string().optional(),
+})
 
-interface MetaErrorEnvelope {
-  error?: MetaApiError
-}
+const MetaErrorEnvelopeSchema = z.object({
+  error: MetaApiErrorSchema.optional(),
+})
+
+type MetaApiError = z.infer<typeof MetaApiErrorSchema>
 
 const RETRY_META_CODES = new Set<number>([4, 17])
 const MAX_ATTEMPTS = 3
@@ -65,7 +68,7 @@ function friendlyForMetaCode(code: number, fallback: string): string {
 
 async function readErrorEnvelope(response: Response): Promise<MetaApiError | null> {
   try {
-    const body = (await response.clone().json()) as MetaErrorEnvelope
+    const body = MetaErrorEnvelopeSchema.parse(await response.clone().json())
     return body.error ?? null
   } catch {
     return null
@@ -177,8 +180,12 @@ export async function metaFetch(url: string, options: MetaFetchOptions = {}): Pr
   })
 }
 
-/** Convenience: fetch + decode JSON, with the same retry semantics. */
-export async function metaFetchJson<T>(url: string, options: MetaFetchOptions = {}): Promise<T> {
+/** Convenience: fetch + decode JSON through a Zod schema, with the same retry semantics. */
+export async function metaFetchJson<T>(
+  url: string,
+  schema: z.ZodType<T>,
+  options: MetaFetchOptions = {},
+): Promise<T> {
   const response = await metaFetch(url, options)
-  return (await response.json()) as T
+  return schema.parse(await response.json())
 }

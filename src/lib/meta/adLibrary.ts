@@ -11,6 +11,7 @@ import "server-only"
  * limit 20). Output is mapped into the public `AdLibraryAd` shape.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetchJson } from "./http"
 import {
@@ -20,28 +21,30 @@ import {
   MetaError,
 } from "./types"
 
-interface AdMediaEntry {
-  video_hd_url?: string
-  video_sd_url?: string
-  video_preview_url?: string
-  video_url?: string
-  resolved_image_url?: string
-}
+const AdMediaEntrySchema = z.object({
+  video_hd_url: z.string().optional(),
+  video_sd_url: z.string().optional(),
+  video_preview_url: z.string().optional(),
+  video_url: z.string().optional(),
+  resolved_image_url: z.string().optional(),
+})
+type AdMediaEntry = z.infer<typeof AdMediaEntrySchema>
 
-interface RawAdLibraryAd {
-  id: string
-  page_name?: string
-  page_id?: string
-  ad_creative_bodies?: string[]
-  ad_creative_link_titles?: string[]
-  ad_snapshot_url?: string
-  ad_delivery_start_time?: string
-  ad_media?: AdMediaEntry[]
-}
+const RawAdLibraryAdSchema = z.object({
+  id: z.string(),
+  page_name: z.string().optional(),
+  page_id: z.string().optional(),
+  ad_creative_bodies: z.array(z.string()).optional(),
+  ad_creative_link_titles: z.array(z.string()).optional(),
+  ad_snapshot_url: z.string().optional(),
+  ad_delivery_start_time: z.string().optional(),
+  ad_media: z.array(AdMediaEntrySchema).optional(),
+})
+type RawAdLibraryAd = z.infer<typeof RawAdLibraryAdSchema>
 
-interface AdsArchiveResponse {
-  data?: RawAdLibraryAd[]
-}
+const AdsArchiveResponseSchema = z.object({
+  data: z.array(RawAdLibraryAdSchema).optional(),
+})
 
 function pickVideoUrl(media: AdMediaEntry[] | undefined): string | undefined {
   if (!media) return undefined
@@ -91,7 +94,7 @@ export async function adLibrarySearch(input: AdLibrarySearchInput): Promise<AdLi
   })
 
   const url = `${META_GRAPH_BASE}/ads_archive?${params.toString()}`
-  const body = await metaFetchJson<AdsArchiveResponse>(url)
+  const body = await metaFetchJson(url, AdsArchiveResponseSchema)
   const data = body.data ?? []
 
   const videos = data.filter(isVideoAd).slice(0, parsed.limit)

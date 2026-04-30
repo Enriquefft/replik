@@ -9,6 +9,7 @@ import "server-only"
  * categories.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetchJson } from "./http"
 import {
@@ -21,13 +22,11 @@ import {
   type MetaCreds,
 } from "./types"
 
-interface CampaignCreateResponse {
-  id: string
-}
+const CampaignCreateResponseSchema = z.object({ id: z.string() })
 
-interface CampaignListResponse {
-  data?: { id: string; name: string; status: string }[]
-}
+const CampaignListResponseSchema = z.object({
+  data: z.array(z.object({ id: z.string(), name: z.string(), status: z.string() })).optional(),
+})
 
 function adAccountPath(creds: MetaCreds): string {
   const id = creds.ad_account_id.replace(/^act_/, "")
@@ -48,7 +47,7 @@ export async function campaignCreate(
     daily_budget: String(parsed.daily_budget_cents),
     special_ad_categories: JSON.stringify(parsed.special_ad_categories),
   }
-  const created = await metaFetchJson<CampaignCreateResponse>(url, {
+  const created = await metaFetchJson(url, CampaignCreateResponseSchema, {
     method: "POST",
     form,
     creds,
@@ -77,6 +76,6 @@ export async function campaignList(
     )
   }
   const url = `${adAccountPath(creds)}/campaigns?${params.toString()}`
-  const body = await metaFetchJson<CampaignListResponse>(url, { creds })
+  const body = await metaFetchJson(url, CampaignListResponseSchema, { creds })
   return (body.data ?? []).map((row) => CampaignSummarySchema.parse(row))
 }

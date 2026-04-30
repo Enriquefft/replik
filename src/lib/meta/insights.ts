@@ -16,6 +16,7 @@ import "server-only"
  *   - `results` = sum of `actions[action_type='*purchase*'].value`.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetchJson } from "./http"
 import {
@@ -26,35 +27,37 @@ import {
   type MetaCreds,
 } from "./types"
 
-interface InsightAction {
-  action_type: string
-  value: string
-}
+const InsightActionSchema = z.object({
+  action_type: z.string(),
+  value: z.string(),
+})
+type InsightAction = z.infer<typeof InsightActionSchema>
 
-interface CostPerActionType {
-  action_type: string
-  value: string
-}
+const CostPerActionTypeSchema = z.object({
+  action_type: z.string(),
+  value: z.string(),
+})
+type CostPerActionType = z.infer<typeof CostPerActionTypeSchema>
 
-interface PurchaseRoas {
-  action_type: string
-  value: string
-}
+const PurchaseRoasSchema = z.object({
+  action_type: z.string(),
+  value: z.string(),
+})
+type PurchaseRoas = z.infer<typeof PurchaseRoasSchema>
 
-interface RawInsight {
-  date_start: string
-  date_stop: string
-  spend?: string
-  impressions?: string
-  ctr?: string
-  actions?: InsightAction[]
-  cost_per_action_type?: CostPerActionType[]
-  purchase_roas?: PurchaseRoas[]
-}
-
-interface InsightsResponse {
-  data?: RawInsight[]
-}
+const RawInsightSchema = z.object({
+  date_start: z.string(),
+  date_stop: z.string(),
+  spend: z.string().optional(),
+  impressions: z.string().optional(),
+  ctr: z.string().optional(),
+  actions: z.array(InsightActionSchema).optional(),
+  cost_per_action_type: z.array(CostPerActionTypeSchema).optional(),
+  purchase_roas: z.array(PurchaseRoasSchema).optional(),
+})
+const InsightsResponseSchema = z.object({
+  data: z.array(RawInsightSchema).optional(),
+})
 
 const PURCHASE_TYPES = ["purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase"]
 
@@ -142,7 +145,7 @@ export async function insightsGet(creds: MetaCreds, filter: InsightsFilter): Pro
     if (parsed.date_preset) params.set("date_preset", parsed.date_preset)
 
     const url = `${META_GRAPH_BASE}/${encodeURIComponent(objectId)}/insights?${params.toString()}`
-    const body = await metaFetchJson<InsightsResponse>(url, { creds })
+    const body = await metaFetchJson(url, InsightsResponseSchema, { creds })
     for (const row of body.data ?? []) {
       const insight: Insight = {
         object_id: objectId,

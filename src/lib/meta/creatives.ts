@@ -8,6 +8,7 @@ import "server-only"
  * link-only ads aren't part of the LATAM video-first pipeline.
  */
 
+import { z } from "zod"
 import { META_GRAPH_BASE } from "./accounts"
 import { metaFetchJson } from "./http"
 import {
@@ -18,9 +19,7 @@ import {
   type MetaCreds,
 } from "./types"
 
-interface CreativeCreateResponse {
-  id: string
-}
+const CreativeCreateResponseSchema = z.object({ id: z.string() })
 
 function adAccountPath(creds: MetaCreds): string {
   const id = creds.ad_account_id.replace(/^act_/, "")
@@ -38,7 +37,7 @@ export async function creativeCreate(
     object_story_spec: JSON.stringify(parsed.object_story_spec),
   }
   const url = `${adAccountPath(creds)}/adcreatives`
-  const created = await metaFetchJson<CreativeCreateResponse>(url, {
+  const created = await metaFetchJson(url, CreativeCreateResponseSchema, {
     method: "POST",
     form,
     creds,
