@@ -111,14 +111,15 @@ Haiku 4.5 is not in the registry. Under credits framing the cost-sensitivity tha
 ### 2.2 Retry policy (`retry.ts`)
 
 ```ts
-generateWithRetry({
-  primary:   { model: MODELS.CLASSIFIER, schema },
-  bump:      { model: MODELS.CREATIVE,   schema, withCritique: true },
-  fallback:  () => Result               // caller-provided graceful degrade
-})
+withRetry({
+  primary:  (input) => Promise<Output>,           // first call (e.g. CLASSIFIER)
+  bumped:   (input, critique) => Promise<Output>, // bumped tier with critique block
+  fallback: (input, lastError) => Output,         // caller-provided graceful degrade
+  validate: (output) => { ok: true } | { ok: false, critique: string },
+}, input)
 ```
 
-Two LLM tries max, then graceful fallback. No agentic retry loops.
+Two LLM tries max, then graceful fallback. No agentic retry loops. The validator must remain synchronous — call sites compose the model/schema choice inside `primary`/`bumped`.
 
 ### 2.3 What we explicitly do NOT build
 

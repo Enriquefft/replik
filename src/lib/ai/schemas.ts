@@ -58,6 +58,21 @@ export type ProductFinal = z.infer<typeof ProductFinalSchema>
 
 // ─── Template picker ─────────────────────────────────────────────────────────
 
+/**
+ * Input to the Shopify template picker (§8).
+ * Free-text fields (name, description) originate from scraped pages and must
+ * be wrapped with `wrapUntrusted` before passing to any LLM.
+ */
+export const TemplatePickInputSchema = z.object({
+  name: z.string(),
+  category: InterestCategory,
+  description: z.string(),
+  priceText: z.string(),
+  heroImageUrl: z.url(),
+})
+
+export type TemplatePickInput = z.infer<typeof TemplatePickInputSchema>
+
 /** Output of Shopify template picker (§8). Fallback: templateId = 1. */
 export const TemplatePickResultSchema = z.object({
   templateId: TemplateId,

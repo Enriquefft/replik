@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "input": {
+        "name": "Organizador de cocina giratorio",
+        "category": "kitchen",
+        "description": "Organizador de especias con base giratoria 360°, fácil de limpiar y resistente.",
+        "priceText": "S/ 59.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0001/kitchen-organizer.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Silla ergonómica de oficina",
+        "category": "home_garden",
+        "description": "Silla de oficina con soporte lumbar ajustable y apoyabrazos regulables. Material premium.",
+        "priceText": "S/ 299.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0002/ergonomic-chair.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Set de cuchillos de acero inoxidable",
+        "category": "kitchen",
+        "description": "Juego de 6 cuchillos profesionales con mango de madera natural y hoja de acero inoxidable.",
+        "priceText": "S/ 149.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0003/knife-set.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Monitor LED 24 pulgadas Full HD",
+        "category": "home_garden",
+        "description": "Monitor profesional con panel IPS, 75Hz, conexión HDMI y DisplayPort. Sin marco.",
+        "priceText": "S/ 589.00",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0004/monitor-led.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Aspiradora sin cable 22000Pa",
+        "category": "home_garden",
+        "description": "Aspiradora inalámbrica con filtro HEPA, 60 min de autonomía y cabezal flexible.",
+        "priceText": "S/ 239.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0005/vacuum-cleaner.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Tabla de cortar de bambú premium",
+        "category": "kitchen",
+        "description": "Tabla de cocina antibacteriana de bambú orgánico con ranura para jugos. 40×25 cm.",
+        "priceText": "S/ 49.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0006/cutting-board.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Pesas de mano 5kg par",
+        "category": "fitness",
+        "description": "Mancuernas recubiertas en vinilo antideslizante. Peso exacto certificado. Color negro.",
+        "priceText": "S/ 89.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0007/dumbbells.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Purificador de agua 5 etapas",
+        "category": "home_garden",
+        "description": "Purificador bajo mesada con 5 filtros: sedimento, carbón, membrana RO, minerales, UV.",
+        "priceText": "S/ 399.00",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0008/water-purifier.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Olla a presión de 6 litros",
+        "category": "kitchen",
+        "description": "Olla a presión de acero inoxidable 18/10 con válvula de seguridad triple. Apta para inducción.",
+        "priceText": "S/ 199.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0009/pressure-cooker.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Báscula digital de precisión",
+        "category": "fitness",
+        "description": "Báscula de cocina hasta 5 kg con pantalla LCD retroiluminada y función tara. Precisión 1 g.",
+        "priceText": "S/ 39.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0010/kitchen-scale.jpg"
+      },
+      "expectedTemplateId": 1
+    },
+    {
+      "input": {
+        "name": "Serum vitamina C con ácido hialurónico",
+        "category": "beauty",
+        "description": "¡OFERTA ESPECIAL! Serum antienvejecimiento con 20% vitamina C. Solo quedan 50 unidades.",
+        "priceText": "S/ 79.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0011/vitamin-c-serum.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Faja reductora modeladora",
+        "category": "beauty",
+        "description": "Faja de control total con tecnología de compresión gradiente. DESCUENTO de 40% solo hoy.",
+        "priceText": "S/ 89.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0012/waist-trainer.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Mascarilla LED para el rostro",
+        "category": "beauty",
+        "description": "Mascarilla de fototerapia 7 colores LED para rejuvenecimiento. ÚLTIMAS UNIDADES disponibles.",
+        "priceText": "S/ 149.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0013/led-mask.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Suplemento quema grasa termogénico",
+        "category": "fitness",
+        "description": "Termogénico natural con extracto de té verde y cafeína. Stock limitado. Envío hoy.",
+        "priceText": "S/ 119.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0014/fat-burner.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Rizador automático de cabello 32mm",
+        "category": "beauty",
+        "description": "Rizador con tecnología iónica y cerámica. PRECIO ESPECIAL por tiempo limitado. Ahorra S/ 50.",
+        "priceText": "S/ 99.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0015/curling-iron.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Cinturón abdominal EMS",
+        "category": "fitness",
+        "description": "Cinturón de electroestimulación muscular. Solo hoy con descuento exclusivo del 35%.",
+        "priceText": "S/ 139.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0016/ems-belt.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Crema blanqueadora de manchas",
+        "category": "beauty",
+        "description": "Crema despigmentante con niacinamida y retinol. OFERTA FLASH: 2x1 solo hoy. Stock mínimo.",
+        "priceText": "S/ 69.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0017/brightening-cream.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Batidora de proteínas eléctrica",
+        "category": "fitness",
+        "description": "Shaker eléctrico USB para batidos perfectos sin grumos. Quedan pocas unidades. Precio especial.",
+        "priceText": "S/ 59.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0018/protein-shaker.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Plancha de cabello titanio 450°F",
+        "category": "beauty",
+        "description": "Plancha profesional con placas de titanio flotante. DESCUENTO LIMITADO: envío gratis hoy.",
+        "priceText": "S/ 129.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0019/hair-straightener.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Pack proteína whey + creatina",
+        "category": "fitness",
+        "description": "Combo exclusivo por tiempo limitado: 1 kg whey + 300 g creatina. Solo hoy con 30% OFF.",
+        "priceText": "S/ 189.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0020/protein-pack.jpg"
+      },
+      "expectedTemplateId": 2
+    },
+    {
+      "input": {
+        "name": "Difusor de aromas ultrasónico bambú",
+        "category": "home_garden",
+        "description": "Difusor de esencias con luz ambiental LED cálida y diseño de bambú natural para tu hogar.",
+        "priceText": "S/ 79.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0021/aromatherapy-diffuser.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Collar personalizado con nombre grabado",
+        "category": "beauty",
+        "description": "Collar de acero inoxidable dorado con nombre grabado a mano. Perfecto para regalar con amor.",
+        "priceText": "S/ 49.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0022/name-necklace.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Hamaca de algodón para jardín",
+        "category": "home_garden",
+        "description": "Hamaca artesanal de algodón macramé. Ideal para disfrutar tardes relajadas en tu jardín.",
+        "priceText": "S/ 119.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0023/garden-hammock.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Set de yoga premium con bolsa",
+        "category": "fitness",
+        "description": "Mat antideslizante + 2 bloques + correa. Diseñado para tu práctica diaria de bienestar.",
+        "priceText": "S/ 139.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0024/yoga-set.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Cama ortopédica para mascotas",
+        "category": "pets",
+        "description": "Cama acolchada con espuma viscoelástica para el descanso de tu mascota. Suave y lavable.",
+        "priceText": "S/ 99.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0025/pet-bed.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Aceite corporal nutritivo de argán",
+        "category": "beauty",
+        "description": "Aceite 100% natural de argán marroquí para piel suave y radiante. Un ritual de autocuidado.",
+        "priceText": "S/ 59.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0026/argan-oil.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Juego de riego automático para plantas",
+        "category": "home_garden",
+        "description": "Sistema de riego por goteo con temporizador. Cuida tus plantas mientras disfrutas tu vida.",
+        "priceText": "S/ 89.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0027/plant-watering.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Comedero automático para perros",
+        "category": "pets",
+        "description": "Comedero con dispensador programable hasta 4 comidas al día. Tu perro feliz, tú tranquilo.",
+        "priceText": "S/ 149.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0028/auto-feeder.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Bolsa de transporte para gatos",
+        "category": "pets",
+        "description": "Mochila tipo cápsula transparente para llevar a tu gato a pasear cómodamente. Estilo y amor.",
+        "priceText": "S/ 129.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0029/cat-backpack.jpg"
+      },
+      "expectedTemplateId": 3
+    },
+    {
+      "input": {
+        "name": "Vela aromática de soja con cristales",
+        "category": "home_garden",
+        "description": "Vela artesanal de cera de soja con cristales de cuarzo rosa y esencia de lavanda. Para regalar.",
+        "priceText": "S/ 45.90",
+        "heroImageUrl": "https://cdn.shopify.com/s/files/1/0030/crystal-candle.jpg"
+      },
+      "expectedTemplateId": 3
+    }
+  ]
+}
