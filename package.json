@@ -18,7 +18,7 @@
     "trigger:dev": "trigger dev",
     "trigger:deploy": "trigger deploy",
     "knip": "DATABASE_URL=postgresql://ci:ci@localhost/ci knip",
-    "knip:fix": "knip --fix --allow-remove-files",
+    "knip:fix": "DATABASE_URL=postgresql://ci:ci@localhost/ci knip --fix --allow-remove-files",
     "prepare": "lefthook install || true"
   },
   "dependencies": {
