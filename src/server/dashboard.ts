@@ -12,20 +12,21 @@ import {
 } from "@/db/schema";
 
 export interface DashboardProductMetrics {
-  spend_cents: number;
+  spendCents: number;
   results: number;
-  cpa_cents: number | null;
+  cpaCents: number | null;
   roas: number | null;
 }
 
 export interface DashboardProduct {
   id: string;
   name: string | null;
+  imageUrl: string | null;
   status: Product["status"];
-  shopify_page_handle: string | null;
+  shopifyPageHandle: string | null;
   metrics: DashboardProductMetrics;
-  orders_count: number;
-  created_at: Date;
+  ordersCount: number;
+  createdAt: Date;
 }
 
 export interface DashboardData {
@@ -49,23 +50,24 @@ export async function getDashboardData(
         .select({
           id: products.id,
           name: products.name,
+          imageUrl: products.imageUrl,
           status: products.status,
-          shopify_page_handle: products.shopifyPageHandle,
-          created_at: products.createdAt,
+          shopifyPageHandle: products.shopifyPageHandle,
+          createdAt: products.createdAt,
         })
         .from(products)
         .where(eq(products.userId, userId)),
 
       db
         .select({
-          product_id: campaigns.productId,
-          spend_cents:
+          productId: campaigns.productId,
+          spendCents:
             sql<number>`COALESCE(SUM(${metrics.spendCents}), 0)`.mapWith(
               Number,
             ),
           results:
             sql<number>`COALESCE(SUM(${metrics.results}), 0)`.mapWith(Number),
-          cpa_cents: sql<number | null>`
+          cpaCents: sql<number | null>`
             CASE
               WHEN COALESCE(SUM(${metrics.results}), 0) = 0 THEN NULL
               ELSE (SUM(${metrics.spendCents})::float / SUM(${metrics.results}))::int
@@ -85,19 +87,17 @@ export async function getDashboardData(
 
       db
         .select({
-          product_id: orders.productId,
-          orders_count: count(orders.id).mapWith(Number),
+          productId: orders.productId,
+          ordersCount: count(orders.id).mapWith(Number),
         })
         .from(orders)
         .where(eq(orders.userId, userId))
         .groupBy(orders.productId),
     ]);
 
-    const metricsByProduct = new Map(
-      metricRows.map((m) => [m.product_id, m]),
-    );
+    const metricsByProduct = new Map(metricRows.map((m) => [m.productId, m]));
     const ordersByProduct = new Map(
-      orderRows.map((o) => [o.product_id, o.orders_count]),
+      orderRows.map((o) => [o.productId, o.ordersCount]),
     );
 
     const productsOut: DashboardProduct[] = productRows.map((p) => {
@@ -105,16 +105,17 @@ export async function getDashboardData(
       return {
         id: p.id,
         name: p.name,
+        imageUrl: p.imageUrl,
         status: p.status,
-        shopify_page_handle: p.shopify_page_handle,
+        shopifyPageHandle: p.shopifyPageHandle,
         metrics: {
-          spend_cents: m?.spend_cents ?? 0,
+          spendCents: m?.spendCents ?? 0,
           results: m?.results ?? 0,
-          cpa_cents: m?.cpa_cents ?? null,
+          cpaCents: m?.cpaCents ?? null,
           roas: m?.roas ?? null,
         },
-        orders_count: ordersByProduct.get(p.id) ?? 0,
-        created_at: p.created_at,
+        ordersCount: ordersByProduct.get(p.id) ?? 0,
+        createdAt: p.createdAt,
       };
     });
 

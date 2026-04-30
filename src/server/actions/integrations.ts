@@ -9,6 +9,7 @@ import {
   pixelsList,
 } from "@/lib/meta";
 import { ShopifyAuthError, validateToken } from "@/lib/shopify";
+import type { ActionResult } from "./types.ts";
 
 const ShopifyFormInput = z.object({
   provider: z.literal("shopify"),
@@ -29,10 +30,6 @@ const Input = z.discriminatedUnion("provider", [
 ]);
 
 export type SaveIntegrationInput = z.infer<typeof Input>;
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; needs: "meta" | "shopify"; error?: string };
 
 function inferProvider(raw: unknown): "meta" | "shopify" {
   if (typeof raw === "object" && raw !== null && "provider" in raw) {

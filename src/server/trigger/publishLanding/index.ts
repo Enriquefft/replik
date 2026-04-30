@@ -25,6 +25,20 @@ import { requireIntegration } from "@/server/integrations";
 interface PublishLandingPayload {
   productId: string;
   userId: string;
+  /**
+   * Template chosen by the user via the picker. Optional — when omitted the
+   * task falls back to the LLM-driven `pickTemplate` heuristic.
+   */
+  templateId?: 1 | 2 | 3;
+  /**
+   * Optional copy overrides set by the user from the chat panel. Substituted
+   * into the rendered template's `{{title}}` / `{{subtitle}}` variables when
+   * present.
+   */
+  overrides?: {
+    headline?: string;
+    subheadline?: string;
+  };
 }
 
 interface PublishLandingResult {
@@ -50,7 +64,13 @@ export const publishLandingTask = task({
     { ctx },
   ): Promise<PublishLandingResult> => {
     const { productId, userId } = payload;
-    logger.info("publishLanding:start", { productId, userId });
+    const overrides = payload.overrides;
+    logger.info("publishLanding:start", {
+      productId,
+      userId,
+      hasOverride: overrides !== undefined,
+      explicitTemplate: payload.templateId,
+    });
 
     // 1. Load product + user inside tenant scope.
     const loaded = await withUser(userId, async (db) => {
@@ -121,12 +141,17 @@ export const publishLandingTask = task({
       // crashed mid-pipeline. Fall through and run the pipeline again.
     }
 
-    // 3. Pick template via LLM.
-    const templateId = await pickTemplate({
-      name: product.name ?? "Producto",
-      category: product.category,
+    // 3. Resolve template — explicit user choice wins; otherwise LLM picks.
+    const templateId =
+      payload.templateId ??
+      (await pickTemplate({
+        name: product.name ?? "Producto",
+        category: product.category,
+      }));
+    logger.info("publishLanding:template-picked", {
+      templateId,
+      source: payload.templateId !== undefined ? "user" : "llm",
     });
-    logger.info("publishLanding:template-picked", { templateId });
 
     // 4. Resolve Shopify integration.
     const shopifyCreds = await requireIntegration(userId, "shopify");
@@ -218,7 +243,8 @@ export const publishLandingTask = task({
     }
 
     const vars = {
-      title: product.name ?? "Producto",
+      title: overrides?.headline ?? product.name ?? "Producto",
+      subtitle: overrides?.subheadline ?? "",
       price: priceCentsToString(product.pricingCents),
       bundle_2_price: priceCentsToString(product.bundle2PricingCents),
       bundle_3_price: priceCentsToString(product.bundle3PricingCents),

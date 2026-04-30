@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
 import { requireUser, withUser } from "@/db/client";
@@ -9,10 +10,20 @@ import {
   requireIntegration,
 } from "@/server/integrations";
 import type { publishLandingTask } from "@/server/trigger/publishLanding";
+import type { ActionResult } from "./types.ts";
 
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; needs: "meta" | "shopify"; error?: string };
+const PublishLandingInput = z.object({
+  productId: z.uuid(),
+  templateId: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  overrides: z
+    .object({
+      headline: z.string().max(120).optional(),
+      subheadline: z.string().max(180).optional(),
+    })
+    .optional(),
+});
+
+export type PublishLandingInput = z.infer<typeof PublishLandingInput>;
 
 /**
  * JIT credential gate + run trigger for the publishLanding pipeline.
@@ -20,11 +31,17 @@ export type ActionResult<T> =
  * integration so the client can mount `<CredentialsModal provider="shopify"/>`.
  */
 export async function publishLanding(
-  productId: string,
+  rawInput: unknown,
 ): Promise<ActionResult<{ runId: string }>> {
-  if (typeof productId !== "string" || productId.length === 0) {
-    return { ok: false, needs: "shopify", error: "productId requerido." };
+  const parsed = PublishLandingInput.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos.",
+    };
   }
+  const { productId, templateId, overrides } = parsed.data;
+
   const { userId } = await requireUser();
 
   // Verify product belongs to user before doing anything else.
@@ -37,7 +54,7 @@ export async function publishLanding(
     return rows[0];
   });
   if (!owned) {
-    return { ok: false, needs: "shopify", error: "Producto no encontrado." };
+    return { ok: false, error: "Producto no encontrado." };
   }
 
   // Gate on Shopify integration. We do not need Meta to publish a landing —
@@ -51,9 +68,26 @@ export async function publishLanding(
     throw err;
   }
 
+  const overridesPayload =
+    overrides === undefined
+      ? undefined
+      : {
+          ...(overrides.headline !== undefined && {
+            headline: overrides.headline,
+          }),
+          ...(overrides.subheadline !== undefined && {
+            subheadline: overrides.subheadline,
+          }),
+        };
+
   const handle = await tasks.trigger<typeof publishLandingTask>(
     "publishLanding",
-    { productId, userId },
+    {
+      productId,
+      userId,
+      ...(templateId !== undefined && { templateId }),
+      ...(overridesPayload !== undefined && { overrides: overridesPayload }),
+    },
   );
 
   return { ok: true, data: { runId: handle.id } };
