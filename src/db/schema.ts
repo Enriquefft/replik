@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core"
 import type { z } from "zod"
 
+import type { CopyContent } from "@/lib/ai/schemas.ts"
 import type { InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
 
 type SalesAngleT = z.infer<typeof SalesAngle>
@@ -158,7 +159,7 @@ export const ads = pgTable("ads", {
   headline: text("headline").notNull(),
   description: text("description").notNull(),
   ctaType: ctaTypeEnum("cta_type").notNull(),
-  copyJson: jsonb("copy_json").notNull(),
+  copyJson: jsonb("copy_json").$type<CopyContent>().notNull(),
 })
 
 export const metrics = pgTable("metrics", {

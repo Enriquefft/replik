@@ -73,10 +73,3 @@ export const EncryptedExtraJson = z.discriminatedUnion("provider", [
   }),
 ])
 export type EncryptedExtraJson = z.infer<typeof EncryptedExtraJson>
-
-export const CopyJson = z.object({
-  primary_text: z.string(),
-  headline: z.string(),
-  description: z.string(),
-})
-export type CopyJson = z.infer<typeof CopyJson>

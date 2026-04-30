@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { Product } from "@/db/zod.ts"
 import { InterestCategory, Locale, SalesAngle, TemplateId } from "@/lib/ai/taxonomies.ts"
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
@@ -19,6 +20,32 @@ export type CopyContent = z.infer<typeof CopyContentSchema>
 export const CopyContentBatchSchema = z.array(CopyContentSchema).length(5)
 
 export type CopyContentBatch = z.infer<typeof CopyContentBatchSchema>
+
+/**
+ * Per-creative input for copy gen (§11). Carries id, classified angle,
+ * raw transcript (capped at the call site), and the source language.
+ */
+export const CopyGenCreativeSchema = z.object({
+  id: z.string().min(1),
+  angle: SalesAngle.nullable(),
+  transcript: z.string(),
+  language: z.string(),
+})
+
+export type CopyGenCreative = z.infer<typeof CopyGenCreativeSchema>
+
+/**
+ * Input to `generateCopy` (§11). The product row is sourced from the DB —
+ * derived via drizzle-zod's `Product` schema so the shape stays SSOT with
+ * `products.$inferSelect`. Creatives carry the angle + transcript pair the
+ * upstream pipeline produced.
+ */
+export const CopyGenInputSchema = z.object({
+  product: Product,
+  creatives: z.array(CopyGenCreativeSchema).min(1),
+})
+
+export type CopyGenInput = z.infer<typeof CopyGenInputSchema>
 
 // ─── Scrape ──────────────────────────────────────────────────────────────────
 

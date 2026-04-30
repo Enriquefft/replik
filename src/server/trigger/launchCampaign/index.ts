@@ -23,7 +23,7 @@ import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { withUser } from "@/db/client"
 import { ads, assets, campaigns, creatives, idempotencyKeys, products } from "@/db/schema"
-import { generateCopies } from "@/lib/copy/generate"
+import { generateCopy } from "@/lib/ai/copy-gen.ts"
 import {
   adCreate,
   adsetCreate,
@@ -148,13 +148,7 @@ export const launchCampaign = schemaTask({
     // 2. Load product, selected creatives + their edited_video assets.
     const loaded = await withUser(userId, async (db) => {
       const prodRows = await db
-        .select({
-          id: products.id,
-          name: products.name,
-          imageUrl: products.imageUrl,
-          category: products.category,
-          shopifyPageHandle: products.shopifyPageHandle,
-        })
+        .select()
         .from(products)
         .where(and(eq(products.id, productId), eq(products.userId, userId)))
         .limit(1)
@@ -165,6 +159,7 @@ export const launchCampaign = schemaTask({
           id: creatives.id,
           angle: creatives.angle,
           transcript: creatives.transcriptText,
+          language: creatives.language,
           assetUrl: assets.url,
           assetBytes: assets.bytes,
         })
@@ -228,17 +223,18 @@ export const launchCampaign = schemaTask({
       ? `https://${shopDomain}/pages/${pageHandle}`
       : `https://example.com/${pageHandle}`
 
-    // 4. Copy generation — single batched LLM call.
-    const copies = await generateCopies({
-      productName,
-      category: product.category,
+    // 4. Copy generation — §11 best-of-5 + Opus judge + post-check.
+    // One copy unit shared across every ad in this launch.
+    const copy = await generateCopy({
+      product,
       creatives: selected.map((c) => ({
         id: c.id,
         angle: c.angle,
-        transcript: c.transcript,
+        transcript: c.transcript ?? "",
+        language: c.language ?? "es",
       })),
     })
-    logger.info("copy_generation_done", { count: copies.size })
+    logger.info("copy_generation_done", { adCount: selected.length })
 
     // 5. Sequential video uploads (Meta requires per-video resumable flow).
     const videoIds = new Map<string, string>()
@@ -378,9 +374,8 @@ export const launchCampaign = schemaTask({
     for (let i = 0; i < selected.length; i++) {
       const c = selected[i]
       if (!c) continue
-      const copy = copies.get(c.id)
       const videoId = videoIds.get(c.id)
-      if (!copy || !videoId) {
+      if (!videoId) {
         throw new LaunchError(`Estado interno inconsistente para creativo ${c.id}.`)
       }
       const angle = c.angle ?? "default"
@@ -394,7 +389,7 @@ export const launchCampaign = schemaTask({
             video_data: {
               video_id: videoId,
               image_hash: imageHash,
-              message: copy.primary_text,
+              message: copy.primaryText,
               title: copy.headline,
               call_to_action: {
                 type: "SHOP_NOW",
@@ -437,7 +432,7 @@ export const launchCampaign = schemaTask({
           userId,
           creativeId: c.id,
           metaAdId,
-          primaryText: copy.primary_text,
+          primaryText: copy.primaryText,
           headline: copy.headline,
           description: copy.description,
           ctaType: "SHOP_NOW",

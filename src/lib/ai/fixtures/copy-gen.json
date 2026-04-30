@@ -1,0 +1,2297 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000001",
+          "userId": "11111111-1111-4111-8111-000000000065",
+          "sourceUrl": "https://shop.example.com/p/1",
+          "name": "Producto Happy 1",
+          "imageUrl": "https://cdn.example.com/1.jpg",
+          "category": "kitchen",
+          "pricingCents": 5000,
+          "bundle2PricingCents": 9000,
+          "bundle3PricingCents": 13000,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-1",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000000d2",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 1-0 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000d3",
+            "angle": "urgencia",
+            "transcript": "Transcripción sintética para creativo 1-1 con ángulo urgencia. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000d4",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 1-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 0",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 0,
+      "stage2JudgeB": 0,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 0",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000002",
+          "userId": "11111111-1111-4111-8111-000000000066",
+          "sourceUrl": "https://shop.example.com/p/2",
+          "name": "Producto Happy 2",
+          "imageUrl": "https://cdn.example.com/2.jpg",
+          "category": "kitchen",
+          "pricingCents": 5100,
+          "bundle2PricingCents": 9100,
+          "bundle3PricingCents": 13100,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-2",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000000dc",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 2-0 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000dd",
+            "angle": "dolor",
+            "transcript": "Transcripción sintética para creativo 2-1 con ángulo dolor. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000de",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 2-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 1",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000003",
+          "userId": "11111111-1111-4111-8111-000000000067",
+          "sourceUrl": "https://shop.example.com/p/3",
+          "name": "Producto Happy 3",
+          "imageUrl": "https://cdn.example.com/3.jpg",
+          "category": "kitchen",
+          "pricingCents": 5200,
+          "bundle2PricingCents": 9200,
+          "bundle3PricingCents": 13200,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-3",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000000e6",
+            "angle": "testimonio",
+            "transcript": "Transcripción sintética para creativo 3-0 con ángulo testimonio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000e7",
+            "angle": "aspiracional",
+            "transcript": "Transcripción sintética para creativo 3-1 con ángulo aspiracional. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000e8",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 3-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 2",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 2,
+      "stage2JudgeB": 2,
+      "expectedFinal": {
+        "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+        "headline": "Tres meses sin recargas",
+        "description": "Voz de cliente real"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000004",
+          "userId": "11111111-1111-4111-8111-000000000068",
+          "sourceUrl": "https://shop.example.com/p/4",
+          "name": "Producto Happy 4",
+          "imageUrl": "https://cdn.example.com/4.jpg",
+          "category": "kitchen",
+          "pricingCents": 5300,
+          "bundle2PricingCents": 9300,
+          "bundle3PricingCents": 13300,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-4",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000000f0",
+            "angle": "urgencia",
+            "transcript": "Transcripción sintética para creativo 4-0 con ángulo urgencia. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000f1",
+            "angle": "comparacion",
+            "transcript": "Transcripción sintética para creativo 4-1 con ángulo comparacion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000f2",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 4-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 3",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 3,
+      "stage2JudgeB": 3,
+      "expectedFinal": {
+        "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+        "headline": "Un accesorio, todo el día",
+        "description": "Sin repuestos extra"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000005",
+          "userId": "11111111-1111-4111-8111-000000000069",
+          "sourceUrl": "https://shop.example.com/p/5",
+          "name": "Producto Happy 5",
+          "imageUrl": "https://cdn.example.com/5.jpg",
+          "category": "kitchen",
+          "pricingCents": 5400,
+          "bundle2PricingCents": 9400,
+          "bundle3PricingCents": 13400,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-5",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000000fa",
+            "angle": "dolor",
+            "transcript": "Transcripción sintética para creativo 5-0 con ángulo dolor. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000fb",
+            "angle": "regalo",
+            "transcript": "Transcripción sintética para creativo 5-1 con ángulo regalo. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000000fc",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 5-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 4",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 4,
+      "stage2JudgeB": 4,
+      "expectedFinal": {
+        "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+        "headline": "Mesa lista en 5 minutos",
+        "description": "Cocina sin estrés"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000006",
+          "userId": "11111111-1111-4111-8111-00000000006a",
+          "sourceUrl": "https://shop.example.com/p/6",
+          "name": "Producto Happy 6",
+          "imageUrl": "https://cdn.example.com/6.jpg",
+          "category": "kitchen",
+          "pricingCents": 5500,
+          "bundle2PricingCents": 9500,
+          "bundle3PricingCents": 13500,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-6",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000104",
+            "angle": "aspiracional",
+            "transcript": "Transcripción sintética para creativo 6-0 con ángulo aspiracional. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000105",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 6-1 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000106",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 6-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 5",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 0,
+      "stage2JudgeB": 0,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 5",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000007",
+          "userId": "11111111-1111-4111-8111-00000000006b",
+          "sourceUrl": "https://shop.example.com/p/7",
+          "name": "Producto Happy 7",
+          "imageUrl": "https://cdn.example.com/7.jpg",
+          "category": "kitchen",
+          "pricingCents": 5600,
+          "bundle2PricingCents": 9600,
+          "bundle3PricingCents": 13600,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-7",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-00000000010e",
+            "angle": "comparacion",
+            "transcript": "Transcripción sintética para creativo 7-0 con ángulo comparacion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000010f",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 7-1 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000110",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 7-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 6",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000008",
+          "userId": "11111111-1111-4111-8111-00000000006c",
+          "sourceUrl": "https://shop.example.com/p/8",
+          "name": "Producto Happy 8",
+          "imageUrl": "https://cdn.example.com/8.jpg",
+          "category": "kitchen",
+          "pricingCents": 5700,
+          "bundle2PricingCents": 9700,
+          "bundle3PricingCents": 13700,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-8",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000118",
+            "angle": "regalo",
+            "transcript": "Transcripción sintética para creativo 8-0 con ángulo regalo. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000119",
+            "angle": "testimonio",
+            "transcript": "Transcripción sintética para creativo 8-1 con ángulo testimonio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000011a",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 8-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 7",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 2,
+      "stage2JudgeB": 2,
+      "expectedFinal": {
+        "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+        "headline": "Tres meses sin recargas",
+        "description": "Voz de cliente real"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000009",
+          "userId": "11111111-1111-4111-8111-00000000006d",
+          "sourceUrl": "https://shop.example.com/p/9",
+          "name": "Producto Happy 9",
+          "imageUrl": "https://cdn.example.com/9.jpg",
+          "category": "kitchen",
+          "pricingCents": 5800,
+          "bundle2PricingCents": 9800,
+          "bundle3PricingCents": 13800,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-9",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000122",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 9-0 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000123",
+            "angle": "urgencia",
+            "transcript": "Transcripción sintética para creativo 9-1 con ángulo urgencia. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000124",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 9-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 8",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 3,
+      "stage2JudgeB": 3,
+      "expectedFinal": {
+        "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+        "headline": "Un accesorio, todo el día",
+        "description": "Sin repuestos extra"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-00000000000a",
+          "userId": "11111111-1111-4111-8111-00000000006e",
+          "sourceUrl": "https://shop.example.com/p/10",
+          "name": "Producto Happy 10",
+          "imageUrl": "https://cdn.example.com/10.jpg",
+          "category": "kitchen",
+          "pricingCents": 5900,
+          "bundle2PricingCents": 9900,
+          "bundle3PricingCents": 13900,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-10",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-00000000012c",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 10-0 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000012d",
+            "angle": "dolor",
+            "transcript": "Transcripción sintética para creativo 10-1 con ángulo dolor. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000012e",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 10-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 9",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 4,
+      "stage2JudgeB": 4,
+      "expectedFinal": {
+        "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+        "headline": "Mesa lista en 5 minutos",
+        "description": "Cocina sin estrés"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-00000000000b",
+          "userId": "11111111-1111-4111-8111-00000000006f",
+          "sourceUrl": "https://shop.example.com/p/11",
+          "name": "Producto Happy 11",
+          "imageUrl": "https://cdn.example.com/11.jpg",
+          "category": "kitchen",
+          "pricingCents": 6000,
+          "bundle2PricingCents": 10000,
+          "bundle3PricingCents": 14000,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-11",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000136",
+            "angle": "testimonio",
+            "transcript": "Transcripción sintética para creativo 11-0 con ángulo testimonio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000137",
+            "angle": "aspiracional",
+            "transcript": "Transcripción sintética para creativo 11-1 con ángulo aspiracional. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000138",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 11-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 10",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 0,
+      "stage2JudgeB": 0,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 10",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-00000000000c",
+          "userId": "11111111-1111-4111-8111-000000000070",
+          "sourceUrl": "https://shop.example.com/p/12",
+          "name": "Producto Happy 12",
+          "imageUrl": "https://cdn.example.com/12.jpg",
+          "category": "kitchen",
+          "pricingCents": 6100,
+          "bundle2PricingCents": 10100,
+          "bundle3PricingCents": 14100,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-12",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000140",
+            "angle": "urgencia",
+            "transcript": "Transcripción sintética para creativo 12-0 con ángulo urgencia. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000141",
+            "angle": "comparacion",
+            "transcript": "Transcripción sintética para creativo 12-1 con ángulo comparacion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000142",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 12-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 11",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-00000000000d",
+          "userId": "11111111-1111-4111-8111-000000000071",
+          "sourceUrl": "https://shop.example.com/p/13",
+          "name": "Producto Happy 13",
+          "imageUrl": "https://cdn.example.com/13.jpg",
+          "category": "kitchen",
+          "pricingCents": 6200,
+          "bundle2PricingCents": 10200,
+          "bundle3PricingCents": 14200,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-13",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-00000000014a",
+            "angle": "dolor",
+            "transcript": "Transcripción sintética para creativo 13-0 con ángulo dolor. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000014b",
+            "angle": "regalo",
+            "transcript": "Transcripción sintética para creativo 13-1 con ángulo regalo. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000014c",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 13-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 12",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 2,
+      "stage2JudgeB": 2,
+      "expectedFinal": {
+        "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+        "headline": "Tres meses sin recargas",
+        "description": "Voz de cliente real"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-00000000000e",
+          "userId": "11111111-1111-4111-8111-000000000072",
+          "sourceUrl": "https://shop.example.com/p/14",
+          "name": "Producto Happy 14",
+          "imageUrl": "https://cdn.example.com/14.jpg",
+          "category": "kitchen",
+          "pricingCents": 6300,
+          "bundle2PricingCents": 10300,
+          "bundle3PricingCents": 14300,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-14",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000154",
+            "angle": "aspiracional",
+            "transcript": "Transcripción sintética para creativo 14-0 con ángulo aspiracional. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000155",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 14-1 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000156",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 14-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 13",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 3,
+      "stage2JudgeB": 3,
+      "expectedFinal": {
+        "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+        "headline": "Un accesorio, todo el día",
+        "description": "Sin repuestos extra"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-00000000000f",
+          "userId": "11111111-1111-4111-8111-000000000073",
+          "sourceUrl": "https://shop.example.com/p/15",
+          "name": "Producto Happy 15",
+          "imageUrl": "https://cdn.example.com/15.jpg",
+          "category": "kitchen",
+          "pricingCents": 6400,
+          "bundle2PricingCents": 10400,
+          "bundle3PricingCents": 14400,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-15",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-00000000015e",
+            "angle": "comparacion",
+            "transcript": "Transcripción sintética para creativo 15-0 con ángulo comparacion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000015f",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 15-1 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000160",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 15-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 14",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 4,
+      "stage2JudgeB": 4,
+      "expectedFinal": {
+        "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+        "headline": "Mesa lista en 5 minutos",
+        "description": "Cocina sin estrés"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000010",
+          "userId": "11111111-1111-4111-8111-000000000074",
+          "sourceUrl": "https://shop.example.com/p/16",
+          "name": "Producto Happy 16",
+          "imageUrl": "https://cdn.example.com/16.jpg",
+          "category": "kitchen",
+          "pricingCents": 6500,
+          "bundle2PricingCents": 10500,
+          "bundle3PricingCents": 14500,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-16",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000168",
+            "angle": "regalo",
+            "transcript": "Transcripción sintética para creativo 16-0 con ángulo regalo. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000169",
+            "angle": "testimonio",
+            "transcript": "Transcripción sintética para creativo 16-1 con ángulo testimonio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000016a",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 16-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 15",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 0,
+      "stage2JudgeB": 0,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 15",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000011",
+          "userId": "11111111-1111-4111-8111-000000000075",
+          "sourceUrl": "https://shop.example.com/p/17",
+          "name": "Producto Happy 17",
+          "imageUrl": "https://cdn.example.com/17.jpg",
+          "category": "kitchen",
+          "pricingCents": 6600,
+          "bundle2PricingCents": 10600,
+          "bundle3PricingCents": 14600,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-17",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000172",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 17-0 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000173",
+            "angle": "urgencia",
+            "transcript": "Transcripción sintética para creativo 17-1 con ángulo urgencia. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-000000000174",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 17-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 16",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "happy",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000012",
+          "userId": "11111111-1111-4111-8111-000000000076",
+          "sourceUrl": "https://shop.example.com/p/18",
+          "name": "Producto Happy 18",
+          "imageUrl": "https://cdn.example.com/18.jpg",
+          "category": "kitchen",
+          "pricingCents": 6700,
+          "bundle2PricingCents": 10700,
+          "bundle3PricingCents": 14700,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-18",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-00000000017c",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 18-0 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000017d",
+            "angle": "dolor",
+            "transcript": "Transcripción sintética para creativo 18-1 con ángulo dolor. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-00000000017e",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 18-2 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 17",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 2,
+      "stage2JudgeB": 2,
+      "expectedFinal": {
+        "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+        "headline": "Tres meses sin recargas",
+        "description": "Voz de cliente real"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "judge-disagreement",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000064",
+          "userId": "11111111-1111-4111-8111-0000000000c8",
+          "sourceUrl": "https://shop.example.com/p/100",
+          "name": "Producto JudgeDisagree 1",
+          "imageUrl": "https://cdn.example.com/100.jpg",
+          "category": "beauty",
+          "pricingCents": 14900,
+          "bundle2PricingCents": 18900,
+          "bundle3PricingCents": 22900,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-100",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000004b0",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 100-0 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000004b1",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 100-1 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 100",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 3,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 100",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "judge-disagreement",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000065",
+          "userId": "11111111-1111-4111-8111-0000000000c9",
+          "sourceUrl": "https://shop.example.com/p/101",
+          "name": "Producto JudgeDisagree 2",
+          "imageUrl": "https://cdn.example.com/101.jpg",
+          "category": "beauty",
+          "pricingCents": 15000,
+          "bundle2PricingCents": 19000,
+          "bundle3PricingCents": 23000,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-101",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000004ba",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 101-0 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000004bb",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 101-1 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 101",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 2,
+      "stage2JudgeB": 4,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 101",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "judge-disagreement",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000066",
+          "userId": "11111111-1111-4111-8111-0000000000ca",
+          "sourceUrl": "https://shop.example.com/p/102",
+          "name": "Producto JudgeDisagree 3",
+          "imageUrl": "https://cdn.example.com/102.jpg",
+          "category": "beauty",
+          "pricingCents": 15100,
+          "bundle2PricingCents": 19100,
+          "bundle3PricingCents": 23100,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-102",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000004c4",
+            "angle": "testimonio",
+            "transcript": "Transcripción sintética para creativo 102-0 con ángulo testimonio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000004c5",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 102-1 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 102",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 3,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 102",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "judge-disagreement",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000067",
+          "userId": "11111111-1111-4111-8111-0000000000cb",
+          "sourceUrl": "https://shop.example.com/p/103",
+          "name": "Producto JudgeDisagree 4",
+          "imageUrl": "https://cdn.example.com/103.jpg",
+          "category": "beauty",
+          "pricingCents": 15200,
+          "bundle2PricingCents": 19200,
+          "bundle3PricingCents": 23200,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-103",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000004ce",
+            "angle": "urgencia",
+            "transcript": "Transcripción sintética para creativo 103-0 con ángulo urgencia. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000004cf",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 103-1 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 103",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 4,
+      "stage2JudgeB": 2,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 103",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "judge-disagreement",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000068",
+          "userId": "11111111-1111-4111-8111-0000000000cc",
+          "sourceUrl": "https://shop.example.com/p/104",
+          "name": "Producto JudgeDisagree 5",
+          "imageUrl": "https://cdn.example.com/104.jpg",
+          "category": "beauty",
+          "pricingCents": 15300,
+          "bundle2PricingCents": 19300,
+          "bundle3PricingCents": 23300,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-104",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000004d8",
+            "angle": "dolor",
+            "transcript": "Transcripción sintética para creativo 104-0 con ángulo dolor. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000004d9",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 104-1 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 104",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 3,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 104",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "judge-disagreement",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-000000000069",
+          "userId": "11111111-1111-4111-8111-0000000000cd",
+          "sourceUrl": "https://shop.example.com/p/105",
+          "name": "Producto JudgeDisagree 6",
+          "imageUrl": "https://cdn.example.com/105.jpg",
+          "category": "beauty",
+          "pricingCents": 15400,
+          "bundle2PricingCents": 19400,
+          "bundle3PricingCents": 23400,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-105",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000004e2",
+            "angle": "aspiracional",
+            "transcript": "Transcripción sintética para creativo 105-0 con ángulo aspiracional. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          },
+          {
+            "id": "11111111-1111-4111-8111-0000000004e3",
+            "angle": null,
+            "transcript": "Transcripción sintética para creativo 105-1 con ángulo null. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 105",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 2,
+      "stage2JudgeB": 4,
+      "expectedFinal": {
+        "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 105",
+        "headline": "Hoy ahorras plata real",
+        "description": "Llega a tu puerta"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "post-check-failure",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-0000000000c8",
+          "userId": "11111111-1111-4111-8111-00000000012c",
+          "sourceUrl": "https://shop.example.com/p/200",
+          "name": "Producto Failure 1",
+          "imageUrl": "https://cdn.example.com/200.jpg",
+          "category": "fitness",
+          "pricingCents": 24900,
+          "bundle2PricingCents": 28900,
+          "bundle3PricingCents": 32900,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-200",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-000000000898",
+            "angle": "aspiracional",
+            "transcript": "Transcripción sintética para creativo 200-0 con ángulo aspiracional. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 200",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Cura el dolor en una semana, garantizado por especialistas locales.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Mira cómo alivia molestias del día a día sin promesas exageradas.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "fail:META_POLICY_MEDICAL",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "post-check-failure",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-0000000000c9",
+          "userId": "11111111-1111-4111-8111-00000000012d",
+          "sourceUrl": "https://shop.example.com/p/201",
+          "name": "Producto Failure 2",
+          "imageUrl": "https://cdn.example.com/201.jpg",
+          "category": "fitness",
+          "pricingCents": 25000,
+          "bundle2PricingCents": 29000,
+          "bundle3PricingCents": 33000,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-201",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000008a2",
+            "angle": "comparacion",
+            "transcript": "Transcripción sintética para creativo 201-0 con ángulo comparacion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 201",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "¿Sufres de dolor de espalda todos los días al levantarte? Esto te ayuda.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Mira lo que cambia cuando descansas con buena postura todas las noches.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "fail:META_POLICY_PERSONAL_ATTR",
+        "aiSpeak": "ok",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "post-check-failure",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-0000000000ca",
+          "userId": "11111111-1111-4111-8111-00000000012e",
+          "sourceUrl": "https://shop.example.com/p/202",
+          "name": "Producto Failure 3",
+          "imageUrl": "https://cdn.example.com/202.jpg",
+          "category": "fitness",
+          "pricingCents": 25100,
+          "bundle2PricingCents": 29100,
+          "bundle3PricingCents": 33100,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-202",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000008ac",
+            "angle": "regalo",
+            "transcript": "Transcripción sintética para creativo 202-0 con ángulo regalo. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 202",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Descubre el método nuevo que está cambiando la forma de cocinar en casa.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Mira el método nuevo que ya cambió la forma de cocinar en mi casa.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "fail:AI_SPEAK_VERBS",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "post-check-failure",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-0000000000cb",
+          "userId": "11111111-1111-4111-8111-00000000012f",
+          "sourceUrl": "https://shop.example.com/p/203",
+          "name": "Producto Failure 4",
+          "imageUrl": "https://cdn.example.com/203.jpg",
+          "category": "fitness",
+          "pricingCents": 25200,
+          "bundle2PricingCents": 29200,
+          "bundle3PricingCents": 33200,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-203",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000008b6",
+            "angle": "precio",
+            "transcript": "Transcripción sintética para creativo 203-0 con ángulo precio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 203",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Hoy te lo dejamos a 79 soles — antes costaba el doble en tienda.",
+          "headline": "50 soles menos hoy",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Hoy te lo dejamos a 79 soles, antes costaba el doble en tienda.",
+        "headline": "50 soles menos hoy",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "fail:AI_SPEAK_EM_DASH",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "post-check-failure",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-0000000000cc",
+          "userId": "11111111-1111-4111-8111-000000000130",
+          "sourceUrl": "https://shop.example.com/p/204",
+          "name": "Producto Failure 5",
+          "imageUrl": "https://cdn.example.com/204.jpg",
+          "category": "fitness",
+          "pricingCents": 25300,
+          "bundle2PricingCents": 29300,
+          "bundle3PricingCents": 33300,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-204",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000008c0",
+            "angle": "demostracion",
+            "transcript": "Transcripción sintética para creativo 204-0 con ángulo demostracion. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 204",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "OFERTA DE HOY 50%",
+          "description": "Bundle de dos"
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+        "headline": "Hoy 50 por ciento menos",
+        "description": "Bundle de dos"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "fail:AI_SPEAK_ALL_CAPS",
+        "lengthCheck": "ok"
+      }
+    },
+    {
+      "scenario": "post-check-failure",
+      "input": {
+        "product": {
+          "id": "11111111-1111-4111-8111-0000000000cd",
+          "userId": "11111111-1111-4111-8111-000000000131",
+          "sourceUrl": "https://shop.example.com/p/205",
+          "name": "Producto Failure 6",
+          "imageUrl": "https://cdn.example.com/205.jpg",
+          "category": "fitness",
+          "pricingCents": 25400,
+          "bundle2PricingCents": 29400,
+          "bundle3PricingCents": 33400,
+          "status": "READY",
+          "shopifyProductId": null,
+          "shopifyPageHandle": "producto-205",
+          "shopifyTemplateId": 1,
+          "createdAt": "2026-04-30T00:00:00.000Z"
+        },
+        "creatives": [
+          {
+            "id": "11111111-1111-4111-8111-0000000008ca",
+            "angle": "testimonio",
+            "transcript": "Transcripción sintética para creativo 205-0 con ángulo testimonio. Texto en español neutral peruano para alimentar el copy gen.",
+            "language": "es"
+          }
+        ]
+      },
+      "stage1": [
+        {
+          "primaryText": "Mira, hoy ahorras plata en este producto. Lo bueno es que llega rápido y sin chamba extra. 205",
+          "headline": "Hoy ahorras plata real",
+          "description": "Llega a tu puerta"
+        },
+        {
+          "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+          "headline": "50 soles menos hoy",
+          "description": "Descripción que claramente excede el límite máximo de treinta caracteres permitido por Meta."
+        },
+        {
+          "primaryText": "Pregunta a quien ya lo tiene. Tres meses usándolo y sigue como nuevo, sin recargas.",
+          "headline": "Tres meses sin recargas",
+          "description": "Voz de cliente real"
+        },
+        {
+          "primaryText": "Olvida la chamba de buscar repuestos. Un solo accesorio resuelve el día completo.",
+          "headline": "Un accesorio, todo el día",
+          "description": "Sin repuestos extra"
+        },
+        {
+          "primaryText": "Vive tu cocina sin estrés. Cinco minutos y la mesa lista para la familia.",
+          "headline": "Mesa lista en 5 minutos",
+          "description": "Cocina sin estrés"
+        }
+      ],
+      "stage2JudgeA": 1,
+      "stage2JudgeB": 1,
+      "expectedFinal": {
+        "primaryText": "Ahorra hasta 50 soles llevando el bundle de dos. Mismo material, sin pagar de más.",
+        "headline": "50 soles menos hoy",
+        "description": "Listo para tu casa hoy"
+      },
+      "expectedPostCheck": {
+        "metaPolicy": "ok",
+        "aiSpeak": "ok",
+        "lengthCheck": "fail:LENGTH_VIOLATION"
+      }
+    }
+  ]
+}
