@@ -1,5 +1,24 @@
 import "server-only";
 
+import { ShopifyAuthError } from "./errors";
+
+export { ShopifyAuthError } from "./errors";
+export {
+  ShopifyApiError,
+  publishProduct,
+  applyTemplate,
+  getActiveThemeId,
+} from "./client";
+export type {
+  ShopifyCreds,
+  ShopifyProductInput,
+  PublishProductResult,
+} from "./client";
+export { renderTemplate } from "./render";
+export type { TemplateVars } from "./render";
+export { pickTemplate } from "./templatePicker";
+export { loadTemplate } from "./templates";
+
 export interface ShopifyValidateInput {
   token: string;
   shop_domain: string;
@@ -8,13 +27,6 @@ export interface ShopifyValidateInput {
 export interface ShopInfo {
   myshopify_domain: string;
   name?: string;
-}
-
-export class ShopifyAuthError extends Error {
-  constructor(message = "Token Shopify inválido") {
-    super(message);
-    this.name = "ShopifyAuthError";
-  }
 }
 
 /**
@@ -43,7 +55,9 @@ export async function validateToken(
   if (!response.ok) {
     throw new ShopifyAuthError();
   }
-  const body = (await response.json()) as { shop?: { myshopify_domain?: string; name?: string } };
+  const body = (await response.json()) as {
+    shop?: { myshopify_domain?: string; name?: string };
+  };
   const shop = body.shop;
   if (!shop?.myshopify_domain) {
     throw new ShopifyAuthError();

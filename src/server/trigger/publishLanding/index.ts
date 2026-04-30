@@ -1,0 +1,262 @@
+import { logger, task } from "@trigger.dev/sdk";
+import { and, eq, inArray } from "drizzle-orm";
+import { withUser } from "@/db/client";
+import {
+  assets,
+  creatives,
+  idempotencyKeys,
+  integrations,
+  products,
+  users,
+} from "@/db/schema";
+import { decrypt } from "@/lib/crypto";
+import { EncryptedExtraJson } from "@/db/zod";
+import {
+  applyTemplate,
+  getActiveThemeId,
+  loadTemplate,
+  pickTemplate,
+  publishProduct,
+  renderTemplate,
+} from "@/lib/shopify";
+import type { ShopifyCreds } from "@/lib/shopify";
+import { requireIntegration } from "@/server/integrations";
+
+interface PublishLandingPayload {
+  productId: string;
+  userId: string;
+}
+
+interface PublishLandingResult {
+  shopify_product_id: string;
+  shopify_page_handle: string;
+  template_id: 1 | 2 | 3;
+}
+
+function priceCentsToString(cents: number | null | undefined): string {
+  if (cents === null || cents === undefined) return "0.00";
+  const whole = Math.floor(cents / 100);
+  const frac = (cents % 100).toString().padStart(2, "0");
+  return `${whole.toString()}.${frac}`;
+}
+
+export const publishLandingTask = task({
+  id: "publishLanding",
+  maxDuration: 300,
+  retry: { maxAttempts: 2 },
+  machine: "small-1x",
+  run: async (
+    payload: PublishLandingPayload,
+    { ctx },
+  ): Promise<PublishLandingResult> => {
+    const { productId, userId } = payload;
+    logger.info("publishLanding:start", { productId, userId });
+
+    // 1. Load product + user inside tenant scope.
+    const loaded = await withUser(userId, async (db) => {
+      const productRow = await db
+        .select()
+        .from(products)
+        .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        .limit(1);
+      const userRow = await db
+        .select({ whatsappNumber: users.whatsappNumber })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return { product: productRow[0], user: userRow[0] };
+    });
+    const product = loaded.product;
+    const user = loaded.user;
+    if (!product) throw new Error(`product not found: ${productId}`);
+    if (!user) throw new Error(`user not found: ${userId}`);
+
+    // 2. Idempotency key. `attempt` is the Trigger.dev attempt number for the
+    // current run — re-runs of the same attempt short-circuit to the persisted
+    // state read from the products row.
+    const attempt = ctx.attempt.number;
+    const idemKey = `publish_${productId}_${attempt.toString()}`;
+    const existing = await withUser(userId, async (db) => {
+      const inserted = await db
+        .insert(idempotencyKeys)
+        .values({
+          key: idemKey,
+          userId,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        })
+        .onConflictDoNothing()
+        .returning({ key: idempotencyKeys.key });
+      return inserted.length === 0;
+    });
+    if (existing) {
+      logger.info("publishLanding:idempotent-replay", { idemKey });
+      const persisted = await withUser(userId, async (db) => {
+        const rows = await db
+          .select({
+            shopifyProductId: products.shopifyProductId,
+            shopifyPageHandle: products.shopifyPageHandle,
+            shopifyTemplateId: products.shopifyTemplateId,
+          })
+          .from(products)
+          .where(eq(products.id, productId))
+          .limit(1);
+        return rows[0];
+      });
+      if (
+        persisted?.shopifyProductId &&
+        persisted.shopifyPageHandle &&
+        persisted.shopifyTemplateId
+      ) {
+        const tid = persisted.shopifyTemplateId;
+        if (tid !== 1 && tid !== 2 && tid !== 3) {
+          throw new Error(`invalid persisted template_id: ${tid.toString()}`);
+        }
+        return {
+          shopify_product_id: persisted.shopifyProductId,
+          shopify_page_handle: persisted.shopifyPageHandle,
+          template_id: tid,
+        };
+      }
+      // Idempotency row exists but persisted columns absent → previous attempt
+      // crashed mid-pipeline. Fall through and run the pipeline again.
+    }
+
+    // 3. Pick template via LLM.
+    const templateId = await pickTemplate({
+      name: product.name ?? "Producto",
+      category: product.category,
+    });
+    logger.info("publishLanding:template-picked", { templateId });
+
+    // 4. Resolve Shopify integration.
+    const shopifyCreds = await requireIntegration(userId, "shopify");
+    if (shopifyCreds.extra.provider !== "shopify") {
+      throw new Error("integration extra provider mismatch");
+    }
+    const creds: ShopifyCreds = {
+      token: shopifyCreds.token,
+      shop_domain: shopifyCreds.extra.shop_domain,
+    };
+
+    // 5. Create product + page on Shopify.
+    const productInput: Parameters<typeof publishProduct>[1] = {
+      name: product.name ?? "Producto",
+      category: product.category,
+      description: null,
+      imageUrl: product.imageUrl,
+      pricingCents: product.pricingCents ?? 0,
+      bundle2PricingCents: product.bundle2PricingCents ?? 0,
+      bundle3PricingCents: product.bundle3PricingCents ?? 0,
+      templateId,
+    };
+    const published = await publishProduct(creds, productInput);
+    logger.info("publishLanding:product-published", {
+      shopify_product_id: published.shopify_product_id,
+      shopify_page_handle: published.shopify_page_handle,
+    });
+
+    // 6. Build template vars. Pixel id sourced from Meta integration if
+    // present (best-effort; landing publishes without Meta).
+    const selectedCreatives = await withUser(userId, async (db) => {
+      return db
+        .select({ id: creatives.id })
+        .from(creatives)
+        .where(
+          and(
+            eq(creatives.productId, productId),
+            eq(creatives.userId, userId),
+            eq(creatives.selectedBool, true),
+          ),
+        );
+    });
+    const creativeIds = selectedCreatives.map((c) => c.id);
+    const editedAssets =
+      creativeIds.length === 0
+        ? []
+        : await withUser(userId, async (db) =>
+            db
+              .select({ url: assets.url })
+              .from(assets)
+              .where(
+                and(
+                  eq(assets.ownerType, "creative"),
+                  eq(assets.kind, "edited_video"),
+                  inArray(assets.ownerId, creativeIds),
+                ),
+              ),
+          );
+    const videoUrlsCsv = editedAssets.map((a) => a.url).join(",");
+
+    let pixelId = "";
+    const metaRow = await withUser(userId, async (db) => {
+      return db
+        .select({
+          encryptedExtraJson: integrations.encryptedExtraJson,
+        })
+        .from(integrations)
+        .where(
+          and(
+            eq(integrations.userId, userId),
+            eq(integrations.provider, "meta"),
+          ),
+        )
+        .limit(1);
+    });
+    const metaExtraEncrypted = metaRow[0]?.encryptedExtraJson;
+    if (metaExtraEncrypted) {
+      try {
+        const decrypted = await decrypt(metaExtraEncrypted);
+        const parsed = EncryptedExtraJson.parse(JSON.parse(decrypted));
+        if (parsed.provider === "meta") {
+          pixelId = parsed.pixel_id;
+        }
+      } catch (err) {
+        logger.warn("publishLanding:pixel-decrypt-failed", {
+          message: err instanceof Error ? err.message : "unknown",
+        });
+      }
+    }
+
+    const vars = {
+      title: product.name ?? "Producto",
+      price: priceCentsToString(product.pricingCents),
+      bundle_2_price: priceCentsToString(product.bundle2PricingCents),
+      bundle_3_price: priceCentsToString(product.bundle3PricingCents),
+      video_urls_csv: videoUrlsCsv,
+      product_image_url: product.imageUrl ?? "",
+      whatsapp_number: user.whatsappNumber ?? "",
+      pixel_id: pixelId,
+      shopify_page_handle: published.shopify_page_handle,
+    };
+
+    // 7. Render template + push to active theme.
+    const tpl = loadTemplate(templateId);
+    const rendered = renderTemplate(tpl, vars);
+    const themeId = await getActiveThemeId(creds);
+    const assetKey = `templates/page.${published.shopify_page_handle}.json`;
+    await applyTemplate(creds, themeId, assetKey, rendered);
+    logger.info("publishLanding:template-applied", {
+      themeId,
+      assetKey,
+    });
+
+    // 8. Persist final state.
+    await withUser(userId, async (db) => {
+      await db
+        .update(products)
+        .set({
+          status: "LANDING_PUBLISHED",
+          shopifyProductId: published.shopify_product_id,
+          shopifyPageHandle: published.shopify_page_handle,
+          shopifyTemplateId: templateId,
+        })
+        .where(eq(products.id, productId));
+    });
+
+    return {
+      shopify_product_id: published.shopify_product_id,
+      shopify_page_handle: published.shopify_page_handle,
+      template_id: templateId,
+    };
+  },
+});
