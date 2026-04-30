@@ -1,0 +1,425 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "name": "json-ld-full-product",
+      "url": "https://shop1.example.com/p/cafetera-italiana",
+      "html": "<html><head><title>Cafetera Italiana 6 tazas</title><script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"Product\",\"name\":\"Cafetera Italiana 6 tazas\",\"description\":\"Cafetera de aluminio para estufa\",\"image\":\"https://cdn.shop1.example.com/cafetera.jpg\",\"inLanguage\":\"es-PE\",\"offers\":{\"@type\":\"Offer\",\"price\":\"89.90\",\"priceCurrency\":\"PEN\"}}</script></head><body><h1>Cafetera Italiana 6 tazas</h1></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop1.example.com/cafetera.jpg",
+        "productName": "Cafetera Italiana 6 tazas",
+        "category": null,
+        "priceText": "PEN 89.90",
+        "description": "Cafetera de aluminio para estufa",
+        "locale": "es-PE"
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "json-ld-product-array-image",
+      "url": "https://shop2.example.com/p/exfoliante",
+      "html": "<html><head><script type=\"application/ld+json\">{\"@type\":\"Product\",\"name\":\"Exfoliante facial\",\"image\":[\"https://cdn.shop2.example.com/ex1.jpg\",\"https://cdn.shop2.example.com/ex2.jpg\"],\"offers\":{\"price\":49,\"priceCurrency\":\"PEN\"}}</script></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop2.example.com/ex1.jpg",
+        "productName": "Exfoliante facial",
+        "category": null,
+        "priceText": "PEN 49",
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "json-ld-graph-nested",
+      "url": "https://shop3.example.com/p/pesa-rusa",
+      "html": "<html><head><script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"WebPage\",\"name\":\"Inicio\"},{\"@type\":\"Product\",\"name\":\"Pesa rusa 8kg\",\"image\":{\"url\":\"https://cdn.shop3.example.com/kettle.jpg\"},\"offers\":{\"priceSpecification\":{\"price\":\"129.00\",\"priceCurrency\":\"PEN\"}}}]}</script></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop3.example.com/kettle.jpg",
+        "productName": "Pesa rusa 8kg",
+        "category": null,
+        "priceText": "PEN 129.00",
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "json-ld-offers-array",
+      "url": "https://shop4.example.com/p/collar-perro",
+      "html": "<html><head><script type=\"application/ld+json\">{\"@type\":\"Product\",\"name\":\"Collar para perro\",\"image\":\"https://cdn.shop4.example.com/collar.png\",\"offers\":[{\"price\":\"25.00\",\"priceCurrency\":\"PEN\"},{\"price\":\"30.00\",\"priceCurrency\":\"PEN\"}]}</script></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop4.example.com/collar.png",
+        "productName": "Collar para perro",
+        "category": null,
+        "priceText": "PEN 25.00",
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "json-ld-numeric-price",
+      "url": "https://shop5.example.com/p/cuchillo",
+      "html": "<html><head><script type=\"application/ld+json\">{\"@type\":\"Product\",\"name\":\"Cuchillo Santoku\",\"image\":\"https://cdn.shop5.example.com/cuchillo.jpg\",\"offers\":{\"price\":159.5}}</script></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop5.example.com/cuchillo.jpg",
+        "productName": "Cuchillo Santoku",
+        "category": null,
+        "priceText": "159.5",
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "og-tags-only",
+      "url": "https://shop6.example.com/p/aromatizador",
+      "html": "<html><head><meta property=\"og:title\" content=\"Aromatizador eléctrico\"/><meta property=\"og:description\" content=\"Difusor para aceites esenciales\"/><meta property=\"og:image\" content=\"https://cdn.shop6.example.com/aroma.jpg\"/><meta property=\"og:locale\" content=\"es-PE\"/><meta property=\"product:price:amount\" content=\"S/ 79.90\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop6.example.com/aroma.jpg",
+        "productName": "Aromatizador eléctrico",
+        "category": null,
+        "priceText": "S/ 79.90",
+        "description": "Difusor para aceites esenciales",
+        "locale": "es-PE"
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "twitter-tags-fallback",
+      "url": "https://shop7.example.com/p/yoga-mat",
+      "html": "<html><head><meta name=\"twitter:title\" content=\"Esterilla de yoga\"/><meta name=\"twitter:description\" content=\"Antideslizante 6mm\"/><meta name=\"twitter:image\" content=\"https://cdn.shop7.example.com/yoga.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop7.example.com/yoga.jpg",
+        "productName": "Esterilla de yoga",
+        "category": null,
+        "priceText": null,
+        "description": "Antideslizante 6mm",
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "microdata-itemprop",
+      "url": "https://shop8.example.com/p/maceta",
+      "html": "<html><body><div itemscope itemtype=\"https://schema.org/Product\"><span itemprop=\"name\">Maceta cerámica</span><img itemprop=\"image\" src=\"https://cdn.shop8.example.com/maceta.jpg\"/><meta itemprop=\"description\" content=\"Para plantas suculentas\"/><span itemprop=\"price\">59.00</span></div></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop8.example.com/maceta.jpg",
+        "productName": "Maceta cerámica",
+        "category": null,
+        "priceText": "59.00",
+        "description": "Para plantas suculentas",
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "title-and-h1-fallback",
+      "url": "https://shop9.example.com/p/lampara",
+      "html": "<html><head><title>Lámpara LED escritorio | Tienda9</title></head><body><h1>Lámpara LED escritorio</h1><img src=\"https://cdn.shop9.example.com/lampara.jpg\"/></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop9.example.com/lampara.jpg",
+        "productName": "Lámpara LED escritorio",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "relative-image-url-resolved",
+      "url": "https://shop10.example.com/p/zapatillas",
+      "html": "<html><head><meta property=\"og:title\" content=\"Zapatillas running\"/><meta property=\"og:image\" content=\"/img/zapatillas.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://shop10.example.com/img/zapatillas.jpg",
+        "productName": "Zapatillas running",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "html-entities-in-name",
+      "url": "https://shop11.example.com/p/manzana",
+      "html": "<html><head><meta property=\"og:title\" content=\"Manzana &amp; pera deshidratada\"/><meta property=\"og:image\" content=\"https://cdn.shop11.example.com/fruta.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop11.example.com/fruta.jpg",
+        "productName": "Manzana & pera deshidratada",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "json-ld-not-product-type-skipped",
+      "url": "https://shop12.example.com/p/articulo",
+      "html": "<html><head><script type=\"application/ld+json\">{\"@type\":\"Article\",\"name\":\"No es producto\"}</script><meta property=\"og:title\" content=\"Mochila urbana\"/><meta property=\"og:image\" content=\"https://cdn.shop12.example.com/mochila.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop12.example.com/mochila.jpg",
+        "productName": "Mochila urbana",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "malformed-json-ld-falls-back",
+      "url": "https://shop13.example.com/p/taza",
+      "html": "<html><head><script type=\"application/ld+json\">{not valid json,,,</script><meta property=\"og:title\" content=\"Taza térmica\"/><meta property=\"og:image\" content=\"https://cdn.shop13.example.com/taza.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop13.example.com/taza.jpg",
+        "productName": "Taza térmica",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "first-img-as-hero-fallback",
+      "url": "https://shop14.example.com/p/cinta-pelo",
+      "html": "<html><head><title>Cinta para el pelo</title></head><body><img src=\"https://cdn.shop14.example.com/cinta.jpg\" alt=\"hero\"/></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop14.example.com/cinta.jpg",
+        "productName": "Cinta para el pelo",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "category-from-meta-product-category",
+      "url": "https://shop15.example.com/p/sarten",
+      "html": "<html><head><meta property=\"og:title\" content=\"Sartén antiadherente\"/><meta property=\"og:image\" content=\"https://cdn.shop15.example.com/sarten.jpg\"/><meta property=\"product:category\" content=\"kitchen\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop15.example.com/sarten.jpg",
+        "productName": "Sartén antiadherente",
+        "category": "kitchen",
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": []
+    },
+    {
+      "name": "category-from-microdata",
+      "url": "https://shop16.example.com/p/labial",
+      "html": "<html><body><div itemscope itemtype=\"https://schema.org/Product\"><span itemprop=\"name\">Labial mate</span><img itemprop=\"image\" src=\"https://cdn.shop16.example.com/labial.jpg\"/><meta itemprop=\"category\" content=\"beauty\"/></div></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop16.example.com/labial.jpg",
+        "productName": "Labial mate",
+        "category": "beauty",
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": []
+    },
+    {
+      "name": "invalid-category-rejected",
+      "url": "https://shop17.example.com/p/audifonos",
+      "html": "<html><head><meta property=\"og:title\" content=\"Audífonos bluetooth\"/><meta property=\"og:image\" content=\"https://cdn.shop17.example.com/audi.jpg\"/><meta property=\"product:category\" content=\"electronics\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop17.example.com/audi.jpg",
+        "productName": "Audífonos bluetooth",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "invalid-locale-rejected",
+      "url": "https://shop18.example.com/p/jabon",
+      "html": "<html><head><meta property=\"og:title\" content=\"Jabón natural\"/><meta property=\"og:image\" content=\"https://cdn.shop18.example.com/jabon.jpg\"/><meta property=\"og:locale\" content=\"en-US\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop18.example.com/jabon.jpg",
+        "productName": "Jabón natural",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "empty-html-all-null",
+      "url": "https://shop19.example.com/p/empty",
+      "html": "<html><head></head><body></body></html>",
+      "expected": {
+        "imageUrl": null,
+        "productName": null,
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["imageUrl", "productName", "category"]
+    },
+    {
+      "name": "title-only-missing-image",
+      "url": "https://shop20.example.com/p/title-only",
+      "html": "<html><head><title>Solo título</title></head><body></body></html>",
+      "expected": {
+        "imageUrl": null,
+        "productName": "Solo título",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["imageUrl", "category"]
+    },
+    {
+      "name": "image-only-missing-name",
+      "url": "https://shop21.example.com/p/image-only",
+      "html": "<html><head><meta property=\"og:image\" content=\"https://cdn.shop21.example.com/x.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop21.example.com/x.jpg",
+        "productName": null,
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["productName", "category"]
+    },
+    {
+      "name": "json-ld-product-with-brand-object",
+      "url": "https://shop22.example.com/p/perfume",
+      "html": "<html><head><script type=\"application/ld+json\">{\"@type\":\"Product\",\"name\":\"Perfume floral\",\"brand\":{\"name\":\"Aroma\"},\"image\":\"https://cdn.shop22.example.com/perfume.jpg\",\"offers\":{\"price\":\"199.90\",\"priceCurrency\":\"PEN\"}}</script></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop22.example.com/perfume.jpg",
+        "productName": "Perfume floral",
+        "category": null,
+        "priceText": "PEN 199.90",
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "title-with-pipe-suffix",
+      "url": "https://shop23.example.com/p/secador",
+      "html": "<html><head><title>Secador iónico 2200W | TiendaPro</title><meta property=\"og:image\" content=\"https://cdn.shop23.example.com/secador.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop23.example.com/secador.jpg",
+        "productName": "Secador iónico 2200W | TiendaPro",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "scripts-and-styles-stripped",
+      "url": "https://shop24.example.com/p/aspiradora",
+      "html": "<html><head><title>Aspiradora portátil</title><script>console.log('noise')</script><style>.hidden{display:none}</style><meta property=\"og:image\" content=\"https://cdn.shop24.example.com/asp.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop24.example.com/asp.jpg",
+        "productName": "Aspiradora portátil",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "category-pets-from-meta",
+      "url": "https://shop25.example.com/p/comida-perro",
+      "html": "<html><head><meta property=\"og:title\" content=\"Comida premium para perros\"/><meta property=\"og:image\" content=\"https://cdn.shop25.example.com/comida.jpg\"/><meta property=\"product:category\" content=\"pets\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop25.example.com/comida.jpg",
+        "productName": "Comida premium para perros",
+        "category": "pets",
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": []
+    },
+    {
+      "name": "category-fitness-from-meta",
+      "url": "https://shop26.example.com/p/banda-resistencia",
+      "html": "<html><head><meta property=\"og:title\" content=\"Bandas de resistencia x5\"/><meta property=\"og:image\" content=\"https://cdn.shop26.example.com/bandas.jpg\"/><meta property=\"product:category\" content=\"fitness\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop26.example.com/bandas.jpg",
+        "productName": "Bandas de resistencia x5",
+        "category": "fitness",
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": []
+    },
+    {
+      "name": "category-home-garden-from-meta",
+      "url": "https://shop27.example.com/p/tijera-jardin",
+      "html": "<html><head><meta property=\"og:title\" content=\"Tijera de podar acero\"/><meta property=\"og:image\" content=\"https://cdn.shop27.example.com/tijera.jpg\"/><meta property=\"product:category\" content=\"home_garden\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop27.example.com/tijera.jpg",
+        "productName": "Tijera de podar acero",
+        "category": "home_garden",
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": []
+    },
+    {
+      "name": "json-ld-array-of-products-takes-first",
+      "url": "https://shop28.example.com/p/lentes",
+      "html": "<html><head><script type=\"application/ld+json\">[{\"@type\":\"Product\",\"name\":\"Lentes de sol\",\"image\":\"https://cdn.shop28.example.com/lentes.jpg\"},{\"@type\":\"Product\",\"name\":\"Lentes de lectura\",\"image\":\"https://cdn.shop28.example.com/otros.jpg\"}]</script></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop28.example.com/lentes.jpg",
+        "productName": "Lentes de sol",
+        "category": null,
+        "priceText": null,
+        "description": null,
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "description-meta-fallback",
+      "url": "https://shop29.example.com/p/almohada",
+      "html": "<html><head><meta name=\"description\" content=\"Almohada viscoelástica memoria\"/><meta property=\"og:title\" content=\"Almohada premium\"/><meta property=\"og:image\" content=\"https://cdn.shop29.example.com/almohada.jpg\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop29.example.com/almohada.jpg",
+        "productName": "Almohada premium",
+        "category": null,
+        "priceText": null,
+        "description": "Almohada viscoelástica memoria",
+        "locale": null
+      },
+      "expectedGaps": ["category"]
+    },
+    {
+      "name": "all-three-mandatory-present-skips-stage-c-gaps",
+      "url": "https://shop30.example.com/p/exprimidor",
+      "html": "<html><head><meta property=\"og:title\" content=\"Exprimidor manual\"/><meta property=\"og:image\" content=\"https://cdn.shop30.example.com/expri.jpg\"/><meta property=\"og:description\" content=\"Acero inoxidable\"/><meta property=\"product:category\" content=\"kitchen\"/><meta property=\"og:locale\" content=\"es-PE\"/></head><body></body></html>",
+      "expected": {
+        "imageUrl": "https://cdn.shop30.example.com/expri.jpg",
+        "productName": "Exprimidor manual",
+        "category": "kitchen",
+        "priceText": null,
+        "description": "Acero inoxidable",
+        "locale": "es-PE"
+      },
+      "expectedGaps": []
+    }
+  ]
+}

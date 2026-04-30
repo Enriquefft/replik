@@ -13,9 +13,10 @@ import {
 } from "drizzle-orm/pg-core"
 import type { z } from "zod"
 
-import type { SalesAngle } from "@/lib/ai/taxonomies.ts"
+import type { InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
 
 type SalesAngleT = z.infer<typeof SalesAngle>
+type InterestCategoryT = z.infer<typeof InterestCategory>
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -31,6 +32,7 @@ export const productStatusEnum = pgEnum("product_status", [
   "LANDING_PUBLISHED",
   "CAMPAIGN_LAUNCHED",
   "SCRAPE_EMPTY",
+  "SCRAPE_PARTIAL",
   "FAILED",
 ])
 
@@ -85,7 +87,7 @@ export const products = pgTable("products", {
   sourceUrl: text("source_url").notNull(),
   name: text("name"),
   imageUrl: text("image_url"),
-  category: text("category"),
+  category: text("category").$type<InterestCategoryT | null>(),
   pricingCents: integer("pricing_cents"),
   bundle2PricingCents: integer("bundle_2_pricing_cents"),
   bundle3PricingCents: integer("bundle_3_pricing_cents"),

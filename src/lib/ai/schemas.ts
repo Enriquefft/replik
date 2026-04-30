@@ -38,23 +38,94 @@ export const ProductPartialSchema = z.object({
 export type ProductPartial = z.infer<typeof ProductPartialSchema>
 
 /**
- * Fully-resolved product after Stage C LLM gap-fill (§7).
- * All fields required, plus extracted keyword buckets.
+ * Keyword buckets emitted by Stage C (§7).
+ * `broad` = 1-2 word generic search terms (3-5 entries).
+ * `narrow` = 3-6 word long-tail buyer-intent phrases (3-5 entries).
+ */
+export const ProductKeywordsSchema = z.object({
+  broad: z.array(z.string().min(1)).min(3).max(5),
+  narrow: z.array(z.string().min(1)).min(3).max(5),
+})
+
+export type ProductKeywords = z.infer<typeof ProductKeywordsSchema>
+
+/**
+ * Stage C LLM output (§7). Only the three mandatory fields plus keywords —
+ * priceText, description, and locale ride through from Stage A.
+ */
+export const ProductFinalLLMSchema = z.object({
+  imageUrl: z.url(),
+  productName: z.string().min(1),
+  category: InterestCategory,
+  keywords: ProductKeywordsSchema,
+})
+
+export type ProductFinalLLM = z.infer<typeof ProductFinalLLMSchema>
+
+/**
+ * Fully-resolved product after Stage C LLM gap-fill + Stage D merge (§7).
+ * Mandatory: imageUrl, productName, category, keywords. Carry-forward fields
+ * (priceText, description, locale) are nullable because Stage A may legitimately
+ * miss them on sparse pages — the demo path only gates on the mandatory three.
  */
 export const ProductFinalSchema = z.object({
   imageUrl: z.url(),
   productName: z.string().min(1),
   category: InterestCategory,
-  priceText: z.string(),
-  description: z.string(),
-  locale: Locale,
-  keywords: z.object({
-    broad: z.array(z.string()),
-    narrow: z.array(z.string()),
-  }),
+  priceText: z.string().nullable(),
+  description: z.string().nullable(),
+  locale: Locale.nullable(),
+  keywords: ProductKeywordsSchema,
 })
 
 export type ProductFinal = z.infer<typeof ProductFinalSchema>
+
+/**
+ * Caller input for the §7 scrape pipeline. `html` is an optional injection
+ * seam — production callers omit it and let `scrapeProductInfo` fetch the
+ * entry URL itself; tests pass pre-loaded HTML to avoid network I/O.
+ */
+export const ScrapeInputSchema = z.object({
+  url: z.url(),
+  html: z.string().optional(),
+})
+
+export type ScrapeInput = z.infer<typeof ScrapeInputSchema>
+
+/**
+ * Successful end of the §7 pipeline — every mandatory field landed.
+ */
+export const ScrapeReadyResultSchema = z.object({
+  status: z.literal("READY"),
+  product: ProductFinalSchema,
+})
+
+export type ScrapeReadyResult = z.infer<typeof ScrapeReadyResultSchema>
+
+/**
+ * Graceful-degrade end of the §7 pipeline (Stage D fallback). The trigger
+ * task persists `partial` fields and flips `products.status = SCRAPE_PARTIAL`
+ * for the manual-fill UI. `reason` is operator-facing diagnostic text.
+ */
+export const ScrapePartialResultSchema = z.object({
+  status: z.literal("SCRAPE_PARTIAL"),
+  partial: ProductPartialSchema,
+  reason: z.string().min(1),
+})
+
+export type ScrapePartialResult = z.infer<typeof ScrapePartialResultSchema>
+
+/**
+ * Discriminated result of the §7 scrape pipeline. The `status` discriminator
+ * mirrors `productStatusEnum` in the DB so callers can branch once and persist
+ * directly. NEVER throws — failures collapse into `SCRAPE_PARTIAL`.
+ */
+export const ScrapeResultSchema = z.discriminatedUnion("status", [
+  ScrapeReadyResultSchema,
+  ScrapePartialResultSchema,
+])
+
+export type ScrapeResult = z.infer<typeof ScrapeResultSchema>
 
 // ─── Template picker ─────────────────────────────────────────────────────────
 

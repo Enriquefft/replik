@@ -4,13 +4,15 @@ import "server-only"
  * Lane L3a — Scrape pipeline orchestrator (Trigger.dev v4).
  *
  * Four-step pipeline:
- *   1. extractKeywords — LLM agent reads the competitor URL and returns
- *      `{ businessInfo, keywords, category }`. We backfill product fields.
+ *   1. scrapeProductInfo — §7 four-stage scrape (deterministic Stage A +
+ *      Sonnet 4.6 gap-fill in Stage C). Returns either `READY` with the
+ *      fully-resolved product + keyword tiers, or `SCRAPE_PARTIAL` with the
+ *      best-effort partial. Either branch backfills product fields.
  *   2. findAds — try `meta.adLibrarySearch`, fall back to Apify on
  *      empty/error. If both empty → `products.status='SCRAPE_EMPTY'`.
  *   3. transcribeAds — for each creative, download video, push original to
- *      UploadThing, transcribe with Whisper (skip if > 25 MB), strip Amara
- *      hallucinations, persist transcript + language.
+ *      UploadThing, transcribe via the canonical §9 entry point (skip if
+ *      > 25 MB), persist transcript + language.
  *   4. classifyAngle — §12 self-consistency classifier (5 parallel Sonnet
  *      calls, majority/tie-break vote) → SalesAngle | null per creative.
  *
@@ -25,8 +27,8 @@ import { UTApi } from "uploadthing/server"
 
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
-import { extractKeywords } from "@/lib/agent/scrape"
 import { classifyAngle } from "@/lib/ai/angle-classify.ts"
+import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
@@ -49,11 +51,6 @@ let cachedUTApi: UTApi | undefined
 function getUTApi(): UTApi {
   cachedUTApi ??= new UTApi()
   return cachedUTApi
-}
-
-function deriveProductName(businessInfo: string): string {
-  const firstSentence = businessInfo.split(/[.!?\n]/)[0] ?? businessInfo
-  return firstSentence.trim().slice(0, 80)
 }
 
 interface FoundAd {
@@ -342,39 +339,57 @@ export const scrapeProduct = task({
       }
     }
 
-    // ---------- Step 1 — extractKeywords ----------
-    logger.info("extract_started", { productId, competitorUrl })
-    let keywordsResult: Awaited<ReturnType<typeof extractKeywords>>
-    try {
-      keywordsResult = await extractKeywords(competitorUrl)
-    } catch (err) {
-      logger.error("extract_failed", {
-        error: err instanceof Error ? err.message : String(err),
-      })
-      await withUser(userId, async (db) => {
-        await db
-          .update(products)
-          .set({ status: "FAILED" })
-          .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      })
-      throw err instanceof Error ? err : new Error("extractKeywords failed")
-    }
-    logger.info("extract_done", { keywords: keywordsResult.keywords })
+    // ---------- Step 1 — scrapeProductInfo (§7) ----------
+    logger.info("scrape_started", { productId, competitorUrl })
+    const scrapeResult = await scrapeProductInfo({ url: competitorUrl })
 
-    // Best-effort backfill of product metadata.
+    // §7: scrape NEVER throws — the partial branch is a soft-degrade, not a
+    // failure. We always try to backfill whatever Stage A captured and let the
+    // user complete missing fields manually.
+    const isReady = scrapeResult.status === "READY"
+    const productView = isReady
+      ? {
+          imageUrl: scrapeResult.product.imageUrl,
+          productName: scrapeResult.product.productName,
+          category: scrapeResult.product.category,
+        }
+      : {
+          imageUrl: scrapeResult.partial.imageUrl,
+          productName: scrapeResult.partial.productName,
+          category: scrapeResult.partial.category,
+        }
+    const adKeywords = isReady
+      ? [...scrapeResult.product.keywords.broad, ...scrapeResult.product.keywords.narrow]
+      : []
+
+    if (isReady) {
+      logger.info("scrape_done", {
+        productName: productView.productName,
+        category: productView.category,
+        broadCount: scrapeResult.product.keywords.broad.length,
+        narrowCount: scrapeResult.product.keywords.narrow.length,
+      })
+    } else {
+      logger.warn("scrape_partial", { reason: scrapeResult.reason })
+    }
+
+    // Best-effort backfill of product metadata. Only writes columns the user
+    // hasn't filled in manually.
     try {
       await withUser(userId, async (db) => {
         const [row] = await db
           .select({
             name: products.name,
+            imageUrl: products.imageUrl,
             category: products.category,
           })
           .from(products)
           .where(and(eq(products.id, productId), eq(products.userId, userId)))
           .limit(1)
         const updates: Partial<typeof products.$inferInsert> = {}
-        if (!row?.name) updates.name = deriveProductName(keywordsResult.businessInfo)
-        if (!row?.category) updates.category = keywordsResult.category
+        if (!row?.name && productView.productName) updates.name = productView.productName
+        if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
+        if (!row?.category && productView.category) updates.category = productView.category
         if (Object.keys(updates).length > 0) {
           await db
             .update(products)
@@ -388,9 +403,31 @@ export const scrapeProduct = task({
       })
     }
 
+    // Mark partial scrapes early so the manual-fill UI surfaces them. We still
+    // proceed to ad discovery + transcription so the demo path keeps running.
+    if (!isReady) {
+      await withUser(userId, async (db) => {
+        await db
+          .update(products)
+          .set({ status: "SCRAPE_PARTIAL" })
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+      })
+    }
+
+    if (adKeywords.length === 0) {
+      // Without keyword tiers we can't search Meta Ad Library or Apify. Stop
+      // here with whatever Stage A captured.
+      return {
+        creativeCount: 0,
+        withTranscript: 0,
+        withAngle: 0,
+        source: "none",
+      }
+    }
+
     // ---------- Step 2 — findAds ----------
-    logger.info("find_ads_started", { keywords: keywordsResult.keywords })
-    const { ads, source } = await findAds(keywordsResult.keywords)
+    logger.info("find_ads_started", { keywordCount: adKeywords.length })
+    const { ads, source } = await findAds(adKeywords)
     logger.info("find_ads_done", { count: ads.length, source })
 
     if (ads.length === 0) {

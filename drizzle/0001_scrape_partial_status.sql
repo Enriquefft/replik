@@ -1,0 +1,1 @@
+ALTER TYPE "public"."product_status" ADD VALUE 'SCRAPE_PARTIAL' BEFORE 'FAILED';
