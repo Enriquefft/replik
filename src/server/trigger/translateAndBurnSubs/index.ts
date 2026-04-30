@@ -2,8 +2,9 @@ import { logger, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys } from "@/db/schema"
+import { cuesToSrt, translateSrt } from "@/lib/ai/srt-translate.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
-import { burnSubs, translateSrt, uploadEditedVideo, uploadSrt } from "@/lib/video"
+import { burnSubs, uploadEditedVideo, uploadSrt } from "@/lib/video"
 
 interface TranslateAndBurnSubsPayload {
   creativeId: string
@@ -136,7 +137,11 @@ export const translateAndBurnSubsTask = task({
     const language = transcribed.language
     const sourceSrt = transcribed.srt
 
-    // 5. Translate when source isn't Spanish.
+    // 5. Translate when source isn't Spanish (§10).
+    //
+    // The translator is a single-batch Opus 4.7 call (≤60 cues). On
+    // unrecoverable failure it returns `{ translated: false, cues: <source> }`
+    // verbatim — the publish path never blocks.
     let finalSrt: string
     let translated: boolean
     if (language === "es") {
@@ -148,11 +153,20 @@ export const translateAndBurnSubsTask = task({
         from: language,
         to: "es-PE",
       })
-      finalSrt = await translateSrt(sourceSrt, "es-PE")
-      translated = true
+      // Brand-token list lives on `products` once that column lands; until
+      // then we pass an empty list so the per-cue preservation check is a
+      // no-op (§10 brand check is per-cue, not global).
+      const result = await translateSrt({
+        sourceSrt,
+        brandTokens: [],
+        targetLocale: "es-PE",
+      })
+      finalSrt = cuesToSrt(result.cues)
+      translated = result.translated
       logger.info("translate_done", {
         creativeId,
         srtBytes: finalSrt.length,
+        translated,
       })
     }
 

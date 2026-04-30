@@ -212,15 +212,68 @@ export type TranslatedCue = Cue
 /**
  * Result of a single-batch SRT translation call (§10).
  *
- * The `.refine` brand-token check is wired at the call site in Phase 1;
- * the foundation declares the structural shape only.
- * Phase 1 adds: `.refine(s => brandTokens.every(b => s.cues.some(c => c.text.includes(b))))`.
+ * `translated: false` is the fallback marker — when the LLM round trips
+ * exhaust the retry budget the call site persists the source SRT verbatim
+ * with this flag set so the publish path never blocks (§10 fallback).
+ *
+ * The structural schema validates `cues[].index` is unique inside the
+ * batch. Source-dependent constraints (count match, brand-token preservation,
+ * line-length / line-count limits) live in the call-site validator — Zod has
+ * no other way to compare against runtime input data.
  */
-export const SrtTranslateResultSchema = z.object({
+export const SrtTranslateResultSchema = z
+  .object({
+    cues: z.array(TranslatedCueSchema),
+    translated: z.boolean(),
+  })
+  .refine(
+    (out) => {
+      const seen = new Set<number>()
+      for (const c of out.cues) {
+        if (seen.has(c.index)) return false
+        seen.add(c.index)
+      }
+      return true
+    },
+    { message: "duplicate cue indices" },
+  )
+
+export type SrtTranslateResult = z.infer<typeof SrtTranslateResultSchema>
+
+/**
+ * Bare-shape variant used when calling `generateObject` — the LLM never
+ * controls the `translated` flag (the call site stamps it after success or
+ * during fallback). Keeping the LLM-facing schema lean prevents the model
+ * from emitting a stray `translated: false` and tripping a real success.
+ */
+export const SrtTranslateLLMResultSchema = z.object({
   cues: z.array(TranslatedCueSchema),
 })
 
-export type SrtTranslateResult = z.infer<typeof SrtTranslateResultSchema>
+export type SrtTranslateLLMResult = z.infer<typeof SrtTranslateLLMResultSchema>
+
+/**
+ * Hard layout limits per §10. Exported so the call-site validator and the
+ * snapshot tests share a single source.
+ */
+export const SRT_MAX_CHARS_PER_LINE = 42
+export const SRT_MAX_LINES_PER_CUE = 2
+export const SRT_MAX_CUES_PER_BATCH = 60
+
+/**
+ * Caller input for `translateSrt` (§10).
+ *
+ * `targetLocale` is constrained to the project Locale enum. `brandTokens`
+ * is the per-product list whose entries must survive the round trip
+ * verbatim inside any cue that mentions them.
+ */
+export const SrtTranslateInputSchema = z.object({
+  sourceSrt: z.string().min(1),
+  brandTokens: z.array(z.string().min(1)),
+  targetLocale: Locale,
+})
+
+export type SrtTranslateInput = z.infer<typeof SrtTranslateInputSchema>
 
 // ─── adjustCopy chat (§13) ────────────────────────────────────────────────────
 

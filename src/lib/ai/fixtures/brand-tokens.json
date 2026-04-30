@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "rows": [
+    { "brand": "Replik", "tokens": ["Replik", "REPLIK", "replik.app"] },
+    { "brand": "Inca Glow", "tokens": ["Inca Glow", "IncaGlow", "incaglow.pe"] },
+    { "brand": "QuechuaFit", "tokens": ["QuechuaFit", "QF Pro", "quechuafit.com"] },
+    { "brand": "Andina Eats", "tokens": ["Andina Eats", "ANDINA", "@andinaeats"] },
+    { "brand": "PachaPet", "tokens": ["PachaPet", "PACHAPET", "pachapet.pe", "#PachaPet"] },
+    { "brand": "Limeño Home", "tokens": ["Limeño Home", "LimenoHome"] },
+    {
+      "brand": "ChamboTech",
+      "tokens": ["ChamboTech", "CHAMBOTECH", "chambotech.com", "@chambotech", "#ChamboLife"]
+    },
+    { "brand": "SolPeru", "tokens": ["SolPeru", "Sol-Perú"] },
+    { "brand": "Bacán Beauty", "tokens": ["Bacán Beauty", "BACAN", "bacanbeauty.pe"] },
+    { "brand": "Plata App", "tokens": ["Plata", "Plata App", "plata.app"] }
+  ]
+}

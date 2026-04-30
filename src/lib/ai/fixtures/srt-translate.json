@@ -1,0 +1,800 @@
+{
+  "version": 1,
+  "description": "§10 SRT translation snapshot fixtures. 20 success + 5 retry + 5 fallback. Each row includes a `kind` discriminator and optional `firstAttempt` (retry rows) or `errorOnPrimary`/`errorOnBumped` (fallback rows) so the mock-LLM driver knows how to respond. expectedOutput is the post-retry/post-fallback canonical result.",
+  "rows": [
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nHey friends, big news today.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Oye, broder, gran noticia hoy." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nThis deal is wild.\n\n2\n00:00:02,000 --> 00:00:04,000\nGo grab it now.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Esta oferta está bacán." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Aprovecha ya." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nReplik makes ads simple.\n\n2\n00:00:02,000 --> 00:00:04,000\nTry Replik today.\n\n3\n00:00:04,000 --> 00:00:06,000\nReplik works for any store.\n",
+        "brandTokens": ["Replik"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Replik hace los ads fáciles." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Prueba Replik hoy." },
+          {
+            "index": 3,
+            "startMs": 4000,
+            "endMs": 6000,
+            "text": "Replik sirve para cualquier tienda."
+          }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nInca Glow lights up your skin.\n\n2\n00:00:02,000 --> 00:00:04,000\nNatural ingredients.\n\n3\n00:00:04,000 --> 00:00:06,000\nMade in Lima.\n\n4\n00:00:06,000 --> 00:00:08,000\nGet Inca Glow now.\n\n5\n00:00:08,000 --> 00:00:10,000\nVisit incaglow.pe.\n",
+        "brandTokens": ["Inca Glow", "incaglow.pe"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Inca Glow ilumina tu piel." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Ingredientes naturales." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Hecho en Lima." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Pide Inca Glow ya." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Visita incaglow.pe." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nQuechuaFit gear is built tough.\n\n2\n00:00:02,000 --> 00:00:04,000\nLightweight and strong.\n\n3\n00:00:04,000 --> 00:00:06,000\nTested in the Andes.\n\n4\n00:00:06,000 --> 00:00:08,000\nSave money on bundles.\n\n5\n00:00:08,000 --> 00:00:10,000\nFree shipping in Peru.\n\n6\n00:00:10,000 --> 00:00:12,000\nQuechuaFit gives you results.\n\n7\n00:00:12,000 --> 00:00:14,000\nNo gym needed.\n\n8\n00:00:14,000 --> 00:00:16,000\nGet QuechuaFit now.\n",
+        "brandTokens": ["QuechuaFit"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          {
+            "index": 1,
+            "startMs": 0,
+            "endMs": 2000,
+            "text": "El equipo QuechuaFit es resistente."
+          },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Ligero y fuerte." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Probado en los Andes." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Ahorra plata en los packs." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Envío gratis en Perú." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "QuechuaFit te da resultados." },
+          { "index": 7, "startMs": 12000, "endMs": 14000, "text": "Sin necesidad de gimnasio." },
+          { "index": 8, "startMs": 14000, "endMs": 16000, "text": "Pide QuechuaFit ya." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nAndina Eats brings flavor home.\n\n2\n00:00:02,000 --> 00:00:04,000\nLima recipes, real spice.\n\n3\n00:00:04,000 --> 00:00:06,000\nTry our chicken bowl.\n\n4\n00:00:06,000 --> 00:00:08,000\nFresh, fast, hot.\n\n5\n00:00:08,000 --> 00:00:10,000\nDelivery in 30 minutes.\n\n6\n00:00:10,000 --> 00:00:12,000\nUse code BACAN at checkout.\n\n7\n00:00:12,000 --> 00:00:14,000\nFamily packs available.\n\n8\n00:00:14,000 --> 00:00:16,000\nGreat for parties.\n\n9\n00:00:16,000 --> 00:00:18,000\nTag us @andinaeats.\n\n10\n00:00:18,000 --> 00:00:20,000\nLima loves Andina Eats.\n\n11\n00:00:20,000 --> 00:00:22,000\nOrder online tonight.\n\n12\n00:00:22,000 --> 00:00:24,000\nAndina Eats — local taste.\n",
+        "brandTokens": ["Andina Eats", "@andinaeats", "BACAN"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Andina Eats trae el sabor a casa." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Recetas de Lima, picante real." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Prueba nuestro bowl de pollo." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Fresco, rápido, calientito." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Delivery en 30 minutos." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "Usa el código BACAN al pagar." },
+          { "index": 7, "startMs": 12000, "endMs": 14000, "text": "Tenemos packs familiares." },
+          { "index": 8, "startMs": 14000, "endMs": 16000, "text": "Bacán para tus juntas." },
+          { "index": 9, "startMs": 16000, "endMs": 18000, "text": "Etiquétanos @andinaeats." },
+          { "index": 10, "startMs": 18000, "endMs": 20000, "text": "Lima ama Andina Eats." },
+          { "index": 11, "startMs": 20000, "endMs": 22000, "text": "Pide online esta noche." },
+          { "index": 12, "startMs": 22000, "endMs": 24000, "text": "Andina Eats. Sabor local." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nPachaPet keeps tails wagging.\n\n2\n00:00:02,000 --> 00:00:04,000\nNatural treats.\n\n3\n00:00:04,000 --> 00:00:06,000\nMade for Peruvian dogs.\n\n4\n00:00:06,000 --> 00:00:08,000\nNo weird chemicals.\n\n5\n00:00:08,000 --> 00:00:10,000\nVet approved.\n\n6\n00:00:10,000 --> 00:00:12,000\nFresh ingredients.\n\n7\n00:00:12,000 --> 00:00:14,000\nGreat for puppies.\n\n8\n00:00:14,000 --> 00:00:16,000\nGood for older dogs too.\n\n9\n00:00:16,000 --> 00:00:18,000\nAffordable monthly box.\n\n10\n00:00:18,000 --> 00:00:20,000\nFree delivery in Lima.\n\n11\n00:00:20,000 --> 00:00:22,000\nUse #PachaPet on social.\n\n12\n00:00:22,000 --> 00:00:24,000\nVisit pachapet.pe today.\n\n13\n00:00:24,000 --> 00:00:26,000\nYour dog will thank you.\n\n14\n00:00:26,000 --> 00:00:28,000\nWe love pets.\n\n15\n00:00:28,000 --> 00:00:30,000\nPachaPet — pets first.\n",
+        "brandTokens": ["PachaPet", "pachapet.pe", "#PachaPet"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          {
+            "index": 1,
+            "startMs": 0,
+            "endMs": 2000,
+            "text": "PachaPet mantiene felices a tus mascotas."
+          },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Snacks naturales." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Hecho para perros peruanos." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Sin químicos raros." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Aprobado por veterinarios." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "Ingredientes frescos." },
+          { "index": 7, "startMs": 12000, "endMs": 14000, "text": "Bacán para cachorros." },
+          { "index": 8, "startMs": 14000, "endMs": 16000, "text": "También para perros mayores." },
+          { "index": 9, "startMs": 16000, "endMs": 18000, "text": "Caja mensual a buen precio." },
+          { "index": 10, "startMs": 18000, "endMs": 20000, "text": "Delivery gratis en Lima." },
+          { "index": 11, "startMs": 20000, "endMs": 22000, "text": "Usa #PachaPet en tus redes." },
+          { "index": 12, "startMs": 22000, "endMs": 24000, "text": "Visita pachapet.pe hoy." },
+          {
+            "index": 13,
+            "startMs": 24000,
+            "endMs": 26000,
+            "text": "Tu perro te lo va a agradecer."
+          },
+          { "index": 14, "startMs": 26000, "endMs": 28000, "text": "Amamos a las mascotas." },
+          { "index": 15, "startMs": 28000, "endMs": 30000, "text": "PachaPet. Mascotas primero." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nLimeño Home is here.\n\n2\n00:00:02,000 --> 00:00:04,000\nFix your kitchen.\n\n3\n00:00:04,000 --> 00:00:06,000\nClean in seconds.\n\n4\n00:00:06,000 --> 00:00:08,000\nNo more grease.\n\n5\n00:00:08,000 --> 00:00:10,000\nSafe for your pots.\n\n6\n00:00:10,000 --> 00:00:12,000\nWorks on any pan.\n\n7\n00:00:12,000 --> 00:00:14,000\nNo strong smell.\n\n8\n00:00:14,000 --> 00:00:16,000\nKid friendly.\n\n9\n00:00:16,000 --> 00:00:18,000\nTry it tonight.\n\n10\n00:00:18,000 --> 00:00:20,000\nFree shipping.\n\n11\n00:00:20,000 --> 00:00:22,000\nLimeño Home values quality.\n\n12\n00:00:22,000 --> 00:00:24,000\nMade in Peru.\n\n13\n00:00:24,000 --> 00:00:26,000\nCustomer support 24/7.\n\n14\n00:00:26,000 --> 00:00:28,000\nThirty day return.\n\n15\n00:00:28,000 --> 00:00:30,000\nNo questions asked.\n\n16\n00:00:30,000 --> 00:00:32,000\nThousands of orders.\n\n17\n00:00:32,000 --> 00:00:34,000\nFive star reviews.\n\n18\n00:00:34,000 --> 00:00:36,000\nReal people, real results.\n\n19\n00:00:36,000 --> 00:00:38,000\nLimeño Home delivers.\n\n20\n00:00:38,000 --> 00:00:40,000\nOrder now.\n",
+        "brandTokens": ["Limeño Home"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Limeño Home llegó." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Arregla tu cocina." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Limpio en segundos." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Adiós a la grasa." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Seguro para tus ollas." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "Sirve con cualquier sartén." },
+          { "index": 7, "startMs": 12000, "endMs": 14000, "text": "Sin olor fuerte." },
+          { "index": 8, "startMs": 14000, "endMs": 16000, "text": "Apto para los chicos." },
+          { "index": 9, "startMs": 16000, "endMs": 18000, "text": "Pruébalo esta noche." },
+          { "index": 10, "startMs": 18000, "endMs": 20000, "text": "Envío gratis." },
+          {
+            "index": 11,
+            "startMs": 20000,
+            "endMs": 22000,
+            "text": "Limeño Home apuesta por la calidad."
+          },
+          { "index": 12, "startMs": 22000, "endMs": 24000, "text": "Hecho en Perú." },
+          { "index": 13, "startMs": 24000, "endMs": 26000, "text": "Soporte 24/7." },
+          { "index": 14, "startMs": 26000, "endMs": 28000, "text": "Devolución en treinta días." },
+          { "index": 15, "startMs": 28000, "endMs": 30000, "text": "Sin preguntas." },
+          { "index": 16, "startMs": 30000, "endMs": 32000, "text": "Miles de pedidos." },
+          { "index": 17, "startMs": 32000, "endMs": 34000, "text": "Reseñas de cinco estrellas." },
+          {
+            "index": 18,
+            "startMs": 34000,
+            "endMs": 36000,
+            "text": "Gente real, resultados reales."
+          },
+          { "index": 19, "startMs": 36000, "endMs": 38000, "text": "Limeño Home cumple." },
+          { "index": 20, "startMs": 38000, "endMs": 40000, "text": "Pide ya." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nChamboTech runs your store.\n\n2\n00:00:02,000 --> 00:00:04,000\nPOS, payments, all in one.\n\n3\n00:00:04,000 --> 00:00:06,000\nReal time analytics.\n\n4\n00:00:06,000 --> 00:00:08,000\nSync inventory live.\n\n5\n00:00:08,000 --> 00:00:10,000\nManage staff easy.\n\n6\n00:00:10,000 --> 00:00:12,000\nCheap monthly fee.\n\n7\n00:00:12,000 --> 00:00:14,000\nNo setup cost.\n\n8\n00:00:14,000 --> 00:00:16,000\nFree training.\n\n9\n00:00:16,000 --> 00:00:18,000\nCloud backups.\n\n10\n00:00:18,000 --> 00:00:20,000\nWorks offline too.\n\n11\n00:00:20,000 --> 00:00:22,000\nMobile dashboard.\n\n12\n00:00:22,000 --> 00:00:24,000\nUse on any phone.\n\n13\n00:00:24,000 --> 00:00:26,000\nAndroid and iPhone.\n\n14\n00:00:26,000 --> 00:00:28,000\nIntegrate with banks.\n\n15\n00:00:28,000 --> 00:00:30,000\nReceipts via email.\n\n16\n00:00:30,000 --> 00:00:32,000\nLoyalty cards built in.\n\n17\n00:00:32,000 --> 00:00:34,000\nDiscount codes easy.\n\n18\n00:00:34,000 --> 00:00:36,000\nCustomer database.\n\n19\n00:00:36,000 --> 00:00:38,000\nReports per branch.\n\n20\n00:00:38,000 --> 00:00:40,000\nMulti-store ready.\n\n21\n00:00:40,000 --> 00:00:42,000\nUsed in 500 stores.\n\n22\n00:00:42,000 --> 00:00:44,000\nTry ChamboTech free.\n\n23\n00:00:44,000 --> 00:00:46,000\nVisit chambotech.com.\n\n24\n00:00:46,000 --> 00:00:48,000\nFollow @chambotech.\n\n25\n00:00:48,000 --> 00:00:50,000\nJoin #ChamboLife.\n",
+        "brandTokens": ["ChamboTech", "chambotech.com", "@chambotech", "#ChamboLife"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "ChamboTech opera tu tienda." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "POS y pagos en uno solo." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Analítica en tiempo real." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Sincroniza inventario al toque." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Maneja al personal fácil." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "Pago mensual barato." },
+          { "index": 7, "startMs": 12000, "endMs": 14000, "text": "Sin costo de instalación." },
+          { "index": 8, "startMs": 14000, "endMs": 16000, "text": "Capacitación gratis." },
+          { "index": 9, "startMs": 16000, "endMs": 18000, "text": "Backups en la nube." },
+          { "index": 10, "startMs": 18000, "endMs": 20000, "text": "Funciona también offline." },
+          { "index": 11, "startMs": 20000, "endMs": 22000, "text": "Panel móvil." },
+          { "index": 12, "startMs": 22000, "endMs": 24000, "text": "Úsalo en cualquier celular." },
+          { "index": 13, "startMs": 24000, "endMs": 26000, "text": "Android y iPhone." },
+          { "index": 14, "startMs": 26000, "endMs": 28000, "text": "Se integra con los bancos." },
+          { "index": 15, "startMs": 28000, "endMs": 30000, "text": "Recibos por correo." },
+          {
+            "index": 16,
+            "startMs": 30000,
+            "endMs": 32000,
+            "text": "Tarjetas de fidelidad incluidas."
+          },
+          {
+            "index": 17,
+            "startMs": 32000,
+            "endMs": 34000,
+            "text": "Códigos de descuento al toque."
+          },
+          { "index": 18, "startMs": 34000, "endMs": 36000, "text": "Base de clientes." },
+          { "index": 19, "startMs": 36000, "endMs": 38000, "text": "Reportes por sucursal." },
+          { "index": 20, "startMs": 38000, "endMs": 40000, "text": "Listo para varias tiendas." },
+          { "index": 21, "startMs": 40000, "endMs": 42000, "text": "Usado en 500 tiendas." },
+          { "index": 22, "startMs": 42000, "endMs": 44000, "text": "Prueba ChamboTech gratis." },
+          { "index": 23, "startMs": 44000, "endMs": 46000, "text": "Visita chambotech.com." },
+          { "index": 24, "startMs": 46000, "endMs": 48000, "text": "Sigue a @chambotech." },
+          { "index": 25, "startMs": 48000, "endMs": 50000, "text": "Únete a #ChamboLife." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nSolPeru gives clean energy.\n\n2\n00:00:02,000 --> 00:00:04,000\nSolar for your roof.\n\n3\n00:00:04,000 --> 00:00:06,000\nPay less every month.\n\n4\n00:00:06,000 --> 00:00:08,000\nFree quote in 24 hours.\n\n5\n00:00:08,000 --> 00:00:10,000\nFinancing without papers.\n\n6\n00:00:10,000 --> 00:00:12,000\nInstallation in one day.\n\n7\n00:00:12,000 --> 00:00:14,000\nTen year warranty.\n\n8\n00:00:14,000 --> 00:00:16,000\nWorks rain or shine.\n\n9\n00:00:16,000 --> 00:00:18,000\nSave the environment.\n\n10\n00:00:18,000 --> 00:00:20,000\nReduce your bill.\n\n11\n00:00:20,000 --> 00:00:22,000\nIncrease your home value.\n\n12\n00:00:22,000 --> 00:00:24,000\nThousands of installs.\n\n13\n00:00:24,000 --> 00:00:26,000\nLima, Trujillo, Arequipa.\n\n14\n00:00:26,000 --> 00:00:28,000\nReal people, real savings.\n\n15\n00:00:28,000 --> 00:00:30,000\nWe handle paperwork.\n\n16\n00:00:30,000 --> 00:00:32,000\nNo down payment.\n\n17\n00:00:32,000 --> 00:00:34,000\nMonthly plan.\n\n18\n00:00:34,000 --> 00:00:36,000\nFlexible terms.\n\n19\n00:00:36,000 --> 00:00:38,000\nCertified technicians.\n\n20\n00:00:38,000 --> 00:00:40,000\nQuality panels.\n\n21\n00:00:40,000 --> 00:00:42,000\nMonitoring app.\n\n22\n00:00:42,000 --> 00:00:44,000\nKnow your output.\n\n23\n00:00:44,000 --> 00:00:46,000\nReady to switch?\n\n24\n00:00:46,000 --> 00:00:48,000\nClick the link.\n\n25\n00:00:48,000 --> 00:00:50,000\nJoin SolPeru.\n\n26\n00:00:50,000 --> 00:00:52,000\nThe sun is free.\n\n27\n00:00:52,000 --> 00:00:54,000\nWe make it work.\n\n28\n00:00:54,000 --> 00:00:56,000\nFor your home.\n\n29\n00:00:56,000 --> 00:00:58,000\nFor your wallet.\n\n30\n00:00:58,000 --> 00:01:00,000\nSolPeru. Power on.\n",
+        "brandTokens": ["SolPeru"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "SolPeru te da energía limpia." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Solar para tu techo." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Paga menos cada mes." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Cotización gratis en 24 horas." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Financiamiento sin papeleos." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "Instalación en un día." },
+          { "index": 7, "startMs": 12000, "endMs": 14000, "text": "Garantía de diez años." },
+          { "index": 8, "startMs": 14000, "endMs": 16000, "text": "Funciona con sol o lluvia." },
+          { "index": 9, "startMs": 16000, "endMs": 18000, "text": "Cuida el medio ambiente." },
+          { "index": 10, "startMs": 18000, "endMs": 20000, "text": "Baja tu recibo." },
+          { "index": 11, "startMs": 20000, "endMs": 22000, "text": "Sube el valor de tu casa." },
+          { "index": 12, "startMs": 22000, "endMs": 24000, "text": "Miles de instalaciones." },
+          { "index": 13, "startMs": 24000, "endMs": 26000, "text": "Lima, Trujillo, Arequipa." },
+          { "index": 14, "startMs": 26000, "endMs": 28000, "text": "Gente real, ahorros reales." },
+          { "index": 15, "startMs": 28000, "endMs": 30000, "text": "Hacemos el trámite." },
+          { "index": 16, "startMs": 30000, "endMs": 32000, "text": "Sin inicial." },
+          { "index": 17, "startMs": 32000, "endMs": 34000, "text": "Plan mensual." },
+          { "index": 18, "startMs": 34000, "endMs": 36000, "text": "Plazos flexibles." },
+          { "index": 19, "startMs": 36000, "endMs": 38000, "text": "Técnicos certificados." },
+          { "index": 20, "startMs": 38000, "endMs": 40000, "text": "Paneles de calidad." },
+          { "index": 21, "startMs": 40000, "endMs": 42000, "text": "App de monitoreo." },
+          { "index": 22, "startMs": 42000, "endMs": 44000, "text": "Conoce tu producción." },
+          { "index": 23, "startMs": 44000, "endMs": 46000, "text": "¿Listo para el cambio?" },
+          { "index": 24, "startMs": 46000, "endMs": 48000, "text": "Haz clic en el enlace." },
+          { "index": 25, "startMs": 48000, "endMs": 50000, "text": "Únete a SolPeru." },
+          { "index": 26, "startMs": 50000, "endMs": 52000, "text": "El sol es gratis." },
+          { "index": 27, "startMs": 52000, "endMs": 54000, "text": "Nosotros lo hacemos chamba." },
+          { "index": 28, "startMs": 54000, "endMs": 56000, "text": "Para tu casa." },
+          { "index": 29, "startMs": 56000, "endMs": 58000, "text": "Para tu plata." },
+          { "index": 30, "startMs": 58000, "endMs": 60000, "text": "SolPeru. Energía encendida." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:03,000\nLine one of the cue.\nLine two of the cue.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          {
+            "index": 1,
+            "startMs": 0,
+            "endMs": 3000,
+            "text": "Línea uno del cue.\nLínea dos del cue."
+          }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,500\nThe SUV is BACAN at every price.\n",
+        "brandTokens": ["BACAN"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2500, "text": "El SUV está BACAN a todo precio." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,500\nVisit https://replik.app today.\n",
+        "brandTokens": ["https://replik.app"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2500, "text": "Visita https://replik.app hoy." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,500\nFollow #PachaPet on Instagram.\n",
+        "brandTokens": ["#PachaPet"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2500, "text": "Sigue #PachaPet en Instagram." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,500\nDM us @bacanbeauty for tips.\n",
+        "brandTokens": ["@bacanbeauty"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2500, "text": "Escríbenos @bacanbeauty para tips." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nThis deal is super cool.\n\n2\n00:00:02,000 --> 00:00:04,000\nSave money on every order.\n\n3\n00:00:04,000 --> 00:00:06,000\nGreat work for the family.\n\n4\n00:00:06,000 --> 00:00:08,000\nLima loves it.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Esta oferta está bacán." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Ahorra plata en cada pedido." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Buena chamba para la familia." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Lima lo ama." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nReplik plus Plata makes ads easy.\n\n2\n00:00:02,000 --> 00:00:04,000\nReplik handles the copy.\n\n3\n00:00:04,000 --> 00:00:06,000\nPlata handles the budget.\n\n4\n00:00:06,000 --> 00:00:08,000\nVisit replik.app and plata.app.\n\n5\n00:00:08,000 --> 00:00:10,000\nGrow your store today.\n\n6\n00:00:10,000 --> 00:00:12,000\nReplik and Plata. The combo.\n",
+        "brandTokens": ["Replik", "Plata", "replik.app", "plata.app"],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          {
+            "index": 1,
+            "startMs": 0,
+            "endMs": 2000,
+            "text": "Replik y Plata hacen los ads fáciles."
+          },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Replik se encarga del copy." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Plata maneja el presupuesto." },
+          { "index": 4, "startMs": 6000, "endMs": 8000, "text": "Visita replik.app y plata.app." },
+          { "index": 5, "startMs": 8000, "endMs": 10000, "text": "Haz crecer tu tienda hoy." },
+          { "index": 6, "startMs": 10000, "endMs": 12000, "text": "Replik y Plata. El combo." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:01,500\nLine one cue text.\n\n2\n00:00:01,500 --> 00:00:03,000\nQuick line two.\n\n3\n00:00:03,000 --> 00:00:04,500\nThird line short.\n\n4\n00:00:04,500 --> 00:00:06,000\nFourth line.\n\n5\n00:00:06,000 --> 00:00:07,500\nFifth.\n\n6\n00:00:07,500 --> 00:00:09,000\nSixth.\n\n7\n00:00:09,000 --> 00:00:10,500\nSeventh.\n\n8\n00:00:10,500 --> 00:00:12,000\nEighth.\n\n9\n00:00:12,000 --> 00:00:13,500\nNinth.\n\n10\n00:00:13,500 --> 00:00:15,000\nTenth.\n\n11\n00:00:15,000 --> 00:00:16,500\nEleven.\n\n12\n00:00:16,500 --> 00:00:18,000\nTwelve.\n\n13\n00:00:18,000 --> 00:00:19,500\nThirteen.\n\n14\n00:00:19,500 --> 00:00:21,000\nFourteen.\n\n15\n00:00:21,000 --> 00:00:22,500\nFifteen.\n\n16\n00:00:22,500 --> 00:00:24,000\nSixteen.\n\n17\n00:00:24,000 --> 00:00:25,500\nSeventeen.\n\n18\n00:00:25,500 --> 00:00:27,000\nEighteen.\n\n19\n00:00:27,000 --> 00:00:28,500\nNineteen.\n\n20\n00:00:28,500 --> 00:00:30,000\nTwenty.\n\n21\n00:00:30,000 --> 00:00:31,500\nTwenty one.\n\n22\n00:00:31,500 --> 00:00:33,000\nTwenty two.\n\n23\n00:00:33,000 --> 00:00:34,500\nTwenty three.\n\n24\n00:00:34,500 --> 00:00:36,000\nTwenty four.\n\n25\n00:00:36,000 --> 00:00:37,500\nTwenty five.\n\n26\n00:00:37,500 --> 00:00:39,000\nTwenty six.\n\n27\n00:00:39,000 --> 00:00:40,500\nTwenty seven.\n\n28\n00:00:40,500 --> 00:00:42,000\nTwenty eight.\n\n29\n00:00:42,000 --> 00:00:43,500\nTwenty nine.\n\n30\n00:00:43,500 --> 00:00:45,000\nThirty.\n\n31\n00:00:45,000 --> 00:00:46,500\nThirty one.\n\n32\n00:00:46,500 --> 00:00:48,000\nThirty two.\n\n33\n00:00:48,000 --> 00:00:49,500\nThirty three.\n\n34\n00:00:49,500 --> 00:00:51,000\nThirty four.\n\n35\n00:00:51,000 --> 00:00:52,500\nThirty five.\n\n36\n00:00:52,500 --> 00:00:54,000\nThirty six.\n\n37\n00:00:54,000 --> 00:00:55,500\nThirty seven.\n\n38\n00:00:55,500 --> 00:00:57,000\nThirty eight.\n\n39\n00:00:57,000 --> 00:00:58,500\nThirty nine.\n\n40\n00:00:58,500 --> 00:01:00,000\nForty.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 1500, "text": "Texto del cue uno." },
+          { "index": 2, "startMs": 1500, "endMs": 3000, "text": "Línea dos al toque." },
+          { "index": 3, "startMs": 3000, "endMs": 4500, "text": "Tercera línea corta." },
+          { "index": 4, "startMs": 4500, "endMs": 6000, "text": "Cuarta línea." },
+          { "index": 5, "startMs": 6000, "endMs": 7500, "text": "Quinta." },
+          { "index": 6, "startMs": 7500, "endMs": 9000, "text": "Sexta." },
+          { "index": 7, "startMs": 9000, "endMs": 10500, "text": "Séptima." },
+          { "index": 8, "startMs": 10500, "endMs": 12000, "text": "Octava." },
+          { "index": 9, "startMs": 12000, "endMs": 13500, "text": "Novena." },
+          { "index": 10, "startMs": 13500, "endMs": 15000, "text": "Décima." },
+          { "index": 11, "startMs": 15000, "endMs": 16500, "text": "Once." },
+          { "index": 12, "startMs": 16500, "endMs": 18000, "text": "Doce." },
+          { "index": 13, "startMs": 18000, "endMs": 19500, "text": "Trece." },
+          { "index": 14, "startMs": 19500, "endMs": 21000, "text": "Catorce." },
+          { "index": 15, "startMs": 21000, "endMs": 22500, "text": "Quince." },
+          { "index": 16, "startMs": 22500, "endMs": 24000, "text": "Dieciséis." },
+          { "index": 17, "startMs": 24000, "endMs": 25500, "text": "Diecisiete." },
+          { "index": 18, "startMs": 25500, "endMs": 27000, "text": "Dieciocho." },
+          { "index": 19, "startMs": 27000, "endMs": 28500, "text": "Diecinueve." },
+          { "index": 20, "startMs": 28500, "endMs": 30000, "text": "Veinte." },
+          { "index": 21, "startMs": 30000, "endMs": 31500, "text": "Veintiuno." },
+          { "index": 22, "startMs": 31500, "endMs": 33000, "text": "Veintidós." },
+          { "index": 23, "startMs": 33000, "endMs": 34500, "text": "Veintitrés." },
+          { "index": 24, "startMs": 34500, "endMs": 36000, "text": "Veinticuatro." },
+          { "index": 25, "startMs": 36000, "endMs": 37500, "text": "Veinticinco." },
+          { "index": 26, "startMs": 37500, "endMs": 39000, "text": "Veintiséis." },
+          { "index": 27, "startMs": 39000, "endMs": 40500, "text": "Veintisiete." },
+          { "index": 28, "startMs": 40500, "endMs": 42000, "text": "Veintiocho." },
+          { "index": 29, "startMs": 42000, "endMs": 43500, "text": "Veintinueve." },
+          { "index": 30, "startMs": 43500, "endMs": 45000, "text": "Treinta." },
+          { "index": 31, "startMs": 45000, "endMs": 46500, "text": "Treinta y uno." },
+          { "index": 32, "startMs": 46500, "endMs": 48000, "text": "Treinta y dos." },
+          { "index": 33, "startMs": 48000, "endMs": 49500, "text": "Treinta y tres." },
+          { "index": 34, "startMs": 49500, "endMs": 51000, "text": "Treinta y cuatro." },
+          { "index": 35, "startMs": 51000, "endMs": 52500, "text": "Treinta y cinco." },
+          { "index": 36, "startMs": 52500, "endMs": 54000, "text": "Treinta y seis." },
+          { "index": 37, "startMs": 54000, "endMs": 55500, "text": "Treinta y siete." },
+          { "index": 38, "startMs": 55500, "endMs": 57000, "text": "Treinta y ocho." },
+          { "index": 39, "startMs": 57000, "endMs": 58500, "text": "Treinta y nueve." },
+          { "index": 40, "startMs": 58500, "endMs": 60000, "text": "Cuarenta." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:01,000\nA.\n\n2\n00:00:01,000 --> 00:00:02,000\nB.\n\n3\n00:00:02,000 --> 00:00:03,000\nC.\n\n4\n00:00:03,000 --> 00:00:04,000\nD.\n\n5\n00:00:04,000 --> 00:00:05,000\nE.\n\n6\n00:00:05,000 --> 00:00:06,000\nF.\n\n7\n00:00:06,000 --> 00:00:07,000\nG.\n\n8\n00:00:07,000 --> 00:00:08,000\nH.\n\n9\n00:00:08,000 --> 00:00:09,000\nI.\n\n10\n00:00:09,000 --> 00:00:10,000\nJ.\n\n11\n00:00:10,000 --> 00:00:11,000\nK.\n\n12\n00:00:11,000 --> 00:00:12,000\nL.\n\n13\n00:00:12,000 --> 00:00:13,000\nM.\n\n14\n00:00:13,000 --> 00:00:14,000\nN.\n\n15\n00:00:14,000 --> 00:00:15,000\nO.\n\n16\n00:00:15,000 --> 00:00:16,000\nP.\n\n17\n00:00:16,000 --> 00:00:17,000\nQ.\n\n18\n00:00:17,000 --> 00:00:18,000\nR.\n\n19\n00:00:18,000 --> 00:00:19,000\nS.\n\n20\n00:00:19,000 --> 00:00:20,000\nT.\n\n21\n00:00:20,000 --> 00:00:21,000\nU.\n\n22\n00:00:21,000 --> 00:00:22,000\nV.\n\n23\n00:00:22,000 --> 00:00:23,000\nW.\n\n24\n00:00:23,000 --> 00:00:24,000\nX.\n\n25\n00:00:24,000 --> 00:00:25,000\nY.\n\n26\n00:00:25,000 --> 00:00:26,000\nZ.\n\n27\n00:00:26,000 --> 00:00:27,000\nAA.\n\n28\n00:00:27,000 --> 00:00:28,000\nBB.\n\n29\n00:00:28,000 --> 00:00:29,000\nCC.\n\n30\n00:00:29,000 --> 00:00:30,000\nDD.\n\n31\n00:00:30,000 --> 00:00:31,000\nEE.\n\n32\n00:00:31,000 --> 00:00:32,000\nFF.\n\n33\n00:00:32,000 --> 00:00:33,000\nGG.\n\n34\n00:00:33,000 --> 00:00:34,000\nHH.\n\n35\n00:00:34,000 --> 00:00:35,000\nII.\n\n36\n00:00:35,000 --> 00:00:36,000\nJJ.\n\n37\n00:00:36,000 --> 00:00:37,000\nKK.\n\n38\n00:00:37,000 --> 00:00:38,000\nLL.\n\n39\n00:00:38,000 --> 00:00:39,000\nMM.\n\n40\n00:00:39,000 --> 00:00:40,000\nNN.\n\n41\n00:00:40,000 --> 00:00:41,000\nOO.\n\n42\n00:00:41,000 --> 00:00:42,000\nPP.\n\n43\n00:00:42,000 --> 00:00:43,000\nQQ.\n\n44\n00:00:43,000 --> 00:00:44,000\nRR.\n\n45\n00:00:44,000 --> 00:00:45,000\nSS.\n\n46\n00:00:45,000 --> 00:00:46,000\nTT.\n\n47\n00:00:46,000 --> 00:00:47,000\nUU.\n\n48\n00:00:47,000 --> 00:00:48,000\nVV.\n\n49\n00:00:48,000 --> 00:00:49,000\nWW.\n\n50\n00:00:49,000 --> 00:00:50,000\nXX.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 1000, "text": "A." },
+          { "index": 2, "startMs": 1000, "endMs": 2000, "text": "B." },
+          { "index": 3, "startMs": 2000, "endMs": 3000, "text": "C." },
+          { "index": 4, "startMs": 3000, "endMs": 4000, "text": "D." },
+          { "index": 5, "startMs": 4000, "endMs": 5000, "text": "E." },
+          { "index": 6, "startMs": 5000, "endMs": 6000, "text": "F." },
+          { "index": 7, "startMs": 6000, "endMs": 7000, "text": "G." },
+          { "index": 8, "startMs": 7000, "endMs": 8000, "text": "H." },
+          { "index": 9, "startMs": 8000, "endMs": 9000, "text": "I." },
+          { "index": 10, "startMs": 9000, "endMs": 10000, "text": "J." },
+          { "index": 11, "startMs": 10000, "endMs": 11000, "text": "K." },
+          { "index": 12, "startMs": 11000, "endMs": 12000, "text": "L." },
+          { "index": 13, "startMs": 12000, "endMs": 13000, "text": "M." },
+          { "index": 14, "startMs": 13000, "endMs": 14000, "text": "N." },
+          { "index": 15, "startMs": 14000, "endMs": 15000, "text": "O." },
+          { "index": 16, "startMs": 15000, "endMs": 16000, "text": "P." },
+          { "index": 17, "startMs": 16000, "endMs": 17000, "text": "Q." },
+          { "index": 18, "startMs": 17000, "endMs": 18000, "text": "R." },
+          { "index": 19, "startMs": 18000, "endMs": 19000, "text": "S." },
+          { "index": 20, "startMs": 19000, "endMs": 20000, "text": "T." },
+          { "index": 21, "startMs": 20000, "endMs": 21000, "text": "U." },
+          { "index": 22, "startMs": 21000, "endMs": 22000, "text": "V." },
+          { "index": 23, "startMs": 22000, "endMs": 23000, "text": "W." },
+          { "index": 24, "startMs": 23000, "endMs": 24000, "text": "X." },
+          { "index": 25, "startMs": 24000, "endMs": 25000, "text": "Y." },
+          { "index": 26, "startMs": 25000, "endMs": 26000, "text": "Z." },
+          { "index": 27, "startMs": 26000, "endMs": 27000, "text": "AA." },
+          { "index": 28, "startMs": 27000, "endMs": 28000, "text": "BB." },
+          { "index": 29, "startMs": 28000, "endMs": 29000, "text": "CC." },
+          { "index": 30, "startMs": 29000, "endMs": 30000, "text": "DD." },
+          { "index": 31, "startMs": 30000, "endMs": 31000, "text": "EE." },
+          { "index": 32, "startMs": 31000, "endMs": 32000, "text": "FF." },
+          { "index": 33, "startMs": 32000, "endMs": 33000, "text": "GG." },
+          { "index": 34, "startMs": 33000, "endMs": 34000, "text": "HH." },
+          { "index": 35, "startMs": 34000, "endMs": 35000, "text": "II." },
+          { "index": 36, "startMs": 35000, "endMs": 36000, "text": "JJ." },
+          { "index": 37, "startMs": 36000, "endMs": 37000, "text": "KK." },
+          { "index": 38, "startMs": 37000, "endMs": 38000, "text": "LL." },
+          { "index": 39, "startMs": 38000, "endMs": 39000, "text": "MM." },
+          { "index": 40, "startMs": 39000, "endMs": 40000, "text": "NN." },
+          { "index": 41, "startMs": 40000, "endMs": 41000, "text": "OO." },
+          { "index": 42, "startMs": 41000, "endMs": 42000, "text": "PP." },
+          { "index": 43, "startMs": 42000, "endMs": 43000, "text": "QQ." },
+          { "index": 44, "startMs": 43000, "endMs": 44000, "text": "RR." },
+          { "index": 45, "startMs": 44000, "endMs": 45000, "text": "SS." },
+          { "index": 46, "startMs": 45000, "endMs": 46000, "text": "TT." },
+          { "index": 47, "startMs": 46000, "endMs": 47000, "text": "UU." },
+          { "index": 48, "startMs": 47000, "endMs": 48000, "text": "VV." },
+          { "index": 49, "startMs": 48000, "endMs": 49000, "text": "WW." },
+          { "index": 50, "startMs": 49000, "endMs": 50000, "text": "XX." }
+        ]
+      }
+    },
+    {
+      "kind": "success",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:01,000\nC1.\n\n2\n00:00:01,000 --> 00:00:02,000\nC2.\n\n3\n00:00:02,000 --> 00:00:03,000\nC3.\n\n4\n00:00:03,000 --> 00:00:04,000\nC4.\n\n5\n00:00:04,000 --> 00:00:05,000\nC5.\n\n6\n00:00:05,000 --> 00:00:06,000\nC6.\n\n7\n00:00:06,000 --> 00:00:07,000\nC7.\n\n8\n00:00:07,000 --> 00:00:08,000\nC8.\n\n9\n00:00:08,000 --> 00:00:09,000\nC9.\n\n10\n00:00:09,000 --> 00:00:10,000\nC10.\n\n11\n00:00:10,000 --> 00:00:11,000\nC11.\n\n12\n00:00:11,000 --> 00:00:12,000\nC12.\n\n13\n00:00:12,000 --> 00:00:13,000\nC13.\n\n14\n00:00:13,000 --> 00:00:14,000\nC14.\n\n15\n00:00:14,000 --> 00:00:15,000\nC15.\n\n16\n00:00:15,000 --> 00:00:16,000\nC16.\n\n17\n00:00:16,000 --> 00:00:17,000\nC17.\n\n18\n00:00:17,000 --> 00:00:18,000\nC18.\n\n19\n00:00:18,000 --> 00:00:19,000\nC19.\n\n20\n00:00:19,000 --> 00:00:20,000\nC20.\n\n21\n00:00:20,000 --> 00:00:21,000\nC21.\n\n22\n00:00:21,000 --> 00:00:22,000\nC22.\n\n23\n00:00:22,000 --> 00:00:23,000\nC23.\n\n24\n00:00:23,000 --> 00:00:24,000\nC24.\n\n25\n00:00:24,000 --> 00:00:25,000\nC25.\n\n26\n00:00:25,000 --> 00:00:26,000\nC26.\n\n27\n00:00:26,000 --> 00:00:27,000\nC27.\n\n28\n00:00:27,000 --> 00:00:28,000\nC28.\n\n29\n00:00:28,000 --> 00:00:29,000\nC29.\n\n30\n00:00:29,000 --> 00:00:30,000\nC30.\n\n31\n00:00:30,000 --> 00:00:31,000\nC31.\n\n32\n00:00:31,000 --> 00:00:32,000\nC32.\n\n33\n00:00:32,000 --> 00:00:33,000\nC33.\n\n34\n00:00:33,000 --> 00:00:34,000\nC34.\n\n35\n00:00:34,000 --> 00:00:35,000\nC35.\n\n36\n00:00:35,000 --> 00:00:36,000\nC36.\n\n37\n00:00:36,000 --> 00:00:37,000\nC37.\n\n38\n00:00:37,000 --> 00:00:38,000\nC38.\n\n39\n00:00:38,000 --> 00:00:39,000\nC39.\n\n40\n00:00:39,000 --> 00:00:40,000\nC40.\n\n41\n00:00:40,000 --> 00:00:41,000\nC41.\n\n42\n00:00:41,000 --> 00:00:42,000\nC42.\n\n43\n00:00:42,000 --> 00:00:43,000\nC43.\n\n44\n00:00:43,000 --> 00:00:44,000\nC44.\n\n45\n00:00:44,000 --> 00:00:45,000\nC45.\n\n46\n00:00:45,000 --> 00:00:46,000\nC46.\n\n47\n00:00:46,000 --> 00:00:47,000\nC47.\n\n48\n00:00:47,000 --> 00:00:48,000\nC48.\n\n49\n00:00:48,000 --> 00:00:49,000\nC49.\n\n50\n00:00:49,000 --> 00:00:50,000\nC50.\n\n51\n00:00:50,000 --> 00:00:51,000\nC51.\n\n52\n00:00:51,000 --> 00:00:52,000\nC52.\n\n53\n00:00:52,000 --> 00:00:53,000\nC53.\n\n54\n00:00:53,000 --> 00:00:54,000\nC54.\n\n55\n00:00:54,000 --> 00:00:55,000\nC55.\n\n56\n00:00:55,000 --> 00:00:56,000\nC56.\n\n57\n00:00:56,000 --> 00:00:57,000\nC57.\n\n58\n00:00:57,000 --> 00:00:58,000\nC58.\n\n59\n00:00:58,000 --> 00:00:59,000\nC59.\n\n60\n00:00:59,000 --> 00:01:00,000\nC60.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 1000, "text": "C1." },
+          { "index": 2, "startMs": 1000, "endMs": 2000, "text": "C2." },
+          { "index": 3, "startMs": 2000, "endMs": 3000, "text": "C3." },
+          { "index": 4, "startMs": 3000, "endMs": 4000, "text": "C4." },
+          { "index": 5, "startMs": 4000, "endMs": 5000, "text": "C5." },
+          { "index": 6, "startMs": 5000, "endMs": 6000, "text": "C6." },
+          { "index": 7, "startMs": 6000, "endMs": 7000, "text": "C7." },
+          { "index": 8, "startMs": 7000, "endMs": 8000, "text": "C8." },
+          { "index": 9, "startMs": 8000, "endMs": 9000, "text": "C9." },
+          { "index": 10, "startMs": 9000, "endMs": 10000, "text": "C10." },
+          { "index": 11, "startMs": 10000, "endMs": 11000, "text": "C11." },
+          { "index": 12, "startMs": 11000, "endMs": 12000, "text": "C12." },
+          { "index": 13, "startMs": 12000, "endMs": 13000, "text": "C13." },
+          { "index": 14, "startMs": 13000, "endMs": 14000, "text": "C14." },
+          { "index": 15, "startMs": 14000, "endMs": 15000, "text": "C15." },
+          { "index": 16, "startMs": 15000, "endMs": 16000, "text": "C16." },
+          { "index": 17, "startMs": 16000, "endMs": 17000, "text": "C17." },
+          { "index": 18, "startMs": 17000, "endMs": 18000, "text": "C18." },
+          { "index": 19, "startMs": 18000, "endMs": 19000, "text": "C19." },
+          { "index": 20, "startMs": 19000, "endMs": 20000, "text": "C20." },
+          { "index": 21, "startMs": 20000, "endMs": 21000, "text": "C21." },
+          { "index": 22, "startMs": 21000, "endMs": 22000, "text": "C22." },
+          { "index": 23, "startMs": 22000, "endMs": 23000, "text": "C23." },
+          { "index": 24, "startMs": 23000, "endMs": 24000, "text": "C24." },
+          { "index": 25, "startMs": 24000, "endMs": 25000, "text": "C25." },
+          { "index": 26, "startMs": 25000, "endMs": 26000, "text": "C26." },
+          { "index": 27, "startMs": 26000, "endMs": 27000, "text": "C27." },
+          { "index": 28, "startMs": 27000, "endMs": 28000, "text": "C28." },
+          { "index": 29, "startMs": 28000, "endMs": 29000, "text": "C29." },
+          { "index": 30, "startMs": 29000, "endMs": 30000, "text": "C30." },
+          { "index": 31, "startMs": 30000, "endMs": 31000, "text": "C31." },
+          { "index": 32, "startMs": 31000, "endMs": 32000, "text": "C32." },
+          { "index": 33, "startMs": 32000, "endMs": 33000, "text": "C33." },
+          { "index": 34, "startMs": 33000, "endMs": 34000, "text": "C34." },
+          { "index": 35, "startMs": 34000, "endMs": 35000, "text": "C35." },
+          { "index": 36, "startMs": 35000, "endMs": 36000, "text": "C36." },
+          { "index": 37, "startMs": 36000, "endMs": 37000, "text": "C37." },
+          { "index": 38, "startMs": 37000, "endMs": 38000, "text": "C38." },
+          { "index": 39, "startMs": 38000, "endMs": 39000, "text": "C39." },
+          { "index": 40, "startMs": 39000, "endMs": 40000, "text": "C40." },
+          { "index": 41, "startMs": 40000, "endMs": 41000, "text": "C41." },
+          { "index": 42, "startMs": 41000, "endMs": 42000, "text": "C42." },
+          { "index": 43, "startMs": 42000, "endMs": 43000, "text": "C43." },
+          { "index": 44, "startMs": 43000, "endMs": 44000, "text": "C44." },
+          { "index": 45, "startMs": 44000, "endMs": 45000, "text": "C45." },
+          { "index": 46, "startMs": 45000, "endMs": 46000, "text": "C46." },
+          { "index": 47, "startMs": 46000, "endMs": 47000, "text": "C47." },
+          { "index": 48, "startMs": 47000, "endMs": 48000, "text": "C48." },
+          { "index": 49, "startMs": 48000, "endMs": 49000, "text": "C49." },
+          { "index": 50, "startMs": 49000, "endMs": 50000, "text": "C50." },
+          { "index": 51, "startMs": 50000, "endMs": 51000, "text": "C51." },
+          { "index": 52, "startMs": 51000, "endMs": 52000, "text": "C52." },
+          { "index": 53, "startMs": 52000, "endMs": 53000, "text": "C53." },
+          { "index": 54, "startMs": 53000, "endMs": 54000, "text": "C54." },
+          { "index": 55, "startMs": 54000, "endMs": 55000, "text": "C55." },
+          { "index": 56, "startMs": 55000, "endMs": 56000, "text": "C56." },
+          { "index": 57, "startMs": 56000, "endMs": 57000, "text": "C57." },
+          { "index": 58, "startMs": 57000, "endMs": 58000, "text": "C58." },
+          { "index": 59, "startMs": 58000, "endMs": 59000, "text": "C59." },
+          { "index": 60, "startMs": 59000, "endMs": 60000, "text": "C60." }
+        ]
+      }
+    },
+    {
+      "kind": "retry",
+      "reason": "First attempt drops a brand token; bumped attempt restores it.",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nReplik makes ads simple.\n",
+        "brandTokens": ["Replik"],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Esto hace los ads fáciles." }]
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Replik hace los ads fáciles." }
+        ]
+      }
+    },
+    {
+      "kind": "retry",
+      "reason": "First attempt returns wrong cue count; bumped attempt fixes it.",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nFirst cue.\n\n2\n00:00:02,000 --> 00:00:04,000\nSecond cue.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Primer cue." }]
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Primer cue." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Segundo cue." }
+        ]
+      }
+    },
+    {
+      "kind": "retry",
+      "reason": "First attempt exceeds 42 chars per line; bumped attempt shortens.",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,500\nThis short cue.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [
+          {
+            "index": 1,
+            "startMs": 0,
+            "endMs": 2500,
+            "text": "Este cue es ridículamente largo y rebasa los cuarenta y dos caracteres."
+          }
+        ]
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2500, "text": "Este cue es corto." }]
+      }
+    },
+    {
+      "kind": "retry",
+      "reason": "First attempt returns three lines per cue; bumped attempt collapses to two.",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:03,000\nFirst line.\nSecond line.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 3000, "text": "Primera.\nSegunda.\nTercera." }
+        ]
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 3000, "text": "Primera línea.\nSegunda línea." }
+        ]
+      }
+    },
+    {
+      "kind": "retry",
+      "reason": "First attempt returns wrong index; bumped attempt fixes it.",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nOnly cue.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [{ "index": 7, "startMs": 0, "endMs": 2000, "text": "Único cue." }]
+      },
+      "expectedOutput": {
+        "translated": true,
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Único cue." }]
+      }
+    },
+    {
+      "kind": "fallback",
+      "reason": "Primary throws; bumped throws; persist source verbatim with translated:false.",
+      "errorOnPrimary": true,
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nWill not translate.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": false,
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Will not translate." }]
+      }
+    },
+    {
+      "kind": "fallback",
+      "reason": "Primary returns brand-drop; bumped throws — fall back to source verbatim.",
+      "errorOnBumped": true,
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nReplik changes the game.\n",
+        "brandTokens": ["Replik"],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Esto cambia el juego." }]
+      },
+      "expectedOutput": {
+        "translated": false,
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Replik changes the game." }]
+      }
+    },
+    {
+      "kind": "fallback",
+      "reason": "Both attempts return invalid output (brand drop twice).",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nVisit replik.app for more.\n\n2\n00:00:02,000 --> 00:00:04,000\nReplik scales with you.\n",
+        "brandTokens": ["Replik", "replik.app"],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Visita el sitio para más info." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Crece con nosotros." }
+        ]
+      },
+      "secondAttempt": {
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Visita la web para más info." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Crece con nosotros más." }
+        ]
+      },
+      "expectedOutput": {
+        "translated": false,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Visit replik.app for more." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Replik scales with you." }
+        ]
+      }
+    },
+    {
+      "kind": "fallback",
+      "reason": "Both attempts return wrong cue count.",
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nFirst.\n\n2\n00:00:02,000 --> 00:00:04,000\nSecond.\n\n3\n00:00:04,000 --> 00:00:06,000\nThird.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "firstAttempt": {
+        "cues": [{ "index": 1, "startMs": 0, "endMs": 2000, "text": "Primero." }]
+      },
+      "secondAttempt": {
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Primero." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Segundo." }
+        ]
+      },
+      "expectedOutput": {
+        "translated": false,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "First." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Second." },
+          { "index": 3, "startMs": 4000, "endMs": 6000, "text": "Third." }
+        ]
+      }
+    },
+    {
+      "kind": "fallback",
+      "reason": "Primary throws on first call before any output is produced.",
+      "errorOnPrimary": true,
+      "input": {
+        "sourceSrt": "1\n00:00:00,000 --> 00:00:02,000\nProvider error.\n\n2\n00:00:02,000 --> 00:00:04,000\nNetwork unavailable.\n",
+        "brandTokens": [],
+        "targetLocale": "es-PE"
+      },
+      "expectedOutput": {
+        "translated": false,
+        "cues": [
+          { "index": 1, "startMs": 0, "endMs": 2000, "text": "Provider error." },
+          { "index": 2, "startMs": 2000, "endMs": 4000, "text": "Network unavailable." }
+        ]
+      }
+    }
+  ]
+}
