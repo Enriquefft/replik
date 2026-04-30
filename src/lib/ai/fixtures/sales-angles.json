@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "labeledAt": "2026-04-30T19:06:13Z",
+  "source": "synthetic-seed (DB empty per Phase 1a escalation; user-approved Path B)",
+  "rows": [
+    {
+      "creativeId": "syn-001",
+      "transcript": "Mira, broder, esta licuadora la encuentras en tienda a 280 soles. Acá te la dejamos a 149 soles, casi la mitad. Sin letra chica, sin cuotas raras. Pagas y te llega a la puerta. Si lo piensas mucho, sube. Aprovecha la plata que te ahorras y métela en algo más bacán para tu cocina.",
+      "language": "es",
+      "angle": "precio"
+    },
+    {
+      "creativeId": "syn-002",
+      "transcript": "Pe, escucha bien: este set de mancuernas ajustables vale 520 soles en gimnasios. Hoy te lo llevas a 239. Tres pares en uno, ahorras plata y ahorras espacio. No te estoy vendiendo humo, mira el precio en pantalla. Igualito, mismo material, sin pagar de más por la marquita.",
+      "language": "es",
+      "angle": "precio"
+    },
+    {
+      "creativeId": "syn-003",
+      "transcript": "El serum coreano original cuesta 180 soles los 30ml. Acá te damos un frasco de 50ml, con la misma fórmula de niacinamida, a 89 soles. Más producto, menos plata. Te conviene si quieres cuidar tu piel sin que la chamba se te vaya en cremas.",
+      "language": "es",
+      "angle": "precio"
+    },
+    {
+      "creativeId": "syn-004",
+      "transcript": "Compara nomás: collar antipulgas de marca a 95 soles el mes. El nuestro dura tres meses y te sale 79 soles. Haz la cuenta, broder, te ahorras como 200 lucas al año. Misma efectividad, sin químicos raros, y tu perro feliz.",
+      "language": "es",
+      "angle": "precio"
+    },
+    {
+      "creativeId": "syn-005",
+      "transcript": "Maceta autoregante por 39 soles. Sí, leíste bien, 39. En vivero te cobran 75 por una igualita. Con esa plata extra te compras dos plantas más. No sé tú, pero yo prefiero llenar mi balcón antes que pagar de más por una maceta.",
+      "language": "es",
+      "angle": "precio"
+    },
+    {
+      "creativeId": "syn-006",
+      "transcript": "Plancha de cabello profesional. La de salón sale 450. Acá tienes la versión con cerámica turmalina a 169 soles, casi un tercio. Si te alisas en peluquería, en dos visitas ya pagaste esto. Es plata bien gastada, pe.",
+      "language": "es",
+      "angle": "precio"
+    },
+    {
+      "creativeId": "syn-007",
+      "transcript": "Mira cómo la cuchilla corta esta zanahoria en rodajas perfectas en dos segundos. Ahora la papa, mira el grosor parejo. Y acá la cebolla, sin lágrimas. Le meto un tomate maduro y sale entero, no se aplasta. Esta es la chamba que hace este picador en tu cocina.",
+      "language": "es",
+      "angle": "demostracion"
+    },
+    {
+      "creativeId": "syn-008",
+      "transcript": "Fíjate cómo el rodillo recoge todo el pelo del gato del sillón. Una pasada, dos pasadas, mira la cantidad. Ahora a la alfombra, mismo resultado. Sin pilas, sin cinta adhesiva que se acaba. Solo lo abres, lo limpias bajo el caño y listo, otra vez como nuevo.",
+      "language": "es",
+      "angle": "demostracion"
+    },
+    {
+      "creativeId": "syn-009",
+      "transcript": "Te muestro: pongo el polvo de matcha en el frasco, le echo agua fría, cierro y aprieto el botón. Mira cómo bate en diez segundos, sin grumos. Ahora con proteína, mismo resultado, espumita arriba. Esta licuadora portátil hace lo que tu carro de hielos no puede.",
+      "language": "es",
+      "angle": "demostracion"
+    },
+    {
+      "creativeId": "syn-010",
+      "transcript": "Observa la mascarilla en mi mano. Aplico una capa fina, espero diez minutos, y mira cómo sale toda la suciedad pegada al carbón. Punto negro, fuera. Brillito de la frente, fuera. Lo hago en cámara lenta para que veas que no es montaje.",
+      "language": "es",
+      "angle": "demostracion"
+    },
+    {
+      "creativeId": "syn-011",
+      "transcript": "Pongo la liga de resistencia en la puerta, la engancho, y mira: hago remo, dorsal, bíceps, todo en un mismo punto. Cambio de pie y trabajo pierna. En cinco minutos ya tienes un circuito completo sin salir de tu cuarto. La cuerda aguanta hasta 50 kilos de tensión, mira cómo no se estira de más.",
+      "language": "es",
+      "angle": "demostracion"
+    },
+    {
+      "creativeId": "syn-012",
+      "transcript": "Mira la regadera por dentro. Le pongo agua sucia con tierra. Aprieto la palanca, sale el chorro filtrado, transparente. Ahora le mido el alcance: tres metros, sin que se desparrame. Esto en tu jardín significa que riegas la fila entera de tomates parado en un solo sitio.",
+      "language": "es",
+      "angle": "demostracion"
+    },
+    {
+      "creativeId": "syn-013",
+      "transcript": "Hola, soy Carla, tengo 34 años. Yo lo probé hace dos meses con mucha duda, te soy honesta. A la tercera semana mi piel ya estaba más pareja, las manchas del sol se aclararon. Mi esposo me preguntó qué me había hecho. Nada, solo este serum dos veces al día.",
+      "language": "es",
+      "angle": "testimonio"
+    },
+    {
+      "creativeId": "syn-014",
+      "transcript": "Soy Manuel, vivo en Comas. Mi perro Rocky tenía la barriga sensible, vomitaba todo. Llevo cuatro meses dándole esta comida y el cambio es total. Engordó dos kilos sanos, su pelo brilla, ya no le doy probióticos. Si tu mascota tiene el mismo problema, pruébalo.",
+      "language": "es",
+      "angle": "testimonio"
+    },
+    {
+      "creativeId": "syn-015",
+      "transcript": "Yo trabajo en una oficina, ocho horas sentada. La espalda me mataba. Compré esta silla ergonómica hace seis semanas y ya no necesito el cojín de mi mamá. Dormía mal, ahora no. Te lo cuento porque a mí me sirvió, no porque me paguen.",
+      "language": "es",
+      "angle": "testimonio"
+    },
+    {
+      "creativeId": "syn-016",
+      "transcript": "Soy Diego, entrenador en Surco. He probado como diez proteínas. Esta la uso desde enero, mis alumnos también. El sabor a chocolate es el único que no me da empacho, se diluye sin grumos, y el rendimiento se nota a la tercera semana. No es marketing, es lo que veo en el gimnasio.",
+      "language": "es",
+      "angle": "testimonio"
+    },
+    {
+      "creativeId": "syn-017",
+      "transcript": "Mi nombre es Roxana y tengo un huerto chiquito en mi balcón en Magdalena. Compré este kit de hidroponía dudando full. Hoy tengo lechugas, albahaca y kale que dan envidia. Mis vecinas me piden consejo. Yo solo seguí las instrucciones del manual, nada del otro mundo.",
+      "language": "es",
+      "angle": "testimonio"
+    },
+    {
+      "creativeId": "syn-018",
+      "transcript": "Habla César, soy chef. Tengo cuchillos alemanes, japoneses, de todo. Esta cuchilla cerámica la uso a diario hace tres meses en mi restaurante. No se desafila, no oxida, y los chicos del staff la prefieren a la de acero. Si yo te lo digo, sabes que no es cuento.",
+      "language": "es",
+      "angle": "testimonio"
+    },
+    {
+      "creativeId": "syn-019",
+      "transcript": "Solo hoy, hasta las once de la noche. Quedan 12 unidades en stock, ni una más. Cuando se acaben, se acabaron, y la próxima reposición es en tres meses. Si la querías, este es el momento. No te quedes mirando el celular, dale clic ya.",
+      "language": "es",
+      "angle": "urgencia"
+    },
+    {
+      "creativeId": "syn-020",
+      "transcript": "Atento: la promo cierra a medianoche. 24 horas, ni una más. Después vuelve al precio de lista y créeme, vas a llorar. La última vez que hicimos esto se acabó en cuatro horas. No esperes a que tu vecina te cuente que ya lo tiene.",
+      "language": "es",
+      "angle": "urgencia"
+    },
+    {
+      "creativeId": "syn-021",
+      "transcript": "Quedan ocho cajas en bodega, broder. Ocho. Cuando llegues a la web puede que ya no haya. Esta es la última remesa del año, no traemos más hasta marzo. Si dudas, pierdes. Así de simple. La gente que compró ayer ya nos está pidiendo otra unidad para regalar. No te quedes pensando, decide ahora.",
+      "language": "es",
+      "angle": "urgencia"
+    },
+    {
+      "creativeId": "syn-022",
+      "transcript": "Solo por el día de la madre, viernes a domingo. Lunes vuelve al precio normal. Tres días, ni un minuto más. La gente del año pasado nos escribió pidiendo que extendamos y no pudimos. Esta vez tampoco. Aprovecha o lloras.",
+      "language": "es",
+      "angle": "urgencia"
+    },
+    {
+      "creativeId": "syn-023",
+      "transcript": "Hoy, lunes, cierra el envío gratis a Lima a las diez de la noche. Después pagas 15 soles de delivery. Si lo agregas al carrito ahora y pagas en cinco minutos, te llega mañana mismo. El reloj corre, no es broma.",
+      "language": "es",
+      "angle": "urgencia"
+    },
+    {
+      "creativeId": "syn-024",
+      "transcript": "Última oportunidad del mes. Stock limitadísimo, quedan 19 unidades en todo el almacén. Cuando se vayan, se fueron, y no me preguntes por reposición porque no hay. Decide rápido, pe, no te duermas en el chat preguntando.",
+      "language": "es",
+      "angle": "urgencia"
+    },
+    {
+      "creativeId": "syn-025",
+      "transcript": "¿Te has parado en la cocina y te duelen las rodillas a los diez minutos? ¿Cargas las bolsas del mercado y al día siguiente la espalda te mata? Sé lo que sientes, broder. Yo pasé por eso un año entero. La tapete antifatiga te quita ese dolor, en serio. No vivas con el cuerpo molido.",
+      "language": "es",
+      "angle": "dolor"
+    },
+    {
+      "creativeId": "syn-026",
+      "transcript": "Cansada del cuello tieso al despertar. La almohada vieja te deja la nuca contracturada y empiezas el día con dolor de cabeza. Yo aguanté años pensando que era normal. No lo es. Esta almohada cervical te alinea la columna y duermes como debe ser.",
+      "language": "es",
+      "angle": "dolor"
+    },
+    {
+      "creativeId": "syn-027",
+      "transcript": "Tu gato vomita pelos cada tres días, te ensucia la sala, y te toca limpiar a las seis de la mañana. La pasta laxante no le gusta, lo persigues por toda la casa. Este suplemento en pellets es lo que te falta. Lo come solo, sin pelear, y se acaban las bolas de pelo.",
+      "language": "es",
+      "angle": "dolor"
+    },
+    {
+      "creativeId": "syn-028",
+      "transcript": "Te miras al espejo y ves esas líneas finas alrededor de los ojos. La crema cara no hace nada, has probado tres marcas. Te frustra gastar plata y no ver cambio. El contorno de ojos con péptidos sí trabaja. No es magia, es la fórmula que te faltaba.",
+      "language": "es",
+      "angle": "dolor"
+    },
+    {
+      "creativeId": "syn-029",
+      "transcript": "El olor a mascota en el sillón ya no se va con febreze. Te llegan las visitas y te avergüenza. Pasas la aspiradora y a la hora vuelve. Conozco la sensación. Este spray neutralizador a base de enzimas elimina el olor de raíz, no lo tapa.",
+      "language": "es",
+      "angle": "dolor"
+    },
+    {
+      "creativeId": "syn-030",
+      "transcript": "Tu cocina huele a frito una hora después de hacer pollo. Las cortinas absorben todo. Los visitantes lo notan aunque no te lo digan. El extractor portátil USB te resuelve el problema sin obra ni cables. Yo viví ese drama tres años, ya no.",
+      "language": "es",
+      "angle": "dolor"
+    },
+    {
+      "creativeId": "syn-031",
+      "transcript": "Imagínate llegar del trabajo y que tu casa huela a lavanda fresca, sin que tengas que hacer nada. Música suave, luz cálida, el difusor trabajando solo. Eso es lo que mereces después de un día de chamba. Tu hogar como tu refugio, no como una cocina con ropa colgada.",
+      "language": "es",
+      "angle": "aspiracional"
+    },
+    {
+      "creativeId": "syn-032",
+      "transcript": "Visualízate en seis meses, subiendo las escaleras sin agitarte, con la ropa que guardaste hace tres años calzando otra vez. La banda de resistencia es el primer paso. No hablo de transformarte en modelo, hablo de ser la versión tuya que sabes que existe.",
+      "language": "es",
+      "angle": "aspiracional"
+    },
+    {
+      "creativeId": "syn-033",
+      "transcript": "Tu balcón puede ser ese rincón que ves en Pinterest. Plantas colgantes, luz natural, una mesita para tu café de la mañana. No necesitas casa de playa, necesitas el kit correcto y unas semanas. Tu pedacito de paz está más cerca de lo que crees.",
+      "language": "es",
+      "angle": "aspiracional"
+    },
+    {
+      "creativeId": "syn-034",
+      "transcript": "Piel luminosa, sin filtros, al despertar. Esa amiga que parece descansada siempre y no entiendes cómo. La rutina coreana de tres pasos no es secreto, es disciplina. En cuatro semanas te miras al espejo y entiendes el cambio. Eres tú, mejor versión.",
+      "language": "es",
+      "angle": "aspiracional"
+    },
+    {
+      "creativeId": "syn-035",
+      "transcript": "La cocina del domingo, la familia entera reunida, y tú sirviendo una pasta hecha en casa con la pasta fresca del día. Eso vale más que cualquier restaurante. La máquina de pasta manual te abre esa puerta. Cocinar como recuerdo, no como obligación.",
+      "language": "es",
+      "angle": "aspiracional"
+    },
+    {
+      "creativeId": "syn-036",
+      "transcript": "Tu perro corriendo libre en el parque, sin correa que lo frene, y volviendo a tu llamado. Esa conexión la entrenas con paciencia y con el clicker correcto. No es lujo, es la relación que sueñas con tu mascota. Vale cada minuto de chamba.",
+      "language": "es",
+      "angle": "aspiracional"
+    },
+    {
+      "creativeId": "syn-037",
+      "transcript": "Las freidoras de aire normales tienen cesta de teflón que se descascara al año. La nuestra es de acero inoxidable, te dura cinco. Las otras gastan 1500 watts, esta solo 1100. Mismo crocante, menos consumo, sin químicos en tu comida. Compáralas y decide.",
+      "language": "es",
+      "angle": "comparacion"
+    },
+    {
+      "creativeId": "syn-038",
+      "transcript": "El protector solar de farmacia tiene alcohol y reseca. El nuestro es coreano, base agua, FPS 50, y no deja capa blanca. Los de marca americana cuestan el doble. Ponlo lado a lado en tu mano, vas a ver la diferencia en tres segundos.",
+      "language": "es",
+      "angle": "comparacion"
+    },
+    {
+      "creativeId": "syn-039",
+      "transcript": "Las mancuernas tradicionales ocupan medio cuarto y compras un par por peso. Estas ajustables reemplazan ocho pares en el espacio de una caja de zapatos. Las de fierro pintado oxidan con el sudor, las nuestras son recubiertas en goma. Calcula tú cuál te conviene.",
+      "language": "es",
+      "angle": "comparacion"
+    },
+    {
+      "creativeId": "syn-040",
+      "transcript": "La arena de gato común se apelmaza y huele al segundo día. La nuestra es de tofu, biodegradable, y aglomera sin polvo. Los carros de tofu chinos tardan un mes en llegar. El nuestro está en almacén Lima, te llega en 48 horas. Mejor producto, mejor servicio.",
+      "language": "es",
+      "angle": "comparacion"
+    },
+    {
+      "creativeId": "syn-041",
+      "transcript": "El tapete de yoga de gimnasio mide 4 milímetros, te duelen las rodillas en plancha. El nuestro es de 8 milímetros, doble grosor, mismo agarre. Los caros de marca cuestan 220 soles. El nuestro la mitad, sin sacrificar calidad. Pruébalo y devuélvelo si no.",
+      "language": "es",
+      "angle": "comparacion"
+    },
+    {
+      "creativeId": "syn-042",
+      "transcript": "Los sistemas de riego automático con app cuestan 600 soles y necesitan wifi. Este sistema funciona con presión de agua, sin enchufe, sin batería. Lo conectas al caño y listo. Más simple, más barato, sin que se cuelgue cuando se va la luz. Fíjate qué te conviene.",
+      "language": "es",
+      "angle": "comparacion"
+    },
+    {
+      "creativeId": "syn-043",
+      "transcript": "Llévate dos y te regalamos la tercera. Sin códigos, sin trampa, sin letra chica. Compras dos cremas faciales, te mandamos tres, una de regalo. Para ti o para tu mamá. La oferta corre hasta agotar stock, así que aprovecha y comparte la chamba.",
+      "language": "es",
+      "angle": "regalo"
+    },
+    {
+      "creativeId": "syn-044",
+      "transcript": "Por la compra del set de mancuernas, te incluimos gratis la liga de resistencia y la guía de rutinas en PDF. Tres productos por el precio de uno. Sin paga adicional, sin envío extra. Es nuestra forma de decirte gracias por arrancar tu chamba fitness con nosotros.",
+      "language": "es",
+      "angle": "regalo"
+    },
+    {
+      "creativeId": "syn-045",
+      "transcript": "Compra el difusor y te llevas dos frascos de aceite esencial de obsequio: lavanda y eucalipto. Valen 45 soles cada uno, pero hoy gratis. No tienes que escribir nada en el carrito, los agregamos automático cuando pagas. Tu casa con olor a hotel, sin gastar de más.",
+      "language": "es",
+      "angle": "regalo"
+    },
+    {
+      "creativeId": "syn-046",
+      "transcript": "Por tu primera compra te mandamos un cepillo desenredante de regalo. No tienes que hacer nada, solo pagar el champú. El cepillo cuesta 35 soles en tienda, hoy va incluido en la caja sin costo. Bienvenida a la familia, broder, así arrancamos contigo.",
+      "language": "es",
+      "angle": "regalo"
+    },
+    {
+      "creativeId": "syn-047",
+      "transcript": "Compra la comida premium para perros y te regalamos una bolsa de premios entrenadores, además de la pelota interactiva. Dos obsequios, sin condiciones. Para que tu mascota estrene contigo y sienta el cariño desde el primer día. La promo es por el mes del perro.",
+      "language": "es",
+      "angle": "regalo"
+    },
+    {
+      "creativeId": "syn-048",
+      "transcript": "Lleva el set de cuchillos y te incluimos la tabla de bambú y el afilador, gratis. Tres productos en uno, sin pagar más. Sin códigos, sin suscripción rara. Lo metemos en la caja de fábrica y te llega todo junto. Cocinar bien empieza con buenas herramientas.",
+      "language": "es",
+      "angle": "regalo"
+    },
+    {
+      "creativeId": "syn-049",
+      "transcript": "Acaba de llegar a Perú: la primera plancha de cabello con tecnología de iones negativos diseñada por estilistas coreanos. Estreno mundial en Lima esta semana. Ningún salón la tiene aún. Sé de las primeras en probarla antes que la competencia se entere que existe.",
+      "language": "es",
+      "angle": null,
+      "needsNewReason": "Rhetorical signature is novedad/launch — 'acaba de llegar', 'estreno mundial', 'primera con tecnología', 'antes que la competencia'. None of the 8 angles capture launch/newness framing. Aspiracional is about the user's future self, not the product's newness. Comparacion would need an explicit alternative to compare against. Points at candidate 'novedad'."
+    },
+    {
+      "creativeId": "syn-050",
+      "transcript": "Pruébalo 60 días en tu casa. Si no te convence, te devolvemos la plata, sin preguntas, sin papeleo, sin que tengas que devolver el producto. Tres meses de garantía oficial de fábrica, más nuestra promesa. Cero riesgo para ti. Si no funciona, la chamba es nuestra, no tuya.",
+      "language": "es",
+      "angle": null,
+      "needsNewReason": "Rhetorical signature is garantia/risk-reversal — '60 días', 'te devolvemos la plata', 'cero riesgo', 'garantía oficial'. None of the 8 angles capture warranty/money-back framing. Precio is about the price itself, not the refund. Testimonio needs a person vouching. Points at candidate 'garantia'."
+    }
+  ]
+}
