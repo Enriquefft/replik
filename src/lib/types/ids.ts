@@ -22,11 +22,3 @@ export type AssetId = Brand<string, "AssetId">
 export function toProductId(id: string): ProductId {
   return id as ProductId
 }
-
-export function toCreativeId(id: string): CreativeId {
-  return id as CreativeId
-}
-
-export function toUserId(id: string): UserId {
-  return id as UserId
-}

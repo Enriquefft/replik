@@ -29,16 +29,6 @@ export function getDb(): Db {
 }
 
 /**
- * Lazy proxy that defers `getDb()` to first property access. Lets callers
- * `import { db }` without forcing DATABASE_URL to be set at import time.
- */
-export const db: Db = new Proxy({} as Db, {
-  get(_target, prop, receiver): unknown {
-    return Reflect.get(getDb(), prop, receiver)
-  },
-})
-
-/**
  * Tenant-scoped DB handle. P1 contract: identical type to Db, but the only
  * way to obtain one is through `withUser`. Future iterations may swap this
  * for a row-level filter wrapper. Lint enforcement of "no `db` import outside

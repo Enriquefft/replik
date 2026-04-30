@@ -3,6 +3,7 @@
   "entry": [
     "src/app/**/{page,layout,loading,error,not-found,route}.{ts,tsx}",
     "src/server/trigger/**/index.ts",
+    "src/components/ui/**/*.{ts,tsx}",
     "trigger.config.ts"
   ],
   "project": ["src/**/*.{ts,tsx}"],
@@ -10,9 +11,15 @@
     "server-only",
     "postcss",
     "@radix-ui/react-label",
-    "bun-types"
+    "bun-types",
+    "tw-animate-css",
+    "shadcn"
   ],
   "ignoreBinaries": ["trigger"],
   "ignoreExportsUsedInFile": true,
-  "ignoreFiles": ["drizzle.config.ts"]
+  "ignoreFiles": [
+    "drizzle.config.ts",
+    "src/__tests__/**",
+    "src/**/__smoke__.*"
+  ]
 }
