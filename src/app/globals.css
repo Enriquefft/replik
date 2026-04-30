@@ -1,0 +1,234 @@
+/* ============================================================
+   REPLIK.AI globals.css
+   Tailwind v4 CSS-first config.
+   Single source of truth for design tokens (no foundations.css,
+   no tailwind.config.ts). Tokens declared in @theme are exposed
+   as Tailwind utilities (bg-page, text-fg-1, rounded-card, etc.).
+   shadcn/ui semantic aliases derive from these tokens.
+   ============================================================ */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* ---------- Type stacks ---------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* ---------- Type scale (font sizes -> text-{name} utilities) ---------- */
+  --text-display: 34px;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.5px;
+  --text-display--font-weight: 700;
+
+  --text-title: 22px;
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.3px;
+  --text-title--font-weight: 600;
+
+  --text-headline: 17px;
+  --text-headline--line-height: 1.35;
+  --text-headline--font-weight: 600;
+
+  --text-body: 15px;
+  --text-body--line-height: 1.6;
+  --text-body--font-weight: 400;
+
+  --text-callout: 13px;
+  --text-callout--font-weight: 500;
+
+  --text-caption: 11px;
+  --text-caption--letter-spacing: 0.2px;
+  --text-caption--font-weight: 400;
+
+  /* ---------- Base palette (-> bg-{name}, text-{name}, border-{name}) ---------- */
+  --color-page: #f5f5f7;
+  --color-page-alt: #fafafa;
+
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface-elevated: rgba(255, 255, 255, 0.90);
+  --color-surface-solid: #ffffff;
+  --color-surface-muted: #ececef;
+
+  --color-fg-1: #1d1d1f;
+  --color-fg-2: #6e6e73;
+  --color-fg-3: #aeaeb2;
+  --color-fg-on-accent: #ffffff;
+
+  --color-border-default: rgba(0, 0, 0, 0.06);
+  --color-border-active: rgba(0, 0, 0, 0.15);
+  --color-border-glass: rgba(255, 255, 255, 0.80);
+  --color-border-input: rgba(0, 0, 0, 0.10);
+  --color-ring-focus: rgba(10, 132, 255, 0.45);
+
+  /* ---------- Mode accents ---------- */
+  /* Website (Shopify / Apple Green) */
+  --color-mode-web: #30d158;
+  --color-mode-web-badge-bg: rgba(48, 209, 88, 0.12);
+  --color-mode-web-badge-fg: #1a7a34;
+
+  /* Creative (Videos / Apple Amber) */
+  --color-mode-creative: #ff9f0a;
+  --color-mode-creative-badge-bg: rgba(255, 159, 10, 0.12);
+  --color-mode-creative-badge-fg: #8a5200;
+
+  /* Trafficker (Meta Ads / Apple Red) */
+  --color-mode-traffic: #ff453a;
+  --color-mode-traffic-badge-bg: rgba(255, 69, 58, 0.10);
+  --color-mode-traffic-badge-fg: #a30f0a;
+
+  /* Dashboard / Live (Apple Blue) */
+  --color-mode-live: #0a84ff;
+  --color-mode-live-badge-bg: rgba(10, 132, 255, 0.10);
+  --color-mode-live-badge-fg: #0040aa;
+
+  /* System / Loading (Apple Purple) */
+  --color-mode-system: #bf5af2;
+  --color-mode-system-badge-bg: rgba(191, 90, 242, 0.12);
+  --color-mode-system-badge-fg: #6b1f9a;
+
+  /* Chart series (used by shadcn chart aliases) */
+  --color-chart-1: #0a84ff;
+  --color-chart-2: #30d158;
+  --color-chart-3: #ff9f0a;
+  --color-chart-4: #bf5af2;
+  --color-chart-5: #ff453a;
+
+  /* Sidebar surface (used by shadcn sidebar aliases) */
+  --color-sidebar-bg: #ffffff;
+  --color-sidebar-border: rgba(0, 0, 0, 0.06);
+
+  /* ---------- Radii (-> rounded-{name}) ---------- */
+  --radius-pill: 100px;
+  --radius-card: 20px;
+  --radius-control: 12px;
+  --radius-tight: 8px;
+  --radius-snug: 6px;
+  --radius: 0.625rem;
+
+  /* ---------- Shadows (-> shadow-{name}) ---------- */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.90);
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-tight: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-pill: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-thumb: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+  /* ---------- Spacing scale base (4px) ---------- */
+  --spacing: 4px;
+
+  /* ---------- Motion (-> ease-{name}, duration-{name}) ---------- */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --duration-quick: 100ms;
+  --duration-base: 200ms;
+  --duration-screen: 250ms;
+  --duration-mode: 300ms;
+
+  /* ---------- Glass (custom property; consumed by utilities/components) ---------- */
+  --blur-glass: blur(20px) saturate(180%);
+  --blur-glass-strong: blur(28px) saturate(200%);
+
+  /* ---------- Hero gradients (exposed as image utilities -> bg-grad-*) ---------- */
+  --background-image-grad-green: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  --background-image-grad-amber: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  --background-image-grad-red: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  --background-image-grad-blue: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  --background-image-grad-purple: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+}
+
+/* ============================================================
+   shadcn/ui semantic aliases derived from project tokens.
+   These are NOT separate sources of truth — they pipe project
+   tokens into shadcn's expected variable names.
+   ============================================================ */
+
+@theme inline {
+  --color-background: var(--color-page);
+  --color-foreground: var(--color-fg-1);
+  --color-card: var(--color-surface-solid);
+  --color-card-foreground: var(--color-fg-1);
+  --color-popover: var(--color-surface-solid);
+  --color-popover-foreground: var(--color-fg-1);
+  --color-primary: var(--color-mode-live);
+  --color-primary-foreground: var(--color-fg-on-accent);
+  --color-secondary: var(--color-surface-muted);
+  --color-secondary-foreground: var(--color-fg-1);
+  --color-muted: var(--color-surface-muted);
+  --color-muted-foreground: var(--color-fg-2);
+  --color-accent: var(--color-surface-muted);
+  --color-accent-foreground: var(--color-fg-1);
+  --color-destructive: var(--color-mode-traffic);
+  --color-border: var(--color-border-default);
+  --color-input: var(--color-border-input);
+  --color-ring: var(--color-ring-focus);
+  --color-sidebar: var(--color-sidebar-bg);
+  --color-sidebar-foreground: var(--color-fg-1);
+  --color-sidebar-primary: var(--color-mode-live);
+  --color-sidebar-primary-foreground: var(--color-fg-on-accent);
+  --color-sidebar-accent: var(--color-surface-muted);
+  --color-sidebar-accent-foreground: var(--color-fg-1);
+  --color-sidebar-border: var(--color-sidebar-border);
+  --color-sidebar-ring: var(--color-ring-focus);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ============================================================
+   Dark mode: override the project tokens themselves so all
+   shadcn aliases above flip automatically.
+   ============================================================ */
+
+.dark {
+  --color-page: #0b0b0d;
+  --color-page-alt: #131316;
+
+  --color-surface: rgba(28, 28, 30, 0.72);
+  --color-surface-elevated: rgba(28, 28, 30, 0.90);
+  --color-surface-solid: #1c1c1e;
+  --color-surface-muted: #2c2c2e;
+
+  --color-fg-1: #f5f5f7;
+  --color-fg-2: #aeaeb2;
+  --color-fg-3: #6e6e73;
+  --color-fg-on-accent: #ffffff;
+
+  --color-border-default: rgba(255, 255, 255, 0.10);
+  --color-border-active: rgba(255, 255, 255, 0.20);
+  --color-border-glass: rgba(255, 255, 255, 0.10);
+  --color-border-input: rgba(255, 255, 255, 0.15);
+  --color-ring-focus: rgba(10, 132, 255, 0.55);
+
+  --color-sidebar-bg: #1c1c1e;
+  --color-sidebar-border: rgba(255, 255, 255, 0.10);
+}
+
+/* ============================================================
+   Base layer
+   ============================================================ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-fg-1);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
