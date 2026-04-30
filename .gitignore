@@ -42,3 +42,12 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# local agent / claude code state
+/.agents/
+/.claude/
+/skills-lock.json
+/demo/
+
+# runtime uploads
+/uploads/
