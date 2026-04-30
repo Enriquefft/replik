@@ -1,14 +1,6 @@
 import { z } from "zod"
 
-/*
- * SalesAngle lock gate — Phase 1.
- *
- * Locked after 50-fixture hand-label per docs/ai-2.0.md §3.
- * Distribution gate: ≤5% min, ≥35% max, ≤10% needs-new.
- * Add at most ONE new value if gate trips.
- * Candidate set: novedad | exclusividad | garantia | comunidad.
- * Locked enum lives here; do not edit without re-running the Phase 1 gate.
- */
+/** Locked Phase 1 — see docs/ai-2.0.md §3. */
 export const SalesAngle = z.enum([
   "precio",
   "demostracion",

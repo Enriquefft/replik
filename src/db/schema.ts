@@ -11,6 +11,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
+import type { CopyContent } from "@/lib/ai/schemas.ts"
+import type { InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -80,7 +82,7 @@ export const products = pgTable("products", {
   sourceUrl: text("source_url").notNull(),
   name: text("name"),
   imageUrl: text("image_url"),
-  category: text("category"),
+  category: text("category").$type<InterestCategory | null>(),
   pricingCents: integer("pricing_cents"),
   bundle2PricingCents: integer("bundle_2_pricing_cents"),
   bundle3PricingCents: integer("bundle_3_pricing_cents"),
@@ -101,7 +103,7 @@ export const creatives = pgTable("creatives", {
     .references(() => users.id, { onDelete: "cascade" }),
   source: creativeSourceEnum("source").notNull(),
   scrapeUrl: text("scrape_url").notNull(),
-  angle: text("angle"),
+  angle: text("angle").$type<SalesAngle | null>(),
   transcriptText: text("transcript_text"),
   language: text("language"),
   selectedBool: boolean("selected_bool").notNull().default(false),
@@ -151,7 +153,7 @@ export const ads = pgTable("ads", {
   headline: text("headline").notNull(),
   description: text("description").notNull(),
   ctaType: ctaTypeEnum("cta_type").notNull(),
-  copyJson: jsonb("copy_json").notNull(),
+  copyJson: jsonb("copy_json").notNull().$type<CopyContent>(),
 })
 
 export const metrics = pgTable("metrics", {
