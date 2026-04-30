@@ -11,4 +11,4 @@
  */
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; needs?: "meta" | "shopify"; error?: string };
+  | { ok: false; needs?: "meta" | "shopify"; error?: string }

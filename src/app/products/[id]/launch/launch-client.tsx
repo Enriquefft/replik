@@ -1,53 +1,50 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { toast } from "sonner";
-import { Loader2, ExternalLink, Target, DollarSign } from "lucide-react";
-import { Button } from "@/components/ui/button.tsx";
+import { zodResolver } from "@hookform/resolvers/zod"
+import { DollarSign, ExternalLink, Loader2, Target } from "lucide-react"
+import * as React from "react"
+import { useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
+import { z } from "zod"
+import { CredentialsModal } from "@/components/credentials-modal.tsx"
+import { TaskProgress } from "@/components/task-progress.tsx"
+import { Badge } from "@/components/ui/badge.tsx"
+import { Button } from "@/components/ui/button.tsx"
 import {
   Form,
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
-  FormDescription,
-} from "@/components/ui/form.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { CredentialsModal } from "@/components/credentials-modal.tsx";
-import { TaskProgress } from "@/components/task-progress.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
-import { launchCampaign } from "@/server/actions/launch.ts";
+} from "@/components/ui/form.tsx"
+import { Input } from "@/components/ui/input.tsx"
+import { launchCampaign } from "@/server/actions/launch.ts"
 
 const LaunchSchema = z.object({
-  budget_daily_cents: z
-    .number()
-    .int()
-    .positive("El presupuesto debe ser mayor a 0"),
-});
+  budget_daily_cents: z.number().int().positive("El presupuesto debe ser mayor a 0"),
+})
 
-type LaunchFormValues = z.infer<typeof LaunchSchema>;
+type LaunchFormValues = z.infer<typeof LaunchSchema>
 
 interface SelectedCreative {
-  id: string;
-  angle: string | null;
-  transcriptText: string | null;
+  id: string
+  angle: string | null
+  transcriptText: string | null
 }
 
 interface LaunchClientProps {
-  productId: string;
-  productName: string;
-  pricingCents: number;
-  bundle2PricingCents: number;
-  bundle3PricingCents: number;
-  selectedCreatives: SelectedCreative[];
+  productId: string
+  productName: string
+  pricingCents: number
+  bundle2PricingCents: number
+  bundle3PricingCents: number
+  selectedCreatives: SelectedCreative[]
 }
 
 function formatPrice(cents: number): string {
-  return `S/ ${(cents / 100).toFixed(0)}`;
+  return `S/ ${(cents / 100).toFixed(0)}`
 }
 
 export function LaunchClient({
@@ -58,65 +55,61 @@ export function LaunchClient({
   bundle3PricingCents,
   selectedCreatives,
 }: LaunchClientProps) {
-  const [runId, setRunId] = React.useState<string | null>(null);
-  const [credModalOpen, setCredModalOpen] = React.useState(false);
-  const [credError, setCredError] = React.useState<string | undefined>();
+  const [runId, setRunId] = React.useState<string | null>(null)
+  const [credModalOpen, setCredModalOpen] = React.useState(false)
+  const [credError, setCredError] = React.useState<string | undefined>()
 
   const form = useForm<LaunchFormValues>({
     resolver: zodResolver(LaunchSchema),
     defaultValues: { budget_daily_cents: 12000 }, // S/ 120
-  });
+  })
 
   async function onSubmit(): Promise<void> {
-    const result = await launchCampaign(productId);
+    const result = await launchCampaign(productId)
 
     if (!result.ok) {
       if (result.needs === "meta") {
-        setCredError(result.error);
-        setCredModalOpen(true);
-        return;
+        setCredError(result.error)
+        setCredModalOpen(true)
+        return
       }
-      toast.error(result.error ?? "Error al lanzar la campaña.");
-      return;
+      toast.error(result.error ?? "Error al lanzar la campaña.")
+      return
     }
 
-    setRunId(result.data.runId);
-    toast.success("¡Campaña creada en Meta!");
+    setRunId(result.data.runId)
+    toast.success("¡Campaña creada en Meta!")
   }
 
   function handleCredSaved() {
-    setCredModalOpen(false);
-    setCredError(undefined);
-    void form.handleSubmit(onSubmit)();
+    setCredModalOpen(false)
+    setCredError(undefined)
+    void form.handleSubmit(onSubmit)()
   }
 
   const dailyBudgetCents = useWatch({
     control: form.control,
     name: "budget_daily_cents",
-  });
-  const dailyBudgetSoles =
-    Number.isFinite(dailyBudgetCents) ? dailyBudgetCents / 100 : 0;
-  const estReach = Math.round(dailyBudgetSoles * 7 * 120);
-  const estCPA = 26;
-  const estResults = Math.round((dailyBudgetSoles * 7) / estCPA);
+  })
+  const dailyBudgetSoles = Number.isFinite(dailyBudgetCents) ? dailyBudgetCents / 100 : 0
+  const estReach = Math.round(dailyBudgetSoles * 7 * 120)
+  const estCPA = 26
+  const estResults = Math.round((dailyBudgetSoles * 7) / estCPA)
 
   return (
     <div className="flex flex-col gap-5">
       {/* Campaign config form */}
       <div className="rounded-card bg-surface border border-border shadow-tight p-5">
         <div className="flex items-center gap-2 mb-4">
-          <DollarSign
-            className="size-4 text-mode-traffic"
-            strokeWidth={1.8}
-          />
-          <h3 className="text-callout font-semibold text-fg-1">
-            Presupuesto diario
-          </h3>
+          <DollarSign className="size-4 text-mode-traffic" strokeWidth={1.8} />
+          <h3 className="text-callout font-semibold text-fg-1">Presupuesto diario</h3>
         </div>
 
         <Form {...form}>
           <form
-            onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
+            onSubmit={(e) => {
+              void form.handleSubmit(onSubmit)(e)
+            }}
             className="flex flex-col gap-4"
           >
             <FormField
@@ -132,7 +125,9 @@ export function LaunchClient({
                       step={100}
                       placeholder="12000"
                       {...field}
-                      onChange={(e) => { field.onChange(e.target.valueAsNumber); }}
+                      onChange={(e) => {
+                        field.onChange(e.target.valueAsNumber)
+                      }}
                     />
                   </FormControl>
                   <FormDescription>
@@ -148,13 +143,8 @@ export function LaunchClient({
             {/* Targeting summary (read-only) */}
             <div className="rounded-control bg-surface-muted p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Target
-                  className="size-4 text-mode-live"
-                  strokeWidth={1.8}
-                />
-                <p className="text-callout font-semibold text-fg-1">
-                  Targeting (CBO + Advantage+)
-                </p>
+                <Target className="size-4 text-mode-live" strokeWidth={1.8} />
+                <p className="text-callout font-semibold text-fg-1">Targeting (CBO + Advantage+)</p>
               </div>
               <div className="flex flex-wrap gap-2 text-caption text-fg-2">
                 <span className="inline-flex items-center h-5 px-2 rounded-pill bg-surface-elevated border border-border">
@@ -191,8 +181,7 @@ export function LaunchClient({
                         {creative.angle ?? "sin clasificar"}
                       </Badge>
                       <p className="text-caption text-fg-2 line-clamp-2 min-w-0">
-                        {creative.transcriptText?.slice(0, 80) ??
-                          "Copy generado por LLM al lanzar"}
+                        {creative.transcriptText?.slice(0, 80) ?? "Copy generado por LLM al lanzar"}
                       </p>
                     </div>
                   ))}
@@ -256,8 +245,7 @@ export function LaunchClient({
             )}
 
             <p className="text-caption text-fg-3 text-center">
-              Campaña creada en estado PAUSED para tu revisión antes de
-              activar.
+              Campaña creada en estado PAUSED para tu revisión antes de activar.
             </p>
           </form>
         </Form>
@@ -280,5 +268,5 @@ export function LaunchClient({
         {...(credError !== undefined && { errorMessage: credError })}
       />
     </div>
-  );
+  )
 }

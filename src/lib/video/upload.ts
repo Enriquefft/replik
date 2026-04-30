@@ -1,49 +1,41 @@
-import "server-only";
-import { UTApi } from "uploadthing/server";
+import "server-only"
+import { UTApi } from "uploadthing/server"
 
-let cachedApi: UTApi | undefined;
+let cachedApi: UTApi | undefined
 
 function api(): UTApi {
-  cachedApi ??= new UTApi();
-  return cachedApi;
+  cachedApi ??= new UTApi()
+  return cachedApi
 }
 
 export interface UploadedVideo {
-  url: string;
-  key: string;
+  url: string
+  key: string
 }
 
 export interface UploadedSrt {
-  url: string;
-  key: string;
+  url: string
+  key: string
 }
 
-export async function uploadEditedVideo(
-  buffer: Buffer,
-  filename: string,
-): Promise<UploadedVideo> {
-  const file = new File([toBlob(buffer)], filename, { type: "video/mp4" });
-  const result = await api().uploadFiles(file);
+export async function uploadEditedVideo(buffer: Buffer, filename: string): Promise<UploadedVideo> {
+  const file = new File([toBlob(buffer)], filename, { type: "video/mp4" })
+  const result = await api().uploadFiles(file)
   if (result.error !== null) {
     throw new Error(
       `uploadEditedVideo: UploadThing error ${result.error.code}: ${result.error.message}`,
-    );
+    )
   }
-  return { url: result.data.ufsUrl, key: result.data.key };
+  return { url: result.data.ufsUrl, key: result.data.key }
 }
 
-export async function uploadSrt(
-  srt: string,
-  filename: string,
-): Promise<UploadedSrt> {
-  const file = new File([srt], filename, { type: "text/plain" });
-  const result = await api().uploadFiles(file);
+export async function uploadSrt(srt: string, filename: string): Promise<UploadedSrt> {
+  const file = new File([srt], filename, { type: "text/plain" })
+  const result = await api().uploadFiles(file)
   if (result.error !== null) {
-    throw new Error(
-      `uploadSrt: UploadThing error ${result.error.code}: ${result.error.message}`,
-    );
+    throw new Error(`uploadSrt: UploadThing error ${result.error.code}: ${result.error.message}`)
   }
-  return { url: result.data.ufsUrl, key: result.data.key };
+  return { url: result.data.ufsUrl, key: result.data.key }
 }
 
 /**
@@ -52,7 +44,7 @@ export async function uploadSrt(
  */
 function toBlob(buffer: Buffer): Blob {
   // Copy into a fresh Uint8Array to detach from any pooled allocator backing.
-  const bytes = new Uint8Array(buffer.byteLength);
-  bytes.set(buffer);
-  return new Blob([bytes]);
+  const bytes = new Uint8Array(buffer.byteLength)
+  bytes.set(buffer)
+  return new Blob([bytes])
 }

@@ -1,37 +1,31 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { Video, CheckCircle2, Clock } from "lucide-react";
-import type { Creative, Asset } from "@/db/schema";
+import { CheckCircle2, Clock, Video } from "lucide-react"
+import type { Asset, Creative } from "@/db/schema"
 
-type CreativeWithAssets = Creative & { assets: Asset[] };
+type CreativeWithAssets = Creative & { assets: Asset[] }
 
 interface EditPageClientProps {
-  productId: string;
-  creatives: CreativeWithAssets[];
+  productId: string
+  creatives: CreativeWithAssets[]
 }
 
-export function EditPageClient({
-  creatives,
-}: EditPageClientProps) {
+export function EditPageClient({ creatives }: EditPageClientProps) {
   if (creatives.length === 0) {
     return (
       <div className="text-center py-12 text-fg-2">
         <p className="text-body">
-          No hay creativos seleccionados. Vuelve al paso anterior y elige al
-          menos uno.
+          No hay creativos seleccionados. Vuelve al paso anterior y elige al menos uno.
         </p>
       </div>
-    );
+    )
   }
 
   return (
     <div className="flex flex-col gap-4">
       {creatives.map((creative) => {
-        const editedVideo = creative.assets.find(
-          (a) => a.kind === "edited_video",
-        );
-        const isDone = !!editedVideo;
+        const editedVideo = creative.assets.find((a) => a.kind === "edited_video")
+        const isDone = !!editedVideo
 
         return (
           <div
@@ -41,10 +35,7 @@ export function EditPageClient({
             <div className="flex items-start gap-4 p-4">
               {/* Icon */}
               <div className="size-10 rounded-control bg-mode-creative-badge-bg flex items-center justify-center shrink-0">
-                <Video
-                  className="size-5 text-mode-creative"
-                  strokeWidth={1.5}
-                />
+                <Video className="size-5 text-mode-creative" strokeWidth={1.5} />
               </div>
 
               {/* Info */}
@@ -69,20 +60,13 @@ export function EditPageClient({
                 {/* Status */}
                 {isDone ? (
                   <div className="flex items-center gap-1.5 mt-2">
-                    <CheckCircle2
-                      className="size-4 text-mode-web"
-                      strokeWidth={1.8}
-                    />
-                    <span className="text-caption text-mode-web-badge-fg font-medium">
-                      Listo
-                    </span>
+                    <CheckCircle2 className="size-4 text-mode-web" strokeWidth={1.8} />
+                    <span className="text-caption text-mode-web-badge-fg font-medium">Listo</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 mt-2">
                     <Clock className="size-4 text-fg-3" strokeWidth={1.8} />
-                    <span className="text-caption text-fg-3">
-                      Procesando…
-                    </span>
+                    <span className="text-caption text-fg-3">Procesando…</span>
                   </div>
                 )}
               </div>
@@ -96,12 +80,14 @@ export function EditPageClient({
                   controls
                   className="w-full max-h-64 rounded-control bg-black"
                   preload="metadata"
-                />
+                >
+                  <track kind="captions" />
+                </video>
               </div>
             )}
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }

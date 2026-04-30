@@ -1,51 +1,41 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useRouter } from "next/navigation";
-import { Link2, Package, Phone, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Link2, Loader2, Package, Phone } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { z } from "zod"
+import { Button } from "@/components/ui/button.tsx"
 import {
   Form,
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
-  FormDescription,
-} from "@/components/ui/form.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { createProduct } from "@/server/actions/products.ts";
+} from "@/components/ui/form.tsx"
+import { Input } from "@/components/ui/input.tsx"
+import { createProduct } from "@/server/actions/products.ts"
 
 const AddProductSchema = z.object({
   source_url: z.url("Debe ser una URL válida"),
-  pricing_cents: z
-    .number()
-    .int()
-    .positive("El precio debe ser mayor a 0"),
-  bundle_2_pricing_cents: z
-    .number()
-    .int()
-    .positive("El precio debe ser mayor a 0"),
-  bundle_3_pricing_cents: z
-    .number()
-    .int()
-    .positive("El precio debe ser mayor a 0"),
+  pricing_cents: z.number().int().positive("El precio debe ser mayor a 0"),
+  bundle_2_pricing_cents: z.number().int().positive("El precio debe ser mayor a 0"),
+  bundle_3_pricing_cents: z.number().int().positive("El precio debe ser mayor a 0"),
   whatsapp_number: z.string().min(7, "Número inválido").optional(),
-});
+})
 
-type AddProductFormValues = z.infer<typeof AddProductSchema>;
+type AddProductFormValues = z.infer<typeof AddProductSchema>
 
 interface AddProductFormProps {
-  initialWhatsapp?: string | null;
+  initialWhatsapp?: string | null
 }
 
 export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
-  const router = useRouter();
-  const needsWhatsapp = !initialWhatsapp;
+  const router = useRouter()
+  const needsWhatsapp = !initialWhatsapp
 
   const form = useForm<AddProductFormValues>({
     resolver: zodResolver(AddProductSchema),
@@ -58,23 +48,18 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
         ? { whatsapp_number: initialWhatsapp }
         : {}),
     },
-  });
+  })
 
   async function onSubmit(values: AddProductFormValues) {
-    const result = await createProduct(values);
+    const result = await createProduct(values)
     if (!result.ok) {
-      toast.error(result.error ?? "Error al crear el producto.");
-      return;
+      toast.error(result.error ?? "Error al crear el producto.")
+      return
     }
-    router.push(`/products/${result.data.id}`);
+    router.push(`/products/${result.data.id}`)
   }
 
-  const EXAMPLE_URLS = [
-    "hidrabottle.pe",
-    "gozme.pe",
-    "kuromart.pe",
-    "wonderpe.com",
-  ];
+  const EXAMPLE_URLS = ["hidrabottle.pe", "gozme.pe", "kuromart.pe", "wonderpe.com"]
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
@@ -85,8 +70,8 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
         </p>
         <h1 className="text-display mt-2">¿Qué vas a testear hoy?</h1>
         <p className="text-body text-fg-2 mt-2 leading-relaxed">
-          Pega el link de un competidor en Shopify — yo lo analizo y te armo
-          los creativos, la landing y la campaña.
+          Pega el link de un competidor en Shopify — yo lo analizo y te armo los creativos, la
+          landing y la campaña.
         </p>
       </div>
 
@@ -94,7 +79,9 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
       <div className="rounded-card bg-surface shadow-card border border-border p-6">
         <Form {...form}>
           <form
-            onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
+            onSubmit={(e) => {
+              void form.handleSubmit(onSubmit)(e)
+            }}
             className="flex flex-col gap-5"
           >
             {/* URL field */}
@@ -108,10 +95,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                     URL del competidor
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="https://tienda.com/products/producto"
-                      {...field}
-                    />
+                    <Input placeholder="https://tienda.com/products/producto" {...field} />
                   </FormControl>
                   <FormDescription>
                     <span className="text-caption text-fg-3 font-semibold uppercase tracking-wide">
@@ -122,7 +106,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                         key={s}
                         type="button"
                         onClick={() => {
-                          form.setValue("source_url", `https://${s}/products/`);
+                          form.setValue("source_url", `https://${s}/products/`)
                         }}
                         className="inline-flex items-center h-6 px-2 rounded-pill bg-surface-elevated border border-border text-caption text-fg-2 font-mono hover:text-fg-1 transition-colors ml-1 cursor-pointer"
                       >
@@ -154,7 +138,9 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                           min={1}
                           placeholder="7900"
                           {...field}
-                          onChange={(e) => { field.onChange(e.target.valueAsNumber); }}
+                          onChange={(e) => {
+                            field.onChange(e.target.valueAsNumber)
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -173,7 +159,9 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                           min={1}
                           placeholder="12900"
                           {...field}
-                          onChange={(e) => { field.onChange(e.target.valueAsNumber); }}
+                          onChange={(e) => {
+                            field.onChange(e.target.valueAsNumber)
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -192,7 +180,9 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                           min={1}
                           placeholder="16900"
                           {...field}
-                          onChange={(e) => { field.onChange(e.target.valueAsNumber); }}
+                          onChange={(e) => {
+                            field.onChange(e.target.valueAsNumber)
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -210,10 +200,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
-                      <Phone
-                        className="size-3.5 text-fg-2"
-                        strokeWidth={1.8}
-                      />
+                      <Phone className="size-3.5 text-fg-2" strokeWidth={1.8} />
                       Tu WhatsApp (para pedidos COD)
                     </FormLabel>
                     <FormControl>
@@ -243,5 +230,5 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
         </Form>
       </div>
     </div>
-  );
+  )
 }

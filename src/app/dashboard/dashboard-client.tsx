@@ -1,63 +1,63 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { RefreshCw, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button.tsx";
-import { ProductCard } from "@/components/product-card.tsx";
-import { CredentialsModal } from "@/components/credentials-modal.tsx";
-import { TaskProgress } from "@/components/task-progress.tsx";
-import Link from "next/link";
-import { getDashboard } from "@/server/actions/dashboard.ts";
-import { refreshInsights } from "@/server/actions/insights.ts";
-import type { DashboardData } from "@/server/dashboard";
+import { useQuery } from "@tanstack/react-query"
+import { Loader2, RefreshCw } from "lucide-react"
+import Link from "next/link"
+import * as React from "react"
+import { toast } from "sonner"
+import { CredentialsModal } from "@/components/credentials-modal.tsx"
+import { ProductCard } from "@/components/product-card.tsx"
+import { TaskProgress } from "@/components/task-progress.tsx"
+import { Button } from "@/components/ui/button.tsx"
+import { getDashboard } from "@/server/actions/dashboard.ts"
+import { refreshInsights } from "@/server/actions/insights.ts"
+import type { DashboardData } from "@/server/dashboard"
 
 interface DashboardClientProps {
-  initialData: DashboardData;
+  initialData: DashboardData
 }
 
 export function DashboardClient({ initialData }: DashboardClientProps) {
-  const [refreshRunId, setRefreshRunId] = React.useState<string | null>(null);
-  const [credModalOpen, setCredModalOpen] = React.useState(false);
-  const [credError, setCredError] = React.useState<string | undefined>();
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [refreshRunId, setRefreshRunId] = React.useState<string | null>(null)
+  const [credModalOpen, setCredModalOpen] = React.useState(false)
+  const [credError, setCredError] = React.useState<string | undefined>()
+  const [isRefreshing, setIsRefreshing] = React.useState(false)
 
   const { data, refetch } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
-      const result = await getDashboard();
+      const result = await getDashboard()
       if (!result.ok) {
-        throw new Error(result.error ?? "Error al cargar el dashboard.");
+        throw new Error(result.error ?? "Error al cargar el dashboard.")
       }
-      return result.data;
+      return result.data
     },
     initialData,
     staleTime: 60_000,
-  });
+  })
 
   async function handleRefreshMetrics() {
-    setIsRefreshing(true);
-    const result = await refreshInsights();
-    setIsRefreshing(false);
+    setIsRefreshing(true)
+    const result = await refreshInsights()
+    setIsRefreshing(false)
 
     if (!result.ok) {
-      setCredError(result.error);
-      setCredModalOpen(true);
-      return;
+      setCredError(result.error)
+      setCredModalOpen(true)
+      return
     }
 
-    setRefreshRunId(result.data.runId);
-    toast.success("Sincronizando métricas…");
+    setRefreshRunId(result.data.runId)
+    toast.success("Sincronizando métricas…")
   }
 
   function handleCredSaved() {
-    setCredModalOpen(false);
-    setCredError(undefined);
-    void handleRefreshMetrics();
+    setCredModalOpen(false)
+    setCredError(undefined)
+    void handleRefreshMetrics()
   }
 
-  const products = data.products;
+  const products = data.products
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,19 +69,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             : "Sin productos aún"}
         </p>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-          >
+          <Button variant="outline" size="sm" onClick={() => void refetch()}>
             <RefreshCw className="size-3.5 mr-1.5" />
             Actualizar
           </Button>
-          <Button
-            size="sm"
-            onClick={() => void handleRefreshMetrics()}
-            disabled={isRefreshing}
-          >
+          <Button size="sm" onClick={() => void handleRefreshMetrics()} disabled={isRefreshing}>
             {isRefreshing ? (
               <Loader2 className="size-3.5 animate-spin mr-1.5" />
             ) : (
@@ -94,18 +86,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
 
       {/* Sync progress */}
       {refreshRunId && (
-        <TaskProgress
-          runId={refreshRunId}
-          step="Sincronizando métricas desde Meta Ads…"
-        />
+        <TaskProgress runId={refreshRunId} step="Sincronizando métricas desde Meta Ads…" />
       )}
 
       {/* Product grid */}
       {products.length === 0 ? (
         <div className="rounded-card bg-surface border border-border shadow-tight p-12 text-center">
-          <p className="text-title text-fg-1 mb-2">
-            Aún no tienes productos
-          </p>
+          <p className="text-title text-fg-1 mb-2">Aún no tienes productos</p>
           <p className="text-body text-fg-2 mb-4">
             Agrega tu primer producto y Replik se encarga del resto.
           </p>
@@ -133,5 +120,5 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         {...(credError !== undefined && { errorMessage: credError })}
       />
     </div>
-  );
+  )
 }

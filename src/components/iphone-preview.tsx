@@ -1,17 +1,13 @@
-import * as React from "react";
-import { cn } from "@/lib/utils.ts";
+import type * as React from "react"
+import { cn } from "@/lib/utils.ts"
 
 interface IphonePreviewProps {
-  children: React.ReactNode;
-  gradient?: string;
-  className?: string;
+  children: React.ReactNode
+  gradient?: string
+  className?: string
 }
 
-export function IphonePreview({
-  children,
-  gradient,
-  className,
-}: IphonePreviewProps) {
+export function IphonePreview({ children, gradient, className }: IphonePreviewProps) {
   return (
     <div className={cn("flex justify-center", className)}>
       {/* Phone shell */}
@@ -22,8 +18,7 @@ export function IphonePreview({
           height: 560,
           borderRadius: 44,
           background: "#1c1c1e",
-          boxShadow:
-            "0 0 0 2px #3a3a3c, 0 0 0 4px #1c1c1e, 0 32px 64px rgba(0,0,0,0.35)",
+          boxShadow: "0 0 0 2px #3a3a3c, 0 0 0 4px #1c1c1e, 0 32px 64px rgba(0,0,0,0.35)",
           padding: 10,
         }}
       >
@@ -86,8 +81,7 @@ export function IphonePreview({
                 fontSize: 12,
                 fontWeight: 600,
                 color: gradient ? "rgba(0,0,0,0.7)" : "var(--color-fg-1)",
-                fontFamily:
-                  "-apple-system, BlinkMacSystemFont, sans-serif",
+                fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
               }}
             >
               9:41
@@ -101,19 +95,13 @@ export function IphonePreview({
                 background: "#1c1c1e",
               }}
             />
-            <div
-              style={{ fontSize: 10, color: "rgba(0,0,0,0.5)" }}
-            >
-              ●●●
-            </div>
+            <div style={{ fontSize: 10, color: "rgba(0,0,0,0.5)" }}>●●●</div>
           </div>
 
           {/* Content area */}
-          <div className="flex-1 overflow-y-auto scrollbar-none">
-            {children}
-          </div>
+          <div className="flex-1 overflow-y-auto scrollbar-none">{children}</div>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Owner: Lane L4a (Meta wrapper).
@@ -10,14 +10,9 @@ import "server-only";
  * `adinterest` IDs (verifiable via `/search?type=adinterest&q=<name>`).
  */
 
-import type { Interest } from "./types";
+import type { Interest } from "./types"
 
-export type InterestCategory =
-  | "home_garden"
-  | "beauty"
-  | "fitness"
-  | "kitchen"
-  | "pets";
+export type InterestCategory = "home_garden" | "beauty" | "fitness" | "kitchen" | "pets"
 
 export const INTERESTS: Record<InterestCategory, Interest[]> = {
   home_garden: [
@@ -45,8 +40,8 @@ export const INTERESTS: Record<InterestCategory, Interest[]> = {
     { id: "6003028526511", name: "Cats" },
     { id: "6003123461535", name: "Pets" },
   ],
-};
+}
 
 export function interestsFor(category: InterestCategory): Interest[] {
-  return INTERESTS[category];
+  return INTERESTS[category]
 }

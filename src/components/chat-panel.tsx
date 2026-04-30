@@ -1,51 +1,48 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { Send, Loader2, Bot, User } from "lucide-react";
-import { Input } from "@/components/ui/input.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { cn } from "@/lib/utils.ts";
+import { Bot, Loader2, Send, User } from "lucide-react"
+import * as React from "react"
+import { Button } from "@/components/ui/button.tsx"
+import { Input } from "@/components/ui/input.tsx"
+import { cn } from "@/lib/utils.ts"
 
 export interface ChatMessage {
-  from: "replik" | "user";
-  text: string;
+  id: string
+  from: "replik" | "user"
+  text: string
 }
 
 interface ChatPanelProps {
-  messages: ChatMessage[];
-  onSend: (text: string) => Promise<void>;
-  pending: boolean;
-  className?: string;
+  messages: ChatMessage[]
+  onSend: (text: string) => Promise<void>
+  pending: boolean
+  className?: string
 }
 
-export function ChatPanel({
-  messages,
-  onSend,
-  pending,
-  className,
-}: ChatPanelProps) {
-  const [input, setInput] = React.useState("");
-  const listRef = React.useRef<HTMLDivElement>(null);
+export function ChatPanel({ messages, onSend, pending, className }: ChatPanelProps) {
+  const [input, setInput] = React.useState("")
+  const listRef = React.useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom when message count changes
+  const messageCount = messages.length
   React.useEffect(() => {
-    const el = listRef.current;
+    const el = listRef.current
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTop = el.scrollHeight
     }
-  }, [messages]);
+  }, [messageCount])
 
   async function handleSend() {
-    const text = input.trim();
-    if (!text || pending) return;
-    setInput("");
-    await onSend(text);
+    const text = input.trim()
+    if (!text || pending) return
+    setInput("")
+    await onSend(text)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
+      e.preventDefault()
+      void handleSend()
     }
   }
 
@@ -59,9 +56,7 @@ export function ChatPanel({
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Bot className="size-4 text-mode-live" strokeWidth={1.8} />
-        <span className="text-callout font-semibold text-fg-1">
-          Chat con Replik
-        </span>
+        <span className="text-callout font-semibold text-fg-1">Chat con Replik</span>
       </div>
 
       {/* Messages */}
@@ -70,9 +65,9 @@ export function ChatPanel({
         className="flex flex-col gap-3 overflow-y-auto p-4"
         style={{ minHeight: 180, maxHeight: 320 }}
       >
-        {messages.map((msg, i) => (
+        {messages.map((msg) => (
           <div
-            key={i}
+            key={msg.id}
             className={cn(
               "flex items-start gap-2 max-w-[90%]",
               msg.from === "user" ? "self-end flex-row-reverse" : "self-start",
@@ -81,16 +76,10 @@ export function ChatPanel({
             <div
               className={cn(
                 "size-6 shrink-0 rounded-full flex items-center justify-center",
-                msg.from === "replik"
-                  ? "bg-mode-live text-white"
-                  : "bg-surface-muted text-fg-2",
+                msg.from === "replik" ? "bg-mode-live text-white" : "bg-surface-muted text-fg-2",
               )}
             >
-              {msg.from === "replik" ? (
-                <Bot className="size-3.5" />
-              ) : (
-                <User className="size-3.5" />
-              )}
+              {msg.from === "replik" ? <Bot className="size-3.5" /> : <User className="size-3.5" />}
             </div>
             <div
               className={cn(
@@ -124,7 +113,9 @@ export function ChatPanel({
       <div className="flex gap-2 border-t border-border p-3">
         <Input
           value={input}
-          onChange={(e) => { setInput(e.target.value); }}
+          onChange={(e) => {
+            setInput(e.target.value)
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Escribe qué quieres cambiar…"
           disabled={pending}
@@ -133,16 +124,14 @@ export function ChatPanel({
         <Button
           type="button"
           size="icon"
-          onClick={() => { void handleSend(); }}
+          onClick={() => {
+            void handleSend()
+          }}
           disabled={!input.trim() || pending}
         >
-          {pending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="size-4" />
-          )}
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </Button>
       </div>
     </div>
-  );
+  )
 }

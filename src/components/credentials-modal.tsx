@@ -1,37 +1,37 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod"
+import { ExternalLink, Loader2 } from "lucide-react"
+import * as React from "react"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { Button } from "@/components/ui/button.tsx"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog.tsx";
+} from "@/components/ui/dialog.tsx"
 import {
   Form,
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
-  FormDescription,
-} from "@/components/ui/form.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { saveIntegration } from "@/server/actions/integrations.ts";
+} from "@/components/ui/form.tsx"
+import { Input } from "@/components/ui/input.tsx"
+import { saveIntegration } from "@/server/actions/integrations.ts"
 
 // --- Shopify form ---
 const ShopifySchema = z.object({
   provider: z.literal("shopify"),
   token: z.string().min(10, "Token demasiado corto"),
   shop_domain: z.string().min(3, "Dominio inválido"),
-});
-type ShopifyFormValues = z.infer<typeof ShopifySchema>;
+})
+type ShopifyFormValues = z.infer<typeof ShopifySchema>
 
 // --- Meta form ---
 const MetaSchema = z.object({
@@ -39,42 +39,44 @@ const MetaSchema = z.object({
   token: z.string().min(10, "Token demasiado corto"),
   ad_account_id: z.string().min(1, "Requerido"),
   page_id: z.string().min(1, "Requerido"),
-});
-type MetaFormValues = z.infer<typeof MetaSchema>;
+})
+type MetaFormValues = z.infer<typeof MetaSchema>
 
 interface CredentialsModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  provider: "meta" | "shopify";
-  onSaved: () => void;
-  errorMessage?: string;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  provider: "meta" | "shopify"
+  onSaved: () => void
+  errorMessage?: string
 }
 
 function ShopifyForm({
   onSaved,
   onError,
 }: {
-  onSaved: () => void;
-  onError: (msg: string) => void;
+  onSaved: () => void
+  onError: (msg: string) => void
 }) {
   const form = useForm<ShopifyFormValues>({
     resolver: zodResolver(ShopifySchema),
     defaultValues: { provider: "shopify", token: "", shop_domain: "" },
-  });
+  })
 
   async function onSubmit(values: ShopifyFormValues) {
-    const result = await saveIntegration(values);
+    const result = await saveIntegration(values)
     if (result.ok) {
-      onSaved();
+      onSaved()
     } else {
-      onError(result.error ?? "Error al guardar. Intenta de nuevo.");
+      onError(result.error ?? "Error al guardar. Intenta de nuevo.")
     }
   }
 
   return (
     <Form {...form}>
       <form
-        onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
+        onSubmit={(e) => {
+          void form.handleSubmit(onSubmit)(e)
+        }}
         className="flex flex-col gap-4"
       >
         <FormField
@@ -84,14 +86,9 @@ function ShopifyForm({
             <FormItem>
               <FormLabel>Dominio de tu tienda</FormLabel>
               <FormControl>
-                <Input
-                  placeholder="mitienda.myshopify.com"
-                  {...field}
-                />
+                <Input placeholder="mitienda.myshopify.com" {...field} />
               </FormControl>
-              <FormDescription>
-                Ejemplo: mitienda.myshopify.com
-              </FormDescription>
+              <FormDescription>Ejemplo: mitienda.myshopify.com</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -103,11 +100,7 @@ function ShopifyForm({
             <FormItem>
               <FormLabel>Admin API Token</FormLabel>
               <FormControl>
-                <Input
-                  type="password"
-                  placeholder="shpat_..."
-                  {...field}
-                />
+                <Input type="password" placeholder="shpat_..." {...field} />
               </FormControl>
               <FormDescription>
                 <a
@@ -116,36 +109,23 @@ function ShopifyForm({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-mode-live hover:underline"
                 >
-                  Crear token en Shopify Admin{" "}
-                  <ExternalLink className="size-3" />
+                  Crear token en Shopify Admin <ExternalLink className="size-3" />
                 </a>
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button
-          type="submit"
-          className="w-full mt-2"
-          disabled={form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : null}
+        <Button type="submit" className="w-full mt-2" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
           Guardar y validar
         </Button>
       </form>
     </Form>
-  );
+  )
 }
 
-function MetaForm({
-  onSaved,
-  onError,
-}: {
-  onSaved: () => void;
-  onError: (msg: string) => void;
-}) {
+function MetaForm({ onSaved, onError }: { onSaved: () => void; onError: (msg: string) => void }) {
   const form = useForm<MetaFormValues>({
     resolver: zodResolver(MetaSchema),
     defaultValues: {
@@ -154,21 +134,23 @@ function MetaForm({
       ad_account_id: "",
       page_id: "",
     },
-  });
+  })
 
   async function onSubmit(values: MetaFormValues) {
-    const result = await saveIntegration(values);
+    const result = await saveIntegration(values)
     if (result.ok) {
-      onSaved();
+      onSaved()
     } else {
-      onError(result.error ?? "Error al guardar. Intenta de nuevo.");
+      onError(result.error ?? "Error al guardar. Intenta de nuevo.")
     }
   }
 
   return (
     <Form {...form}>
       <form
-        onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
+        onSubmit={(e) => {
+          void form.handleSubmit(onSubmit)(e)
+        }}
         className="flex flex-col gap-4"
       >
         <FormField
@@ -178,11 +160,7 @@ function MetaForm({
             <FormItem>
               <FormLabel>User Access Token</FormLabel>
               <FormControl>
-                <Input
-                  type="password"
-                  placeholder="EAAxxxxx..."
-                  {...field}
-                />
+                <Input type="password" placeholder="EAAxxxxx..." {...field} />
               </FormControl>
               <FormDescription>
                 <a
@@ -191,8 +169,7 @@ function MetaForm({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-mode-live hover:underline"
                 >
-                  Business Manager → Usuarios del sistema{" "}
-                  <ExternalLink className="size-3" />
+                  Business Manager → Usuarios del sistema <ExternalLink className="size-3" />
                 </a>
               </FormDescription>
               <FormMessage />
@@ -208,9 +185,7 @@ function MetaForm({
               <FormControl>
                 <Input placeholder="act_123456789" {...field} />
               </FormControl>
-              <FormDescription>
-                Formato: act_XXXXXXXXX
-              </FormDescription>
+              <FormDescription>Formato: act_XXXXXXXXX</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -231,27 +206,20 @@ function MetaForm({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-mode-live hover:underline"
                 >
-                  Business Manager → Páginas{" "}
-                  <ExternalLink className="size-3" />
+                  Business Manager → Páginas <ExternalLink className="size-3" />
                 </a>
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button
-          type="submit"
-          className="w-full mt-2"
-          disabled={form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : null}
+        <Button type="submit" className="w-full mt-2" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
           Guardar y validar
         </Button>
       </form>
     </Form>
-  );
+  )
 }
 
 export function CredentialsModal({
@@ -261,20 +229,19 @@ export function CredentialsModal({
   onSaved,
   errorMessage,
 }: CredentialsModalProps) {
-  const [internalError, setInternalError] = React.useState<string | undefined>();
+  const [internalError, setInternalError] = React.useState<string | undefined>()
 
-  const displayError = internalError ?? errorMessage;
+  const displayError = internalError ?? errorMessage
 
-  const title =
-    provider === "shopify" ? "Conectar Shopify" : "Conectar Meta Ads";
+  const title = provider === "shopify" ? "Conectar Shopify" : "Conectar Meta Ads"
   const description =
     provider === "shopify"
       ? "Ingresa tu dominio de tienda y Admin API token para publicar la landing."
-      : "Ingresa tu token de Meta y datos de la cuenta para lanzar la campaña.";
+      : "Ingresa tu token de Meta y datos de la cuenta para lanzar la campaña."
 
   function handleSaved() {
-    setInternalError(undefined);
-    onSaved();
+    setInternalError(undefined)
+    onSaved()
   }
 
   return (
@@ -298,5 +265,5 @@ export function CredentialsModal({
         )}
       </DialogContent>
     </Dialog>
-  );
+  )
 }

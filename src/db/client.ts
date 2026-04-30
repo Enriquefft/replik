@@ -1,31 +1,31 @@
-import "server-only";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { eq } from "drizzle-orm";
-import { users } from "./schema";
+import "server-only"
+import { neon } from "@neondatabase/serverless"
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/neon-http"
+import { users } from "./schema"
 
-type Sql = ReturnType<typeof neon>;
-type Db = ReturnType<typeof drizzle<Record<string, never>, Sql>>;
+type Sql = ReturnType<typeof neon>
+type Db = ReturnType<typeof drizzle<Record<string, never>, Sql>>
 
-let cachedSql: Sql | undefined;
-let cachedDb: Db | undefined;
+let cachedSql: Sql | undefined
+let cachedDb: Db | undefined
 
 function initSql(): Sql {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not set");
+    throw new Error("DATABASE_URL is not set")
   }
-  return neon(databaseUrl);
+  return neon(databaseUrl)
 }
 
 export function getSql(): Sql {
-  cachedSql ??= initSql();
-  return cachedSql;
+  cachedSql ??= initSql()
+  return cachedSql
 }
 
 export function getDb(): Db {
-  cachedDb ??= drizzle(getSql());
-  return cachedDb;
+  cachedDb ??= drizzle(getSql())
+  return cachedDb
 }
 
 /**
@@ -34,9 +34,9 @@ export function getDb(): Db {
  */
 export const db: Db = new Proxy({} as Db, {
   get(_target, prop, receiver): unknown {
-    return Reflect.get(getDb(), prop, receiver);
+    return Reflect.get(getDb(), prop, receiver)
   },
-});
+})
 
 /**
  * Tenant-scoped DB handle. P1 contract: identical type to Db, but the only
@@ -44,12 +44,12 @@ export const db: Db = new Proxy({} as Db, {
  * for a row-level filter wrapper. Lint enforcement of "no `db` import outside
  * `withUser`" is documented in README; manual for now.
  */
-export type TenantDB = Db;
+export type TenantDB = Db
 
 export class TenantError extends Error {
   constructor(message: string) {
-    super(message);
-    this.name = "TenantError";
+    super(message)
+    this.name = "TenantError"
   }
 }
 
@@ -63,15 +63,15 @@ export async function withUser<T>(
   fn: (db: TenantDB) => Promise<T> | T,
 ): Promise<T> {
   if (typeof userId !== "string" || userId.length === 0) {
-    throw new TenantError("withUser: userId must be a non-empty string");
+    throw new TenantError("withUser: userId must be a non-empty string")
   }
-  return await fn(getDb());
+  return await fn(getDb())
 }
 
 export class UnauthenticatedError extends Error {
   constructor() {
-    super("Unauthenticated");
-    this.name = "UnauthenticatedError";
+    super("Unauthenticated")
+    this.name = "UnauthenticatedError"
   }
 }
 
@@ -81,43 +81,42 @@ export class UnauthenticatedError extends Error {
  * API to avoid relying on custom session claims.
  */
 export async function requireUser(): Promise<{
-  clerkUserId: string;
-  userId: string;
-  email: string;
+  clerkUserId: string
+  userId: string
+  email: string
 }> {
   // Dynamic import keeps Clerk + next/navigation out of the static module
   // graph so non-request entrypoints (e.g. bun:test) can import this file.
-  const { auth, clerkClient } = await import("@clerk/nextjs/server");
-  const session = await auth();
-  const clerkUserId = session.userId;
+  const { auth, clerkClient } = await import("@clerk/nextjs/server")
+  const session = await auth()
+  const clerkUserId = session.userId
   if (!clerkUserId) {
-    throw new UnauthenticatedError();
+    throw new UnauthenticatedError()
   }
-  const dbHandle = getDb();
+  const dbHandle = getDb()
   const existing = await dbHandle
     .select({ id: users.id, email: users.email })
     .from(users)
     .where(eq(users.clerkUserId, clerkUserId))
-    .limit(1);
-  const found = existing[0];
+    .limit(1)
+  const found = existing[0]
   if (found) {
-    return { clerkUserId, userId: found.id, email: found.email };
+    return { clerkUserId, userId: found.id, email: found.email }
   }
-  const client = await clerkClient();
-  const clerkUser = await client.users.getUser(clerkUserId);
+  const client = await clerkClient()
+  const clerkUser = await client.users.getUser(clerkUserId)
   const email =
-    clerkUser.primaryEmailAddress?.emailAddress ??
-    clerkUser.emailAddresses[0]?.emailAddress;
+    clerkUser.primaryEmailAddress?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress
   if (!email) {
-    throw new Error("requireUser: Clerk user has no email address");
+    throw new Error("requireUser: Clerk user has no email address")
   }
   const inserted = await dbHandle
     .insert(users)
     .values({ clerkUserId, email })
-    .returning({ id: users.id, email: users.email });
-  const row = inserted[0];
+    .returning({ id: users.id, email: users.email })
+  const row = inserted[0]
   if (!row) {
-    throw new Error("requireUser: failed to create user row");
+    throw new Error("requireUser: failed to create user row")
   }
-  return { clerkUserId, userId: row.id, email: row.email };
+  return { clerkUserId, userId: row.id, email: row.email }
 }

@@ -1,29 +1,29 @@
-import { notFound } from "next/navigation";
-import { requireUser, withUser } from "@/db/client";
-import { products } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { TEMPLATES } from "@/lib/shopify/templates/index.ts";
-import { LandingClient } from "./landing-client.tsx";
+import { and, eq } from "drizzle-orm"
+import { notFound } from "next/navigation"
+import { requireUser, withUser } from "@/db/client"
+import { products } from "@/db/schema"
+import { TEMPLATES } from "@/lib/shopify/templates/index.ts"
+import { LandingClient } from "./landing-client.tsx"
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string }>
 }
 
 export default async function LandingPage({ params }: PageProps) {
-  const { id } = await params;
-  const { userId } = await requireUser();
+  const { id } = await params
+  const { userId } = await requireUser()
 
   const productData = await withUser(userId, async (db) => {
     const rows = await db
       .select()
       .from(products)
       .where(and(eq(products.id, id), eq(products.userId, userId)))
-      .limit(1);
-    return rows[0] ?? null;
-  });
+      .limit(1)
+    return rows[0] ?? null
+  })
 
   if (!productData) {
-    notFound();
+    notFound()
   }
 
   return (
@@ -35,8 +35,8 @@ export default async function LandingPage({ params }: PageProps) {
           </p>
           <h2 className="text-title">Elige el template y ajusta el copy</h2>
           <p className="text-body text-fg-2 mt-1">
-            3 versiones basadas en los ángulos de los videos. Conversa con el
-            asistente para ajustar el texto.
+            3 versiones basadas en los ángulos de los videos. Conversa con el asistente para ajustar
+            el texto.
           </p>
         </div>
 
@@ -50,5 +50,5 @@ export default async function LandingPage({ params }: PageProps) {
         />
       </div>
     </div>
-  );
+  )
 }

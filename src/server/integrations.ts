@@ -1,20 +1,20 @@
-import "server-only";
-import { and, eq, sql } from "drizzle-orm";
-import { withUser } from "@/db/client";
-import { integrations } from "@/db/schema";
-import { decrypt, encrypt } from "@/lib/crypto";
-import { EncryptedExtraJson } from "@/db/zod";
+import "server-only"
+import { and, eq, sql } from "drizzle-orm"
+import { withUser } from "@/db/client"
+import { integrations } from "@/db/schema"
+import { EncryptedExtraJson } from "@/db/zod"
+import { decrypt, encrypt } from "@/lib/crypto"
 
 export class IntegrationMissingError extends Error {
   constructor(public readonly provider: "meta" | "shopify") {
-    super(`Integration missing: ${provider}`);
-    this.name = "IntegrationMissingError";
+    super(`Integration missing: ${provider}`)
+    this.name = "IntegrationMissingError"
   }
 }
 
 export interface IntegrationCreds {
-  token: string;
-  extra: EncryptedExtraJson;
+  token: string
+  extra: EncryptedExtraJson
 }
 
 export async function getIntegration(
@@ -28,47 +28,42 @@ export async function getIntegration(
         encryptedExtraJson: integrations.encryptedExtraJson,
       })
       .from(integrations)
-      .where(
-        and(
-          eq(integrations.userId, userId),
-          eq(integrations.provider, provider),
-        ),
-      )
-      .limit(1);
-    const row = rows[0];
-    if (!row) return null;
+      .where(and(eq(integrations.userId, userId), eq(integrations.provider, provider)))
+      .limit(1)
+    const row = rows[0]
+    if (!row) return null
     const [token, extraRaw] = await Promise.all([
       decrypt(row.encryptedToken),
       decrypt(row.encryptedExtraJson),
-    ]);
-    const extra = EncryptedExtraJson.parse(JSON.parse(extraRaw));
-    return { token, extra };
-  });
+    ])
+    const extra = EncryptedExtraJson.parse(JSON.parse(extraRaw))
+    return { token, extra }
+  })
 }
 
 export async function requireIntegration(
   userId: string,
   provider: "meta" | "shopify",
 ): Promise<IntegrationCreds> {
-  const result = await getIntegration(userId, provider);
+  const result = await getIntegration(userId, provider)
   if (!result) {
-    throw new IntegrationMissingError(provider);
+    throw new IntegrationMissingError(provider)
   }
-  return result;
+  return result
 }
 
 export async function saveIntegration(
   userId: string,
   input: {
-    provider: "meta" | "shopify";
-    token: string;
-    extra: EncryptedExtraJson;
+    provider: "meta" | "shopify"
+    token: string
+    extra: EncryptedExtraJson
   },
 ): Promise<void> {
   const [encryptedToken, encryptedExtraJson] = await Promise.all([
     encrypt(input.token),
     encrypt(JSON.stringify(input.extra)),
-  ]);
+  ])
   await withUser(userId, async (db) => {
     await db
       .insert(integrations)
@@ -87,6 +82,6 @@ export async function saveIntegration(
           validatedAt: sql`now()`,
           expiresAt: null,
         },
-      });
-  });
+      })
+  })
 }

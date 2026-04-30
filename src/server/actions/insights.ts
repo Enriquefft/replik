@@ -1,16 +1,13 @@
-"use server";
+"use server"
 
-import { tasks } from "@trigger.dev/sdk";
-import { requireUser } from "@/db/client";
-import {
-  IntegrationMissingError,
-  requireIntegration,
-} from "@/server/integrations";
-import type { syncInsights } from "@/server/trigger/syncInsights";
+import { tasks } from "@trigger.dev/sdk"
+import { requireUser } from "@/db/client"
+import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
+import type { syncInsights } from "@/server/trigger/syncInsights"
 
 export type RefreshInsightsResult =
   | { ok: true; data: { runId: string } }
-  | { ok: false; needs: "meta"; error?: string };
+  | { ok: false; needs: "meta"; error?: string }
 
 /**
  * Server Action invoked by the dashboard "Refresh" button. Validates that the
@@ -19,25 +16,24 @@ export type RefreshInsightsResult =
  * an integration-needed CTA when the prerequisite is missing.
  */
 export async function refreshInsights(): Promise<RefreshInsightsResult> {
-  const { userId } = await requireUser();
+  const { userId } = await requireUser()
 
   try {
-    await requireIntegration(userId, "meta");
+    await requireIntegration(userId, "meta")
   } catch (err) {
     if (err instanceof IntegrationMissingError) {
-      return { ok: false, needs: "meta" };
+      return { ok: false, needs: "meta" }
     }
-    throw err;
+    throw err
   }
 
   try {
     const handle = await tasks.trigger<typeof syncInsights>("sync-insights", {
       userId,
-    });
-    return { ok: true, data: { runId: handle.id } };
+    })
+    return { ok: true, data: { runId: handle.id } }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to trigger sync";
-    return { ok: false, needs: "meta", error: message };
+    const message = err instanceof Error ? err.message : "Failed to trigger sync"
+    return { ok: false, needs: "meta", error: message }
   }
 }

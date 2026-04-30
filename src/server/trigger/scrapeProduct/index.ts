@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Lane L3a — Scrape pipeline orchestrator (Trigger.dev v4).
@@ -19,37 +19,32 @@ import "server-only";
  * last-known summary.
  */
 
-import OpenAI from "openai";
-import { z } from "zod";
-import { and, eq } from "drizzle-orm";
-import { Output, generateText } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
-import { logger, task } from "@trigger.dev/sdk";
-import { UTApi } from "uploadthing/server";
+import { anthropic } from "@ai-sdk/anthropic"
+import { logger, task } from "@trigger.dev/sdk"
+import { generateText, Output } from "ai"
+import { and, eq } from "drizzle-orm"
+import OpenAI from "openai"
+import { UTApi } from "uploadthing/server"
+import { z } from "zod"
 
-import { withUser } from "@/db/client";
-import {
-  assets,
-  creatives,
-  idempotencyKeys,
-  products,
-} from "@/db/schema";
-import { extractKeywords } from "@/lib/agent/scrape";
-import * as meta from "@/lib/meta";
-import * as apify from "@/lib/apify";
+import { withUser } from "@/db/client"
+import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
+import { extractKeywords } from "@/lib/agent/scrape"
+import * as apify from "@/lib/apify"
+import * as meta from "@/lib/meta"
 
-const TASK_ID = "scrape-product";
-const MAX_ADS = 20;
-const WHISPER_MAX_BYTES = 25 * 1024 * 1024;
-const TRANSCRIBE_CONCURRENCY = 3;
-const CLASSIFY_MODEL = "claude-sonnet-4-5";
-const IDEMPOTENCY_TTL_DAYS = 7;
+const TASK_ID = "scrape-product"
+const MAX_ADS = 20
+const WHISPER_MAX_BYTES = 25 * 1024 * 1024
+const TRANSCRIBE_CONCURRENCY = 3
+const CLASSIFY_MODEL = "claude-sonnet-4-5"
+const IDEMPOTENCY_TTL_DAYS = 7
 
 interface ScrapeSummary {
-  creativeCount: number;
-  withTranscript: number;
-  withAngle: number;
-  source: "meta_ad_library" | "apify_fb" | "none";
+  creativeCount: number
+  withTranscript: number
+  withAngle: number
+  source: "meta_ad_library" | "apify_fb" | "none"
 }
 
 const AnglesSchema = z.object({
@@ -61,156 +56,156 @@ const AnglesSchema = z.object({
       }),
     )
     .min(0),
-});
+})
 
-let cachedOpenAI: OpenAI | undefined;
-let cachedUTApi: UTApi | undefined;
+let cachedOpenAI: OpenAI | undefined
+let cachedUTApi: UTApi | undefined
 
 function getOpenAI(): OpenAI {
-  cachedOpenAI ??= new OpenAI();
-  return cachedOpenAI;
+  cachedOpenAI ??= new OpenAI()
+  return cachedOpenAI
 }
 
 function getUTApi(): UTApi {
-  cachedUTApi ??= new UTApi();
-  return cachedUTApi;
+  cachedUTApi ??= new UTApi()
+  return cachedUTApi
 }
 
 function deriveProductName(businessInfo: string): string {
-  const firstSentence = businessInfo.split(/[.!?\n]/)[0] ?? businessInfo;
-  return firstSentence.trim().slice(0, 80);
+  const firstSentence = businessInfo.split(/[.!?\n]/)[0] ?? businessInfo
+  return firstSentence.trim().slice(0, 80)
 }
 
 function cleanTranscript(text: string): string {
-  const amaraPattern = /amara/i;
-  const seen: string[] = [];
+  const amaraPattern = /amara/i
+  const seen: string[] = []
   for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0) continue;
-    if (amaraPattern.test(trimmed)) continue;
-    if (seen[seen.length - 1] === trimmed) continue;
-    seen.push(trimmed);
+    const trimmed = line.trim()
+    if (trimmed.length === 0) continue
+    if (amaraPattern.test(trimmed)) continue
+    if (seen[seen.length - 1] === trimmed) continue
+    seen.push(trimmed)
   }
-  return seen.join("\n").trim();
+  return seen.join("\n").trim()
 }
 
 interface FoundAd {
-  source: "meta_ad_library" | "apify_fb";
-  ad_id: string;
-  scrape_url: string;
+  source: "meta_ad_library" | "apify_fb"
+  ad_id: string
+  scrape_url: string
 }
 
 async function findAds(
   keywords: string[],
 ): Promise<{ ads: FoundAd[]; source: "meta_ad_library" | "apify_fb" | "none" }> {
-  const searchTerms = keywords.join(" ");
+  const searchTerms = keywords.join(" ")
   // Try Meta Ad Library first.
   try {
     const metaAds = await meta.adLibrarySearch({
       searchTerms,
       countries: ["PE"],
       limit: MAX_ADS,
-    });
+    })
     if (metaAds.length > 0) {
-      const mapped: FoundAd[] = [];
+      const mapped: FoundAd[] = []
       for (const ad of metaAds) {
-        const url = ad.video_url ?? ad.ad_snapshot_url;
-        if (!url) continue;
+        const url = ad.video_url ?? ad.ad_snapshot_url
+        if (!url) continue
         mapped.push({
           source: "meta_ad_library",
           ad_id: ad.ad_id,
           scrape_url: url,
-        });
-        if (mapped.length >= MAX_ADS) break;
+        })
+        if (mapped.length >= MAX_ADS) break
       }
-      if (mapped.length > 0) return { ads: mapped, source: "meta_ad_library" };
+      if (mapped.length > 0) return { ads: mapped, source: "meta_ad_library" }
     }
   } catch (err) {
     logger.warn("meta_ad_library_failed", {
       error: err instanceof Error ? err.message : String(err),
-    });
+    })
   }
 
   // Fallback to Apify.
   try {
-    const apifyAds = await apify.searchFBAdsByKeywords(keywords);
+    const apifyAds = await apify.searchFBAdsByKeywords(keywords)
     if (apifyAds.length > 0) {
-      const mapped: FoundAd[] = [];
+      const mapped: FoundAd[] = []
       for (const ad of apifyAds) {
-        if (!ad.video_url) continue;
+        if (!ad.video_url) continue
         mapped.push({
           source: "apify_fb",
           ad_id: ad.ad_id,
           scrape_url: ad.video_url,
-        });
-        if (mapped.length >= MAX_ADS) break;
+        })
+        if (mapped.length >= MAX_ADS) break
       }
-      if (mapped.length > 0) return { ads: mapped, source: "apify_fb" };
+      if (mapped.length > 0) return { ads: mapped, source: "apify_fb" }
     }
   } catch (err) {
     logger.warn("apify_failed", {
       error: err instanceof Error ? err.message : String(err),
-    });
+    })
   }
 
-  return { ads: [], source: "none" };
+  return { ads: [], source: "none" }
 }
 
 interface CreativeRow {
-  id: string;
-  scrapeUrl: string;
+  id: string
+  scrapeUrl: string
 }
 
 async function transcribeOne(
   creative: CreativeRow,
   userId: string,
 ): Promise<{ transcribed: boolean; reason?: string }> {
-  let response: Response;
+  let response: Response
   try {
     response = await fetch(creative.scrapeUrl, {
       redirect: "follow",
       cache: "no-store",
-    });
+    })
   } catch (err) {
     logger.warn("creative_fetch_failed", {
       creativeId: creative.id,
       error: err instanceof Error ? err.message : String(err),
-    });
-    return { transcribed: false, reason: "fetch_failed" };
+    })
+    return { transcribed: false, reason: "fetch_failed" }
   }
 
   if (!response.ok) {
     logger.warn("creative_fetch_non_ok", {
       creativeId: creative.id,
       status: response.status,
-    });
-    return { transcribed: false, reason: `http_${response.status.toString()}` };
+    })
+    return { transcribed: false, reason: `http_${response.status.toString()}` }
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const mime = response.headers.get("content-type") ?? "video/mp4";
-  const sizeBytes = buffer.byteLength;
+  const buffer = Buffer.from(await response.arrayBuffer())
+  const mime = response.headers.get("content-type") ?? "video/mp4"
+  const sizeBytes = buffer.byteLength
 
   // 1. Upload original to UploadThing.
-  let uploadedUrl: string | undefined;
+  let uploadedUrl: string | undefined
   try {
     const file = new File([new Uint8Array(buffer)], `${creative.id}.mp4`, {
       type: mime,
-    });
-    const result = await getUTApi().uploadFiles(file);
+    })
+    const result = await getUTApi().uploadFiles(file)
     if (result.data) {
-      uploadedUrl = result.data.ufsUrl;
+      uploadedUrl = result.data.ufsUrl
     } else {
       logger.warn("uploadthing_failed", {
         creativeId: creative.id,
         error: result.error.message,
-      });
+      })
     }
   } catch (err) {
     logger.warn("uploadthing_threw", {
       creativeId: creative.id,
       error: err instanceof Error ? err.message : String(err),
-    });
+    })
   }
 
   if (uploadedUrl) {
@@ -223,13 +218,13 @@ async function transcribeOne(
           url: uploadedUrl,
           bytes: sizeBytes,
           mime,
-        });
-      });
+        })
+      })
     } catch (err) {
       logger.warn("asset_insert_failed", {
         creativeId: creative.id,
         error: err instanceof Error ? err.message : String(err),
-      });
+      })
     }
   }
 
@@ -238,35 +233,35 @@ async function transcribeOne(
     logger.info("transcribe_skip_oversize", {
       creativeId: creative.id,
       sizeBytes,
-    });
-    return { transcribed: false, reason: "oversize" };
+    })
+    return { transcribed: false, reason: "oversize" }
   }
 
   // 3. Transcribe via Whisper.
-  let transcriptText: string | undefined;
-  let language: string | undefined;
+  let transcriptText: string | undefined
+  let language: string | undefined
   try {
     const audioFile = new File([new Uint8Array(buffer)], `${creative.id}.mp4`, {
       type: mime,
-    });
+    })
     const verbose = await getOpenAI().audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       response_format: "verbose_json",
       timestamp_granularities: ["word"],
-    });
-    transcriptText = cleanTranscript(verbose.text);
-    language = verbose.language;
+    })
+    transcriptText = cleanTranscript(verbose.text)
+    language = verbose.language
   } catch (err) {
     logger.warn("whisper_failed", {
       creativeId: creative.id,
       error: err instanceof Error ? err.message : String(err),
-    });
-    return { transcribed: false, reason: "whisper_failed" };
+    })
+    return { transcribed: false, reason: "whisper_failed" }
   }
 
   if (!transcriptText) {
-    return { transcribed: false, reason: "empty_transcript" };
+    return { transcribed: false, reason: "empty_transcript" }
   }
 
   try {
@@ -274,19 +269,17 @@ async function transcribeOne(
       await db
         .update(creatives)
         .set({ transcriptText, language })
-        .where(
-          and(eq(creatives.id, creative.id), eq(creatives.userId, userId)),
-        );
-    });
+        .where(and(eq(creatives.id, creative.id), eq(creatives.userId, userId)))
+    })
   } catch (err) {
     logger.warn("transcript_persist_failed", {
       creativeId: creative.id,
       error: err instanceof Error ? err.message : String(err),
-    });
-    return { transcribed: false, reason: "persist_failed" };
+    })
+    return { transcribed: false, reason: "persist_failed" }
   }
 
-  return { transcribed: true };
+  return { transcribed: true }
 }
 
 async function runWithConcurrency<T, R>(
@@ -294,45 +287,40 @@ async function runWithConcurrency<T, R>(
   limit: number,
   worker: (item: T, index: number) => Promise<R>,
 ): Promise<PromiseSettledResult<R>[]> {
-  const out: PromiseSettledResult<R>[] = new Array<PromiseSettledResult<R>>(
-    items.length,
-  );
-  let cursor = 0;
-  const runners = Array.from(
-    { length: Math.min(limit, items.length) },
-    async () => {
-      for (;;) {
-        const idx = cursor++;
-        if (idx >= items.length) return;
-        const item = items[idx];
-        if (item === undefined) return;
-        try {
-          const value = await worker(item, idx);
-          out[idx] = { status: "fulfilled", value };
-        } catch (reason) {
-          out[idx] = { status: "rejected", reason };
-        }
+  const out: PromiseSettledResult<R>[] = new Array<PromiseSettledResult<R>>(items.length)
+  let cursor = 0
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const idx = cursor++
+      if (idx >= items.length) return
+      const item = items[idx]
+      if (item === undefined) return
+      try {
+        const value = await worker(item, idx)
+        out[idx] = { status: "fulfilled", value }
+      } catch (reason) {
+        out[idx] = { status: "rejected", reason }
       }
-    },
-  );
-  await Promise.all(runners);
-  return out;
+    }
+  })
+  await Promise.all(runners)
+  return out
 }
 
 async function classifyAngles(
   rows: { id: string; transcriptText: string | null }[],
 ): Promise<Map<string, string>> {
-  const result = new Map<string, string>();
+  const result = new Map<string, string>()
   const withText = rows.filter(
     (r): r is { id: string; transcriptText: string } =>
       typeof r.transcriptText === "string" && r.transcriptText.length > 0,
-  );
+  )
   for (const r of rows) {
     if (!withText.find((w) => w.id === r.id)) {
-      result.set(r.id, "sin clasificar");
+      result.set(r.id, "sin clasificar")
     }
   }
-  if (withText.length === 0) return result;
+  if (withText.length === 0) return result
 
   try {
     const { output } = await generateText({
@@ -343,35 +331,33 @@ async function classifyAngles(
         "Ejemplos: 'precio bajo', 'demostración', 'testimonio', 'antes/después', 'urgencia'.",
         "Devuelve EXACTAMENTE un objeto por cada id de entrada.",
       ].join(" "),
-      prompt: JSON.stringify(
-        withText.map((c) => ({ id: c.id, transcript: c.transcriptText })),
-      ),
-    });
+      prompt: JSON.stringify(withText.map((c) => ({ id: c.id, transcript: c.transcriptText }))),
+    })
     for (const a of output.angles) {
-      result.set(a.id, a.angle.trim().slice(0, 40));
+      result.set(a.id, a.angle.trim().slice(0, 40))
     }
   } catch (err) {
     logger.warn("classify_failed", {
       error: err instanceof Error ? err.message : String(err),
-    });
+    })
     for (const w of withText) {
-      if (!result.has(w.id)) result.set(w.id, "sin clasificar");
+      if (!result.has(w.id)) result.set(w.id, "sin clasificar")
     }
   }
 
   // Anything we expected but the model omitted defaults to 'sin clasificar'.
   for (const w of withText) {
-    if (!result.has(w.id)) result.set(w.id, "sin clasificar");
+    if (!result.has(w.id)) result.set(w.id, "sin clasificar")
   }
 
-  return result;
+  return result
 }
 
 interface ScrapePayload {
-  productId: string;
-  userId: string;
-  competitorUrl: string;
-  attempt?: number;
+  productId: string
+  userId: string
+  competitorUrl: string
+  attempt?: number
 }
 
 export const scrapeProduct = task({
@@ -379,9 +365,9 @@ export const scrapeProduct = task({
   maxDuration: 600,
   machine: { preset: "medium-1x" },
   run: async (payload: ScrapePayload): Promise<ScrapeSummary> => {
-    const { productId, userId, competitorUrl } = payload;
-    const attempt = payload.attempt ?? 1;
-    const idempotencyKey = `scrape_${productId}_${attempt.toString()}`;
+    const { productId, userId, competitorUrl } = payload
+    const attempt = payload.attempt ?? 1
+    const idempotencyKey = `scrape_${productId}_${attempt.toString()}`
 
     // ---------- Idempotency ----------
     const existing = await withUser(userId, async (db) => {
@@ -389,10 +375,10 @@ export const scrapeProduct = task({
         .select({ key: idempotencyKeys.key })
         .from(idempotencyKeys)
         .where(eq(idempotencyKeys.key, idempotencyKey))
-        .limit(1);
-    });
+        .limit(1)
+    })
     if (existing.length > 0) {
-      logger.info("idempotency_short_circuit", { idempotencyKey });
+      logger.info("idempotency_short_circuit", { idempotencyKey })
       const summary = await withUser(userId, async (db) => {
         return await db
           .select({
@@ -401,21 +387,14 @@ export const scrapeProduct = task({
             angle: creatives.angle,
           })
           .from(creatives)
-          .where(
-            and(
-              eq(creatives.productId, productId),
-              eq(creatives.userId, userId),
-            ),
-          );
-      });
+          .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+      })
       return {
         creativeCount: summary.length,
-        withTranscript: summary.filter(
-          (s) => typeof s.transcriptText === "string",
-        ).length,
+        withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
         withAngle: summary.filter((s) => typeof s.angle === "string").length,
         source: "none",
-      };
+      }
     }
 
     try {
@@ -423,17 +402,15 @@ export const scrapeProduct = task({
         await db.insert(idempotencyKeys).values({
           key: idempotencyKey,
           userId,
-          expiresAt: new Date(
-            Date.now() + IDEMPOTENCY_TTL_DAYS * 24 * 60 * 60 * 1000,
-          ),
-        });
-      });
+          expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_DAYS * 24 * 60 * 60 * 1000),
+        })
+      })
     } catch (err) {
       // Unique violation → another runner won; replay summary.
       logger.info("idempotency_race", {
         idempotencyKey,
         error: err instanceof Error ? err.message : String(err),
-      });
+      })
       const summary = await withUser(userId, async (db) => {
         return await db
           .select({
@@ -442,45 +419,34 @@ export const scrapeProduct = task({
             angle: creatives.angle,
           })
           .from(creatives)
-          .where(
-            and(
-              eq(creatives.productId, productId),
-              eq(creatives.userId, userId),
-            ),
-          );
-      });
+          .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+      })
       return {
         creativeCount: summary.length,
-        withTranscript: summary.filter(
-          (s) => typeof s.transcriptText === "string",
-        ).length,
+        withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
         withAngle: summary.filter((s) => typeof s.angle === "string").length,
         source: "none",
-      };
+      }
     }
 
     // ---------- Step 1 — extractKeywords ----------
-    logger.info("extract_started", { productId, competitorUrl });
-    let keywordsResult: Awaited<ReturnType<typeof extractKeywords>>;
+    logger.info("extract_started", { productId, competitorUrl })
+    let keywordsResult: Awaited<ReturnType<typeof extractKeywords>>
     try {
-      keywordsResult = await extractKeywords(competitorUrl);
+      keywordsResult = await extractKeywords(competitorUrl)
     } catch (err) {
       logger.error("extract_failed", {
         error: err instanceof Error ? err.message : String(err),
-      });
+      })
       await withUser(userId, async (db) => {
         await db
           .update(products)
           .set({ status: "FAILED" })
-          .where(
-            and(eq(products.id, productId), eq(products.userId, userId)),
-          );
-      });
-      throw err instanceof Error
-        ? err
-        : new Error("extractKeywords failed");
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+      })
+      throw err instanceof Error ? err : new Error("extractKeywords failed")
     }
-    logger.info("extract_done", { keywords: keywordsResult.keywords });
+    logger.info("extract_done", { keywords: keywordsResult.keywords })
 
     // Best-effort backfill of product metadata.
     try {
@@ -491,48 +457,42 @@ export const scrapeProduct = task({
             category: products.category,
           })
           .from(products)
-          .where(
-            and(eq(products.id, productId), eq(products.userId, userId)),
-          )
-          .limit(1);
-        const updates: Partial<typeof products.$inferInsert> = {};
-        if (!row?.name) updates.name = deriveProductName(keywordsResult.businessInfo);
-        if (!row?.category) updates.category = keywordsResult.category;
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .limit(1)
+        const updates: Partial<typeof products.$inferInsert> = {}
+        if (!row?.name) updates.name = deriveProductName(keywordsResult.businessInfo)
+        if (!row?.category) updates.category = keywordsResult.category
         if (Object.keys(updates).length > 0) {
           await db
             .update(products)
             .set(updates)
-            .where(
-              and(eq(products.id, productId), eq(products.userId, userId)),
-            );
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
         }
-      });
+      })
     } catch (err) {
       logger.warn("product_backfill_failed", {
         error: err instanceof Error ? err.message : String(err),
-      });
+      })
     }
 
     // ---------- Step 2 — findAds ----------
-    logger.info("find_ads_started", { keywords: keywordsResult.keywords });
-    const { ads, source } = await findAds(keywordsResult.keywords);
-    logger.info("find_ads_done", { count: ads.length, source });
+    logger.info("find_ads_started", { keywords: keywordsResult.keywords })
+    const { ads, source } = await findAds(keywordsResult.keywords)
+    logger.info("find_ads_done", { count: ads.length, source })
 
     if (ads.length === 0) {
       await withUser(userId, async (db) => {
         await db
           .update(products)
           .set({ status: "SCRAPE_EMPTY" })
-          .where(
-            and(eq(products.id, productId), eq(products.userId, userId)),
-          );
-      });
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+      })
       return {
         creativeCount: 0,
         withTranscript: 0,
         withAngle: 0,
         source,
-      };
+      }
     }
 
     // Insert creative rows.
@@ -543,35 +503,35 @@ export const scrapeProduct = task({
         source: ad.source,
         scrapeUrl: ad.scrape_url,
         selectedBool: false,
-      }));
+      }))
       return await db
         .insert(creatives)
         .values(rows)
-        .returning({ id: creatives.id, scrapeUrl: creatives.scrapeUrl });
-    });
+        .returning({ id: creatives.id, scrapeUrl: creatives.scrapeUrl })
+    })
 
     // ---------- Step 3 — transcribeAds ----------
-    logger.info("transcribe_started", { count: insertedCreatives.length });
+    logger.info("transcribe_started", { count: insertedCreatives.length })
     const transcriptionResults = await runWithConcurrency(
       insertedCreatives,
       TRANSCRIBE_CONCURRENCY,
       async (creative) => {
-        const res = await transcribeOne(creative, userId);
+        const res = await transcribeOne(creative, userId)
         logger.info("transcribe_progress", {
           creativeId: creative.id,
           transcribed: res.transcribed,
           reason: res.reason,
-        });
-        return res;
+        })
+        return res
       },
-    );
+    )
     const withTranscript = transcriptionResults.filter(
       (r): r is PromiseFulfilledResult<{ transcribed: boolean }> =>
         r.status === "fulfilled" && r.value.transcribed,
-    ).length;
+    ).length
 
     // ---------- Step 4 — classifyAngles ----------
-    logger.info("classify_started", { count: insertedCreatives.length });
+    logger.info("classify_started", { count: insertedCreatives.length })
     const rows = await withUser(userId, async (db) => {
       return await db
         .select({
@@ -579,16 +539,11 @@ export const scrapeProduct = task({
           transcriptText: creatives.transcriptText,
         })
         .from(creatives)
-        .where(
-          and(
-            eq(creatives.productId, productId),
-            eq(creatives.userId, userId),
-          ),
-        );
-    });
+        .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+    })
 
-    const angleMap = await classifyAngles(rows);
-    logger.info("classify_done", { count: angleMap.size });
+    const angleMap = await classifyAngles(rows)
+    logger.info("classify_done", { count: angleMap.size })
 
     await withUser(userId, async (db) => {
       await Promise.all(
@@ -598,26 +553,24 @@ export const scrapeProduct = task({
             .set({ angle })
             .where(and(eq(creatives.id, id), eq(creatives.userId, userId))),
         ),
-      );
-    });
+      )
+    })
 
-    const withAngle = Array.from(angleMap.values()).filter(
-      (a) => a !== "sin clasificar",
-    ).length;
+    const withAngle = Array.from(angleMap.values()).filter((a) => a !== "sin clasificar").length
 
     // Final status flip.
     await withUser(userId, async (db) => {
       await db
         .update(products)
         .set({ status: "READY" })
-        .where(and(eq(products.id, productId), eq(products.userId, userId)));
-    });
+        .where(and(eq(products.id, productId), eq(products.userId, userId)))
+    })
 
     return {
       creativeCount: insertedCreatives.length,
       withTranscript,
       withAngle,
       source,
-    };
+    }
   },
-});
+})

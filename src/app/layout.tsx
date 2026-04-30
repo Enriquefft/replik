@@ -1,19 +1,19 @@
-import type { Metadata } from "next";
-import { ClerkProvider, Show } from "@clerk/nextjs";
-import { Toaster } from "@/components/ui/sonner.tsx";
-import { QueryProvider } from "@/components/providers/query-provider.tsx";
-import { Nav } from "@/components/nav.tsx";
-import "./globals.css";
+import { ClerkProvider, Show } from "@clerk/nextjs"
+import type { Metadata } from "next"
+import { Nav } from "@/components/nav.tsx"
+import { QueryProvider } from "@/components/providers/query-provider.tsx"
+import { Toaster } from "@/components/ui/sonner.tsx"
+import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Replik.ai",
   description: "Automated dropshipping product testing — LATAM, Perú-first.",
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <ClerkProvider>
@@ -29,5 +29,5 @@ export default function RootLayout({
         </body>
       </html>
     </ClerkProvider>
-  );
+  )
 }

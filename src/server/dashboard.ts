@@ -1,36 +1,29 @@
-import "server-only";
+import "server-only"
 
-import { and, count, eq, gte, sql } from "drizzle-orm";
-import { withUser } from "@/db/client";
-import {
-  ads,
-  campaigns,
-  metrics,
-  orders,
-  products,
-  type Product,
-} from "@/db/schema";
+import { and, count, eq, gte, sql } from "drizzle-orm"
+import { withUser } from "@/db/client"
+import { ads, campaigns, metrics, orders, type Product, products } from "@/db/schema"
 
 export interface DashboardProductMetrics {
-  spendCents: number;
-  results: number;
-  cpaCents: number | null;
-  roas: number | null;
+  spendCents: number
+  results: number
+  cpaCents: number | null
+  roas: number | null
 }
 
 export interface DashboardProduct {
-  id: string;
-  name: string | null;
-  imageUrl: string | null;
-  status: Product["status"];
-  shopifyPageHandle: string | null;
-  metrics: DashboardProductMetrics;
-  ordersCount: number;
-  createdAt: Date;
+  id: string
+  name: string | null
+  imageUrl: string | null
+  status: Product["status"]
+  shopifyPageHandle: string | null
+  metrics: DashboardProductMetrics
+  ordersCount: number
+  createdAt: Date
 }
 
 export interface DashboardData {
-  products: DashboardProduct[];
+  products: DashboardProduct[]
 }
 
 /**
@@ -39,10 +32,8 @@ export interface DashboardData {
  * and campaigns + per-product order counts). Aggregates are computed in SQL,
  * results merged in JS so unmatched products surface with zeroed metrics.
  */
-export async function getDashboardData(
-  userId: string,
-): Promise<DashboardData> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+export async function getDashboardData(userId: string): Promise<DashboardData> {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
   return await withUser(userId, async (db) => {
     const [productRows, metricRows, orderRows] = await Promise.all([
@@ -61,28 +52,22 @@ export async function getDashboardData(
       db
         .select({
           productId: campaigns.productId,
-          spendCents:
-            sql<number>`COALESCE(SUM(${metrics.spendCents}), 0)`.mapWith(
-              Number,
-            ),
-          results:
-            sql<number>`COALESCE(SUM(${metrics.results}), 0)`.mapWith(Number),
+          spendCents: sql<number>`COALESCE(SUM(${metrics.spendCents}), 0)`.mapWith(Number),
+          results: sql<number>`COALESCE(SUM(${metrics.results}), 0)`.mapWith(Number),
           cpaCents: sql<number | null>`
             CASE
               WHEN COALESCE(SUM(${metrics.results}), 0) = 0 THEN NULL
               ELSE (SUM(${metrics.spendCents})::float / SUM(${metrics.results}))::int
             END
           `.mapWith((v: unknown) => (v == null ? null : Number(v))),
-          roas: sql<number | null>`AVG(${metrics.roas})`.mapWith(
-            (v: unknown) => (v == null ? null : Number(v)),
+          roas: sql<number | null>`AVG(${metrics.roas})`.mapWith((v: unknown) =>
+            v == null ? null : Number(v),
           ),
         })
         .from(metrics)
         .innerJoin(ads, eq(ads.id, metrics.adId))
         .innerJoin(campaigns, eq(campaigns.id, ads.campaignId))
-        .where(
-          and(eq(metrics.userId, userId), gte(metrics.date, sevenDaysAgo)),
-        )
+        .where(and(eq(metrics.userId, userId), gte(metrics.date, sevenDaysAgo)))
         .groupBy(campaigns.productId),
 
       db
@@ -93,15 +78,13 @@ export async function getDashboardData(
         .from(orders)
         .where(eq(orders.userId, userId))
         .groupBy(orders.productId),
-    ]);
+    ])
 
-    const metricsByProduct = new Map(metricRows.map((m) => [m.productId, m]));
-    const ordersByProduct = new Map(
-      orderRows.map((o) => [o.productId, o.ordersCount]),
-    );
+    const metricsByProduct = new Map(metricRows.map((m) => [m.productId, m]))
+    const ordersByProduct = new Map(orderRows.map((o) => [o.productId, o.ordersCount]))
 
     const productsOut: DashboardProduct[] = productRows.map((p) => {
-      const m = metricsByProduct.get(p.id);
+      const m = metricsByProduct.get(p.id)
       return {
         id: p.id,
         name: p.name,
@@ -116,9 +99,9 @@ export async function getDashboardData(
         },
         ordersCount: ordersByProduct.get(p.id) ?? 0,
         createdAt: p.createdAt,
-      };
-    });
+      }
+    })
 
-    return { products: productsOut };
-  });
+    return { products: productsOut }
+  })
 }

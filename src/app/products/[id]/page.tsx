@@ -1,32 +1,32 @@
-import { notFound } from "next/navigation";
-import { requireUser, withUser } from "@/db/client";
-import { products, creatives } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import Link from "next/link";
-import { CreativesClient } from "./creatives-client.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { AlertCircle } from "lucide-react";
+import { and, eq } from "drizzle-orm"
+import { AlertCircle } from "lucide-react"
+import Link from "next/link"
+import { notFound } from "next/navigation"
+import { Skeleton } from "@/components/ui/skeleton.tsx"
+import { requireUser, withUser } from "@/db/client"
+import { creatives, products } from "@/db/schema"
+import { CreativesClient } from "./creatives-client.tsx"
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string }>
 }
 
 export default async function ProductPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id } = await params
 
-  const { userId } = await requireUser();
+  const { userId } = await requireUser()
 
   const productData = await withUser(userId, async (db) => {
     const rows = await db
       .select()
       .from(products)
       .where(and(eq(products.id, id), eq(products.userId, userId)))
-      .limit(1);
-    return rows[0] ?? null;
-  });
+      .limit(1)
+    return rows[0] ?? null
+  })
 
   if (!productData) {
-    notFound();
+    notFound()
   }
 
   if (productData.status === "SCRAPING") {
@@ -39,20 +39,20 @@ export default async function ProductPage({ params }: PageProps) {
             </p>
             <h2 className="text-title">Analizando el producto…</h2>
             <p className="text-body text-fg-2 mt-2">
-              El agente está scrapeando keywords, buscando en Meta Ad Library y
-              transcribiendo los videos. Esto toma 1–3 minutos.
+              El agente está scrapeando keywords, buscando en Meta Ad Library y transcribiendo los
+              videos. Esto toma 1–3 minutos.
             </p>
           </div>
 
           {/* Skeleton grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[9/16] rounded-card" />
+            {Array.from({ length: 8 }, (_, i) => `skel-${i}`).map((id) => (
+              <Skeleton key={id} className="aspect-[9/16] rounded-card" />
             ))}
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   if (productData.status === "SCRAPE_EMPTY") {
@@ -61,17 +61,12 @@ export default async function ProductPage({ params }: PageProps) {
         <div className="w-full max-w-lg">
           <div className="rounded-card bg-surface shadow-card border border-border p-8 text-center">
             <div className="size-14 rounded-card bg-mode-traffic-badge-bg flex items-center justify-center mx-auto mb-4">
-              <AlertCircle
-                className="size-7 text-mode-traffic"
-                strokeWidth={1.5}
-              />
+              <AlertCircle className="size-7 text-mode-traffic" strokeWidth={1.5} />
             </div>
-            <h2 className="text-title mb-2">
-              No encontramos creativos
-            </h2>
+            <h2 className="text-title mb-2">No encontramos creativos</h2>
             <p className="text-body text-fg-2 mb-4">
-              Meta Ad Library y Apify no devolvieron resultados para este
-              producto. Intenta con una URL diferente.
+              Meta Ad Library y Apify no devolvieron resultados para este producto. Intenta con una
+              URL diferente.
             </p>
             <Link
               href="/"
@@ -82,7 +77,7 @@ export default async function ProductPage({ params }: PageProps) {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Fetch creatives for READY, LANDING_PUBLISHED, CAMPAIGN_LAUNCHED
@@ -90,13 +85,8 @@ export default async function ProductPage({ params }: PageProps) {
     return db
       .select()
       .from(creatives)
-      .where(
-        and(
-          eq(creatives.productId, id),
-          eq(creatives.userId, userId),
-        ),
-      );
-  });
+      .where(and(eq(creatives.productId, id), eq(creatives.userId, userId)))
+  })
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-8">
@@ -105,19 +95,13 @@ export default async function ProductPage({ params }: PageProps) {
           <p className="text-caption font-semibold uppercase tracking-widest text-mode-creative-badge-fg mb-1">
             Paso 2 · Selecciona creativos
           </p>
-          <h2 className="text-title">
-            {productData.name ?? "Creativos encontrados"}
-          </h2>
+          <h2 className="text-title">{productData.name ?? "Creativos encontrados"}</h2>
           <p className="text-body text-fg-2 mt-1">
-            Selecciona los videos que quieres editar con subtítulos en español.
-            Recomendamos 3–5.
+            Selecciona los videos que quieres editar con subtítulos en español. Recomendamos 3–5.
           </p>
         </div>
-        <CreativesClient
-          productId={id}
-          creatives={creativeRows}
-        />
+        <CreativesClient productId={id} creatives={creativeRows} />
       </div>
     </div>
-  );
+  )
 }

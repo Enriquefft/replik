@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Owner: Lane L4a (Meta wrapper).
@@ -12,9 +12,9 @@ import "server-only";
  * helper consumes the user id directly (typically `MetaCreds.userId`).
  */
 
-import { and, eq, sql } from "drizzle-orm";
-import { withUser } from "@/db/client";
-import { integrations } from "@/db/schema";
+import { and, eq, sql } from "drizzle-orm"
+import { withUser } from "@/db/client"
+import { integrations } from "@/db/schema"
 
 export async function markIntegrationExpired(
   userId: string,
@@ -24,11 +24,6 @@ export async function markIntegrationExpired(
     await db
       .update(integrations)
       .set({ expiresAt: sql`now()` })
-      .where(
-        and(
-          eq(integrations.userId, userId),
-          eq(integrations.provider, provider),
-        ),
-      );
-  });
+      .where(and(eq(integrations.userId, userId), eq(integrations.provider, provider)))
+  })
 }

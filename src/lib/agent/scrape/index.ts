@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Lane L3a — Scrape pipeline · keyword extraction agent.
@@ -16,14 +16,14 @@ import "server-only";
  * `<style>`, and `<svg>` blocks, capped at 8 KB. That is enough for Claude
  * to reason about a landing page without burning context on minified JS.
  */
-import { anthropic } from "@ai-sdk/anthropic";
-import { Output, generateText, stepCountIs, tool } from "ai";
-import { z } from "zod";
+import { anthropic } from "@ai-sdk/anthropic"
+import { generateText, Output, stepCountIs, tool } from "ai"
+import { z } from "zod"
 
-const MODEL_ID = "claude-sonnet-4-5";
-const FETCH_HTML_BYTES = 8 * 1024;
-const FETCH_TIMEOUT_MS = 15_000;
-const MAX_TOOL_STEPS = 6;
+const MODEL_ID = "claude-sonnet-4-5"
+const FETCH_HTML_BYTES = 8 * 1024
+const FETCH_TIMEOUT_MS = 15_000
+const MAX_TOOL_STEPS = 6
 
 const KeywordsSchema = z.object({
   businessInfo: z
@@ -42,25 +42,25 @@ const KeywordsSchema = z.object({
     .min(3)
     .max(40)
     .describe("Short category label (e.g. 'cocina', 'fitness', 'belleza')."),
-});
+})
 
-export type KeywordsResult = z.infer<typeof KeywordsSchema>;
+export type KeywordsResult = z.infer<typeof KeywordsSchema>
 
 interface FetchUrlOk {
-  ok: true;
-  url: string;
-  status: number;
-  contentType: string | null;
-  html: string;
+  ok: true
+  url: string
+  status: number
+  contentType: string | null
+  html: string
 }
 
 interface FetchUrlErr {
-  ok: false;
-  url: string;
-  error: string;
+  ok: false
+  url: string
+  error: string
 }
 
-type FetchUrlResult = FetchUrlOk | FetchUrlErr;
+type FetchUrlResult = FetchUrlOk | FetchUrlErr
 
 function stripHtml(input: string): string {
   return input
@@ -69,61 +69,59 @@ function stripHtml(input: string): string {
     .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
 }
 
 async function fetchStrippedHtml(target: string): Promise<FetchUrlResult> {
-  let parsed: URL;
+  let parsed: URL
   try {
-    parsed = new URL(target);
+    parsed = new URL(target)
   } catch {
-    return { ok: false, url: target, error: "invalid_url" };
+    return { ok: false, url: target, error: "invalid_url" }
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return { ok: false, url: target, error: "unsupported_protocol" };
+    return { ok: false, url: target, error: "unsupported_protocol" }
   }
 
-  const controller = new AbortController();
+  const controller = new AbortController()
   const timer = setTimeout(() => {
-    controller.abort();
-  }, FETCH_TIMEOUT_MS);
+    controller.abort()
+  }, FETCH_TIMEOUT_MS)
   try {
     const response = await fetch(parsed.toString(), {
       method: "GET",
       redirect: "follow",
       signal: controller.signal,
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; ReplikScraper/1.0; +https://replik.ai)",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (compatible; ReplikScraper/1.0; +https://replik.ai)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
-    });
-    const contentType = response.headers.get("content-type");
+    })
+    const contentType = response.headers.get("content-type")
     if (!response.ok) {
       return {
         ok: false,
         url: parsed.toString(),
         error: `http_${response.status.toString()}`,
-      };
+      }
     }
-    const raw = await response.text();
-    const stripped = stripHtml(raw).slice(0, FETCH_HTML_BYTES);
+    const raw = await response.text()
+    const stripped = stripHtml(raw).slice(0, FETCH_HTML_BYTES)
     return {
       ok: true,
       url: parsed.toString(),
       status: response.status,
       contentType,
       html: stripped,
-    };
+    }
   } catch (err) {
     return {
       ok: false,
       url: parsed.toString(),
       error: err instanceof Error ? err.message : "fetch_failed",
-    };
+    }
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timer)
   }
 }
 
@@ -136,9 +134,9 @@ const fetchUrlTool = tool({
     url: z.url().describe("Absolute http(s) URL to fetch."),
   }),
   execute: async ({ url }): Promise<FetchUrlResult> => {
-    return await fetchStrippedHtml(url);
+    return await fetchStrippedHtml(url)
   },
-});
+})
 
 const SYSTEM_PROMPT = [
   "Eres un analista de e-commerce.",
@@ -148,7 +146,7 @@ const SYSTEM_PROMPT = [
   "Usa la herramienta fetchUrl para leer la página principal y, si es útil,",
   "una página de producto interna. No alucines: si la información no está,",
   "dilo. Responde siempre en español.",
-].join(" ");
+].join(" ")
 
 /**
  * Run the two-step keyword-extraction agent against a competitor URL.
@@ -156,9 +154,7 @@ const SYSTEM_PROMPT = [
  * Throws if Anthropic returns an unparseable response — callers (the Trigger
  * task) wrap this and downgrade the product status accordingly.
  */
-export async function extractKeywords(
-  competitorUrl: string,
-): Promise<KeywordsResult> {
+export async function extractKeywords(competitorUrl: string): Promise<KeywordsResult> {
   const exploration = await generateText({
     model: anthropic(MODEL_ID),
     system: SYSTEM_PROMPT,
@@ -175,7 +171,7 @@ export async function extractKeywords(
       "   - 3-7 términos de búsqueda potenciales",
       "   - una categoría corta (1-2 palabras)",
     ].join("\n"),
-  });
+  })
 
   const result = await generateText({
     model: anthropic(MODEL_ID),
@@ -190,7 +186,7 @@ export async function extractKeywords(
       "ANÁLISIS:",
       exploration.text,
     ].join("\n"),
-  });
+  })
 
-  return result.output;
+  return result.output
 }

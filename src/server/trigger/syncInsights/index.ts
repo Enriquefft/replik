@@ -1,19 +1,19 @@
-import "server-only";
+import "server-only"
 
-import { logger, task } from "@trigger.dev/sdk";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
-import { withUser } from "@/db/client";
-import { ads, campaigns, metrics } from "@/db/schema";
-import { insightsGet, type MetaCreds } from "@/lib/meta";
-import { requireIntegration } from "@/server/integrations";
+import { logger, task } from "@trigger.dev/sdk"
+import { and, eq, inArray, isNotNull } from "drizzle-orm"
+import { withUser } from "@/db/client"
+import { ads, campaigns, metrics } from "@/db/schema"
+import { insightsGet, type MetaCreds } from "@/lib/meta"
+import { requireIntegration } from "@/server/integrations"
 
 export interface SyncInsightsPayload {
-  userId: string;
+  userId: string
 }
 
 export interface SyncInsightsResult {
-  adsRefreshed: number;
-  metricsUpserted: number;
+  adsRefreshed: number
+  metricsUpserted: number
 }
 
 /**
@@ -26,14 +26,14 @@ export interface SyncInsightsResult {
 async function upsertMetric(
   userId: string,
   values: {
-    adId: string;
-    date: Date;
-    spendCents: number;
-    results: number;
-    cpaCents: number | null;
-    impressions: number;
-    ctr: string | null;
-    roas: string | null;
+    adId: string
+    date: Date
+    spendCents: number
+    results: number
+    cpaCents: number | null
+    impressions: number
+    ctr: string | null
+    roas: string | null
   },
 ): Promise<void> {
   await withUser(userId, async (db) => {
@@ -45,7 +45,7 @@ async function upsertMetric(
           eq(metrics.adId, values.adId),
           eq(metrics.date, values.date),
         ),
-      );
+      )
     await db.insert(metrics).values({
       userId,
       adId: values.adId,
@@ -56,8 +56,8 @@ async function upsertMetric(
       impressions: values.impressions,
       ctr: values.ctr,
       roas: values.roas,
-    });
-  });
+    })
+  })
 }
 
 export const syncInsights = task({
@@ -65,7 +65,7 @@ export const syncInsights = task({
   machine: { preset: "small-1x" },
   maxDuration: 300,
   run: async (payload: SyncInsightsPayload): Promise<SyncInsightsResult> => {
-    const { userId } = payload;
+    const { userId } = payload
 
     // 1. Active campaigns with a Meta ID.
     const activeCampaigns = await withUser(userId, async (db) =>
@@ -79,24 +79,24 @@ export const syncInsights = task({
             isNotNull(campaigns.metaCampaignId),
           ),
         ),
-    );
-    logger.info("load_campaigns", { count: activeCampaigns.length });
+    )
+    logger.info("load_campaigns", { count: activeCampaigns.length })
     if (activeCampaigns.length === 0) {
-      return { adsRefreshed: 0, metricsUpserted: 0 };
+      return { adsRefreshed: 0, metricsUpserted: 0 }
     }
-    const campaignIds = activeCampaigns.map((c) => c.id);
+    const campaignIds = activeCampaigns.map((c) => c.id)
 
     // 2. Meta credentials.
-    const integration = await requireIntegration(userId, "meta");
+    const integration = await requireIntegration(userId, "meta")
     if (integration.extra.provider !== "meta") {
-      throw new Error("syncInsights: integration extra is not meta");
+      throw new Error("syncInsights: integration extra is not meta")
     }
     const creds: MetaCreds = {
       token: integration.token,
       ad_account_id: integration.extra.ad_account_id,
       page_id: integration.extra.page_id,
       pixel_id: integration.extra.pixel_id,
-    };
+    }
 
     // 3. Ads under those campaigns with a Meta ID.
     const adRows = await withUser(userId, async (db) =>
@@ -110,35 +110,35 @@ export const syncInsights = task({
             isNotNull(ads.metaAdId),
           ),
         ),
-    );
-    logger.info("load_ads", { count: adRows.length });
+    )
+    logger.info("load_ads", { count: adRows.length })
     if (adRows.length === 0) {
-      return { adsRefreshed: 0, metricsUpserted: 0 };
+      return { adsRefreshed: 0, metricsUpserted: 0 }
     }
 
     // narrow to non-null metaAdId
     const adsWithMetaId = adRows.flatMap((a) =>
       a.metaAdId ? [{ id: a.id, metaAdId: a.metaAdId }] : [],
-    );
-    const metaAdIds = adsWithMetaId.map((a) => a.metaAdId);
+    )
+    const metaAdIds = adsWithMetaId.map((a) => a.metaAdId)
 
     // 4. Fetch insights for last 7 days.
-    logger.info("meta_call_started", { ids: metaAdIds.length });
+    logger.info("meta_call_started", { ids: metaAdIds.length })
     const insights = await insightsGet(creds, {
       level: "ad",
       ids: metaAdIds,
       date_preset: "last_7d",
-    });
-    logger.info("meta_call_done", { received: insights.length });
+    })
+    logger.info("meta_call_done", { received: insights.length })
 
     // 5. Upsert one metric row per (adId, date_start).
-    const adByMetaId = new Map(adsWithMetaId.map((a) => [a.metaAdId, a.id]));
-    let metricsUpserted = 0;
+    const adByMetaId = new Map(adsWithMetaId.map((a) => [a.metaAdId, a.id]))
+    let metricsUpserted = 0
     for (const insight of insights) {
-      const adId = adByMetaId.get(insight.object_id);
-      if (!adId) continue;
-      const date = new Date(`${insight.date_start}T00:00:00Z`);
-      if (Number.isNaN(date.getTime())) continue;
+      const adId = adByMetaId.get(insight.object_id)
+      if (!adId) continue
+      const date = new Date(`${insight.date_start}T00:00:00Z`)
+      if (Number.isNaN(date.getTime())) continue
       await upsertMetric(userId, {
         adId,
         date,
@@ -148,16 +148,16 @@ export const syncInsights = task({
         impressions: insight.impressions,
         ctr: typeof insight.ctr === "number" ? insight.ctr.toString() : null,
         roas: typeof insight.roas === "number" ? insight.roas.toString() : null,
-      });
-      metricsUpserted += 1;
+      })
+      metricsUpserted += 1
     }
-    logger.info("upsert_done", { metricsUpserted });
+    logger.info("upsert_done", { metricsUpserted })
 
     const result: SyncInsightsResult = {
       adsRefreshed: adsWithMetaId.length,
       metricsUpserted,
-    };
-    logger.info("complete", { ...result });
-    return result;
+    }
+    logger.info("complete", { ...result })
+    return result
   },
-});
+})

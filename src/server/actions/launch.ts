@@ -1,4 +1,4 @@
-"use server";
+"use server"
 
 /**
  * Owner: Lane L4b (Launch).
@@ -15,44 +15,36 @@
  * without bespoke error plumbing.
  */
 
-import { and, eq, like, sql } from "drizzle-orm";
-import { tasks } from "@trigger.dev/sdk";
-import { requireUser, withUser } from "@/db/client";
-import {
-  assets,
-  creatives,
-  idempotencyKeys,
-  products,
-} from "@/db/schema";
-import {
-  IntegrationMissingError,
-  requireIntegration,
-} from "@/server/integrations";
-import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign";
+import { tasks } from "@trigger.dev/sdk"
+import { and, eq, like, sql } from "drizzle-orm"
+import { requireUser, withUser } from "@/db/client"
+import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
+import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
+import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
 
 export type LaunchResult =
   | { ok: true; data: { runId: string } }
-  | { ok: false; needs: "meta" | "shopify"; error?: string };
+  | { ok: false; needs: "meta" | "shopify"; error?: string }
 
 export async function launchCampaign(productId: string): Promise<LaunchResult> {
-  const { userId } = await requireUser();
+  const { userId } = await requireUser()
 
   // 1. Meta integration must exist and be fully configured (incl. pixel).
-  let meta;
+  let meta: Awaited<ReturnType<typeof requireIntegration>>
   try {
-    meta = await requireIntegration(userId, "meta");
+    meta = await requireIntegration(userId, "meta")
   } catch (err) {
     if (err instanceof IntegrationMissingError) {
-      return { ok: false, needs: "meta" };
+      return { ok: false, needs: "meta" }
     }
-    throw err;
+    throw err
   }
   if (meta.extra.provider !== "meta" || !meta.extra.pixel_id) {
     return {
       ok: false,
       needs: "meta",
       error: "Falta el pixel en la integración Meta.",
-    };
+    }
   }
 
   // 2. Product belongs to caller + ≥1 selected creative w/ edited_video.
@@ -61,9 +53,9 @@ export async function launchCampaign(productId: string): Promise<LaunchResult> {
       .select({ id: products.id })
       .from(products)
       .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      .limit(1);
+      .limit(1)
     if (productRows.length === 0) {
-      return { ownsProduct: false, hasCreative: false };
+      return { ownsProduct: false, hasCreative: false }
     }
     const creativeRows = await db
       .select({ id: creatives.id })
@@ -83,18 +75,18 @@ export async function launchCampaign(productId: string): Promise<LaunchResult> {
           eq(creatives.selectedBool, true),
         ),
       )
-      .limit(1);
-    return { ownsProduct: true, hasCreative: creativeRows.length > 0 };
-  });
+      .limit(1)
+    return { ownsProduct: true, hasCreative: creativeRows.length > 0 }
+  })
   if (!ready.ownsProduct) {
-    return { ok: false, needs: "meta", error: "Producto no encontrado." };
+    return { ok: false, needs: "meta", error: "Producto no encontrado." }
   }
   if (!ready.hasCreative) {
     return {
       ok: false,
       needs: "meta",
       error: "No hay creativos editados listos.",
-    };
+    }
   }
 
   // 3. Compute next attempt by counting prior idempotency rows.
@@ -107,16 +99,17 @@ export async function launchCampaign(productId: string): Promise<LaunchResult> {
           eq(idempotencyKeys.userId, userId),
           like(idempotencyKeys.key, `launch_${userId}_${productId}_%`),
         ),
-      );
-    const prior = rows[0]?.count ?? 0;
-    return prior + 1;
-  });
+      )
+    const prior = rows[0]?.count ?? 0
+    return prior + 1
+  })
 
   // 4. Fire-and-forget the durable launch task.
-  const handle = await tasks.trigger<typeof launchCampaignTask>(
-    "launchCampaign",
-    { productId, userId, attempt },
-  );
+  const handle = await tasks.trigger<typeof launchCampaignTask>("launchCampaign", {
+    productId,
+    userId,
+    attempt,
+  })
 
-  return { ok: true, data: { runId: handle.id } };
+  return { ok: true, data: { runId: handle.id } }
 }

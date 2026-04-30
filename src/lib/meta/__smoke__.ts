@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Owner: Lane L4a (Meta wrapper).
@@ -13,36 +13,30 @@ import "server-only";
  * even when the token isn't available locally.
  */
 
-import { adLibrarySearch } from "./adLibrary";
+import { adLibrarySearch } from "./adLibrary"
 
 async function main(): Promise<void> {
-  const token = process.env.META_AD_LIBRARY_TOKEN;
+  const token = process.env.META_AD_LIBRARY_TOKEN
   if (!token) {
-    console.log(
-      "[meta:smoke] META_AD_LIBRARY_TOKEN no está configurado — skipping.",
-    );
-    return;
+    console.log("[meta:smoke] META_AD_LIBRARY_TOKEN no está configurado — skipping.")
+    return
   }
 
   const ads = await adLibrarySearch({
     searchTerms: "termo electrico",
     countries: ["PE"],
     limit: 5,
-  });
+  })
 
-  console.log(
-    `[meta:smoke] adLibrarySearch returned ${String(ads.length)} video ads`,
-  );
+  console.log(`[meta:smoke] adLibrarySearch returned ${String(ads.length)} video ads`)
   for (const ad of ads) {
     console.log(
-      `  - ${ad.ad_id} page=${ad.page_name ?? "?"} video_url=${
-        ad.video_url ? "yes" : "no"
-      }`,
-    );
+      `  - ${ad.ad_id} page=${ad.page_name ?? "?"} video_url=${ad.video_url ? "yes" : "no"}`,
+    )
   }
 }
 
 main().catch((err: unknown) => {
-  console.error("[meta:smoke] failed:", err);
-  process.exit(1);
-});
+  console.error("[meta:smoke] failed:", err)
+  process.exit(1)
+})

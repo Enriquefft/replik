@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Owner: Lane L4a (Meta wrapper).
@@ -9,30 +9,30 @@ import "server-only";
  * use everywhere for consistency.
  */
 
-import { META_GRAPH_BASE } from "./accounts";
-import { metaFetchJson } from "./http";
+import { META_GRAPH_BASE } from "./accounts"
+import { metaFetchJson } from "./http"
 import {
-  AdSetCreateInputSchema,
-  AdSetSummarySchema,
   type AdSetCreateInput,
+  AdSetCreateInputSchema,
   type AdSetSummary,
+  AdSetSummarySchema,
   type MetaCreds,
-} from "./types";
+} from "./types"
 
 interface AdSetCreateResponse {
-  id: string;
+  id: string
 }
 
 function adAccountPath(creds: MetaCreds): string {
-  const id = creds.ad_account_id.replace(/^act_/, "");
-  return `${META_GRAPH_BASE}/act_${encodeURIComponent(id)}`;
+  const id = creds.ad_account_id.replace(/^act_/, "")
+  return `${META_GRAPH_BASE}/act_${encodeURIComponent(id)}`
 }
 
 export async function adsetCreate(
   creds: MetaCreds,
   input: AdSetCreateInput,
 ): Promise<AdSetSummary> {
-  const parsed = AdSetCreateInputSchema.parse(input);
+  const parsed = AdSetCreateInputSchema.parse(input)
 
   const form: Record<string, string> = {
     access_token: creds.token,
@@ -43,20 +43,20 @@ export async function adsetCreate(
     promoted_object: JSON.stringify(parsed.promoted_object),
     targeting: JSON.stringify(parsed.targeting),
     status: parsed.status,
-  };
+  }
   if (parsed.daily_budget_cents !== undefined) {
-    form.daily_budget = String(parsed.daily_budget_cents);
+    form.daily_budget = String(parsed.daily_budget_cents)
   }
 
-  const url = `${adAccountPath(creds)}/adsets`;
+  const url = `${adAccountPath(creds)}/adsets`
   const created = await metaFetchJson<AdSetCreateResponse>(url, {
     method: "POST",
     form,
     creds,
-  });
+  })
   return AdSetSummarySchema.parse({
     id: created.id,
     name: parsed.name,
     status: parsed.status,
-  });
+  })
 }

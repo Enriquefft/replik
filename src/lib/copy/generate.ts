@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Owner: Lane L4b (Launch).
@@ -14,23 +14,23 @@ import "server-only";
  * limits: primary_text ≤125, headline ≤40, description ≤30).
  */
 
-import { anthropic } from "@ai-sdk/anthropic";
-import { Output, generateText } from "ai";
-import { z } from "zod";
-import { CopyJson } from "@/db/zod";
+import { anthropic } from "@ai-sdk/anthropic"
+import { generateText, Output } from "ai"
+import { z } from "zod"
+import { CopyJson } from "@/db/zod"
 
 export interface CopyCreativeInput {
-  id: string;
+  id: string
   /** Selling angle (e.g. "ahorro de tiempo", "regalo perfecto"). */
-  angle: string | null;
+  angle: string | null
   /** Original-ad transcript captured during scraping. */
-  transcript: string | null;
+  transcript: string | null
 }
 
 export interface GenerateCopiesInput {
-  productName: string;
-  category: string | null;
-  creatives: CopyCreativeInput[];
+  productName: string
+  category: string | null
+  creatives: CopyCreativeInput[]
 }
 
 const CopyResultItem = z.object({
@@ -40,17 +40,17 @@ const CopyResultItem = z.object({
     headline: z.string().min(1).max(40),
     description: z.string().min(1).max(30),
   }),
-});
+})
 
 const CopyResultSchema = z.object({
   items: z.array(CopyResultItem),
-});
+})
 
 const SYSTEM_PROMPT = [
   "Genera copy publicitario Meta Ads (primary_text máx 125 chars,",
   "headline máx 40, description máx 30) por cada creativo, basado en su",
   "ángulo de venta y transcripción. Tono LATAM-PE.",
-].join(" ");
+].join(" ")
 
 /**
  * Build a deterministic user prompt that lists every creative with its angle
@@ -58,26 +58,25 @@ const SYSTEM_PROMPT = [
  * MUST emit. This keeps the model from hallucinating ids or skipping rows.
  */
 function buildUserPrompt(input: GenerateCopiesInput): string {
-  const lines: string[] = [];
-  lines.push(`Producto: ${input.productName}`);
+  const lines: string[] = []
+  lines.push(`Producto: ${input.productName}`)
   if (input.category) {
-    lines.push(`Categoría: ${input.category}`);
+    lines.push(`Categoría: ${input.category}`)
   }
-  lines.push("");
-  lines.push("Creativos:");
+  lines.push("")
+  lines.push("Creativos:")
   for (const c of input.creatives) {
-    lines.push(`- creative_id: ${c.id}`);
-    lines.push(`  ángulo: ${c.angle ?? "(no especificado)"}`);
-    const transcript = (c.transcript ?? "").trim();
-    const trimmed =
-      transcript.length > 800 ? `${transcript.slice(0, 800)}…` : transcript;
-    lines.push(`  transcripción: ${trimmed || "(vacía)"}`);
+    lines.push(`- creative_id: ${c.id}`)
+    lines.push(`  ángulo: ${c.angle ?? "(no especificado)"}`)
+    const transcript = (c.transcript ?? "").trim()
+    const trimmed = transcript.length > 800 ? `${transcript.slice(0, 800)}…` : transcript
+    lines.push(`  transcripción: ${trimmed || "(vacía)"}`)
   }
-  lines.push("");
+  lines.push("")
   lines.push(
     "Devuelve en `items` exactamente un objeto por creativo, con el mismo `creative_id`. Una variación de copy distinta por ángulo. No inventes ids.",
-  );
-  return lines.join("\n");
+  )
+  return lines.join("\n")
 }
 
 /**
@@ -86,29 +85,25 @@ function buildUserPrompt(input: GenerateCopiesInput): string {
  * generation as all-or-nothing so the launch task fails fast instead of
  * shipping a half-populated campaign.
  */
-export async function generateCopies(
-  input: GenerateCopiesInput,
-): Promise<Map<string, CopyJson>> {
+export async function generateCopies(input: GenerateCopiesInput): Promise<Map<string, CopyJson>> {
   if (input.creatives.length === 0) {
-    return new Map();
+    return new Map()
   }
   const result = await generateText({
     model: anthropic("claude-sonnet-4-5"),
     output: Output.object({ schema: CopyResultSchema }),
     system: SYSTEM_PROMPT,
     prompt: buildUserPrompt(input),
-  });
-  const map = new Map<string, CopyJson>();
+  })
+  const map = new Map<string, CopyJson>()
   for (const row of result.output.items) {
-    const copy = CopyJson.parse(row.copy);
-    map.set(row.creative_id, copy);
+    const copy = CopyJson.parse(row.copy)
+    map.set(row.creative_id, copy)
   }
   for (const c of input.creatives) {
     if (!map.has(c.id)) {
-      throw new Error(
-        `generateCopies: model omitted copy for creative ${c.id}`,
-      );
+      throw new Error(`generateCopies: model omitted copy for creative ${c.id}`)
     }
   }
-  return map;
+  return map
 }

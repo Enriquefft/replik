@@ -1,18 +1,12 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Package, TrendingUp, ShoppingBag, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge.tsx";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card.tsx";
-import { cn } from "@/lib/utils.ts";
-import type { DashboardProduct } from "@/server/dashboard";
+import { ExternalLink, Package, ShoppingBag, TrendingUp } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import { Badge } from "@/components/ui/badge.tsx"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx"
+import { cn } from "@/lib/utils.ts"
+import type { DashboardProduct } from "@/server/dashboard"
 
 const STATUS_CONFIG: Record<
   string,
@@ -24,27 +18,25 @@ const STATUS_CONFIG: Record<
   CAMPAIGN_LAUNCHED: { label: "Campaña activa", variant: "default" },
   SCRAPE_EMPTY: { label: "Sin creativos", variant: "destructive" },
   FAILED: { label: "Error", variant: "destructive" },
-};
+}
 
 function formatCents(cents: number): string {
-  return `S/ ${(cents / 100).toFixed(2)}`;
+  return `S/ ${(cents / 100).toFixed(2)}`
 }
 
 interface ProductCardProps {
-  product: DashboardProduct;
+  product: DashboardProduct
 }
 
 export function ProductCard({ product }: ProductCardProps) {
   const statusConfig =
     STATUS_CONFIG[product.status] ??
     STATUS_CONFIG.READY ??
-    ({ label: "Listo", variant: "default" } as const);
+    ({ label: "Listo", variant: "default" } as const)
 
   return (
     <Card
-      className={cn(
-        "group relative overflow-hidden transition-all duration-200 hover:shadow-card",
-      )}
+      className={cn("group relative overflow-hidden transition-all duration-200 hover:shadow-card")}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
@@ -95,16 +87,12 @@ export function ProductCard({ product }: ProductCardProps) {
                 Pedidos
               </span>
             </div>
-            <p className="text-headline font-semibold text-fg-1">
-              {product.ordersCount}
-            </p>
+            <p className="text-headline font-semibold text-fg-1">{product.ordersCount}</p>
           </div>
 
           {product.metrics.cpaCents !== null && (
             <div className="rounded-control bg-surface-muted p-3">
-              <p className="text-caption text-fg-2 font-medium uppercase tracking-wide mb-1">
-                CPA
-              </p>
+              <p className="text-caption text-fg-2 font-medium uppercase tracking-wide mb-1">CPA</p>
               <p className="text-headline font-semibold text-fg-1">
                 {formatCents(product.metrics.cpaCents)}
               </p>
@@ -144,5 +132,5 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }

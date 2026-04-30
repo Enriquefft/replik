@@ -1,4 +1,4 @@
-import "server-only";
+import "server-only"
 
 /**
  * Owner: Lane L4b (Launch).
@@ -18,41 +18,34 @@ import "server-only";
  *  - Final status everywhere is `PAUSED` — the dashboard owns "go live".
  */
 
-import { schemaTask, logger } from "@trigger.dev/sdk";
-import { and, eq, sql } from "drizzle-orm";
-import { z } from "zod";
-import { withUser } from "@/db/client";
+import { logger, schemaTask } from "@trigger.dev/sdk"
+import { and, eq, sql } from "drizzle-orm"
+import { z } from "zod"
+import { withUser } from "@/db/client"
+import { ads, assets, campaigns, creatives, idempotencyKeys, products } from "@/db/schema"
+import { generateCopies } from "@/lib/copy/generate"
 import {
-  ads,
-  assets,
-  campaigns,
-  creatives,
-  idempotencyKeys,
-  products,
-} from "@/db/schema";
-import { generateCopies } from "@/lib/copy/generate";
-import {
-  type MetaCreds,
   adCreate,
   adsetCreate,
   campaignCreate,
   creativeCreate,
   imageUpload,
+  type MetaCreds,
   videoUploadResumable,
-} from "@/lib/meta";
-import { interestsFor, type InterestCategory } from "@/lib/meta/interests";
-import { getIntegration, requireIntegration } from "@/server/integrations";
+} from "@/lib/meta"
+import { type InterestCategory, interestsFor } from "@/lib/meta/interests"
+import { getIntegration, requireIntegration } from "@/server/integrations"
 
 const Payload = z.object({
   productId: z.string().min(1),
   userId: z.string().min(1),
   attempt: z.number().int().positive(),
-});
+})
 
 export interface LaunchResult {
-  campaignId: string;
-  metaCampaignId: string;
-  adCount: number;
+  campaignId: string
+  metaCampaignId: string
+  adCount: number
 }
 
 const KNOWN_INTEREST_CATEGORIES: ReadonlySet<InterestCategory> = new Set([
@@ -61,39 +54,39 @@ const KNOWN_INTEREST_CATEGORIES: ReadonlySet<InterestCategory> = new Set([
   "fitness",
   "kitchen",
   "pets",
-] as const);
+] as const)
 
 function asInterestCategory(category: string | null): InterestCategory | null {
-  if (!category) return null;
+  if (!category) return null
   return KNOWN_INTEREST_CATEGORIES.has(category as InterestCategory)
     ? (category as InterestCategory)
-    : null;
+    : null
 }
 
 interface FriendlyError {
-  friendly: string;
-  cause: unknown;
+  friendly: string
+  cause: unknown
 }
 
 function toFriendly(err: unknown, fallback: string): FriendlyError {
   if (err && typeof err === "object" && "friendly" in err) {
-    const f = (err as { friendly?: unknown }).friendly;
+    const f = (err as { friendly?: unknown }).friendly
     if (typeof f === "string" && f.length > 0) {
-      return { friendly: f, cause: err };
+      return { friendly: f, cause: err }
     }
   }
   if (err instanceof Error && err.message) {
-    return { friendly: err.message, cause: err };
+    return { friendly: err.message, cause: err }
   }
-  return { friendly: fallback, cause: err };
+  return { friendly: fallback, cause: err }
 }
 
 class LaunchError extends Error {
   constructor(friendly: string, cause?: unknown) {
-    super(friendly);
-    this.name = "LaunchError";
+    super(friendly)
+    this.name = "LaunchError"
     if (cause !== undefined) {
-      (this as { cause?: unknown }).cause = cause;
+      ;(this as { cause?: unknown }).cause = cause
     }
   }
 }
@@ -104,8 +97,8 @@ export const launchCampaign = schemaTask({
   machine: { preset: "medium-1x" },
   maxDuration: 900,
   run: async (payload): Promise<LaunchResult> => {
-    const { productId, userId, attempt } = payload;
-    const idempotencyKey = `launch_${userId}_${productId}_${attempt.toString()}`;
+    const { productId, userId, attempt } = payload
+    const idempotencyKey = `launch_${userId}_${productId}_${attempt.toString()}`
 
     // 1. Idempotency: claim the key. On conflict, replay the existing result.
     const claimed = await withUser(userId, async (db) => {
@@ -117,10 +110,10 @@ export const launchCampaign = schemaTask({
           expiresAt: sql`now() + interval '7 days'`,
         })
         .onConflictDoNothing({ target: idempotencyKeys.key })
-        .returning({ key: idempotencyKeys.key });
-      return inserted.length > 0;
-    });
-    logger.info("idempotency_check", { idempotencyKey, claimed });
+        .returning({ key: idempotencyKeys.key })
+      return inserted.length > 0
+    })
+    logger.info("idempotency_check", { idempotencyKey, claimed })
     if (!claimed) {
       const existing = await withUser(userId, async (db) => {
         const campRows = await db
@@ -129,35 +122,27 @@ export const launchCampaign = schemaTask({
             metaCampaignId: campaigns.metaCampaignId,
           })
           .from(campaigns)
-          .where(
-            and(
-              eq(campaigns.userId, userId),
-              eq(campaigns.idempotencyKey, idempotencyKey),
-            ),
-          )
-          .limit(1);
-        const camp = campRows[0];
-        if (!camp?.metaCampaignId) return null;
-        const adRows = await db
-          .select({ id: ads.id })
-          .from(ads)
-          .where(eq(ads.campaignId, camp.id));
+          .where(and(eq(campaigns.userId, userId), eq(campaigns.idempotencyKey, idempotencyKey)))
+          .limit(1)
+        const camp = campRows[0]
+        if (!camp?.metaCampaignId) return null
+        const adRows = await db.select({ id: ads.id }).from(ads).where(eq(ads.campaignId, camp.id))
         return {
           campaignId: camp.id,
           metaCampaignId: camp.metaCampaignId,
           adCount: adRows.length,
-        };
-      });
+        }
+      })
       if (existing) {
-        logger.info("complete", { ...existing, replayed: true });
-        return existing;
+        logger.info("complete", { ...existing, replayed: true })
+        return existing
       }
       // Idempotency row exists but the campaign row doesn't yet — a previous
       // attempt crashed mid-flight. Surface a friendly error: a fresh attempt
       // (incremented `attempt`) is the safe path forward.
       throw new LaunchError(
         "Lanzamiento previo quedó incompleto. Reintenta para crear un nuevo intento.",
-      );
+      )
     }
 
     // 2. Load product, selected creatives + their edited_video assets.
@@ -172,9 +157,9 @@ export const launchCampaign = schemaTask({
         })
         .from(products)
         .where(and(eq(products.id, productId), eq(products.userId, userId)))
-        .limit(1);
-      const product = prodRows[0];
-      if (!product) return null;
+        .limit(1)
+      const product = prodRows[0]
+      if (!product) return null
       const creativeRows = await db
         .select({
           id: creatives.id,
@@ -198,28 +183,25 @@ export const launchCampaign = schemaTask({
             eq(creatives.userId, userId),
             eq(creatives.selectedBool, true),
           ),
-        );
-      return { product, creatives: creativeRows };
-    });
+        )
+      return { product, creatives: creativeRows }
+    })
     if (!loaded) {
-      throw new LaunchError("Producto no encontrado.");
+      throw new LaunchError("Producto no encontrado.")
     }
-    const { product, creatives: selected } = loaded;
+    const { product, creatives: selected } = loaded
     if (selected.length === 0) {
-      throw new LaunchError("No hay creativos editados listos.");
+      throw new LaunchError("No hay creativos editados listos.")
     }
     if (!product.imageUrl) {
-      throw new LaunchError("El producto no tiene imagen para el thumbnail.");
+      throw new LaunchError("El producto no tiene imagen para el thumbnail.")
     }
-    const productName = product.name ?? "Producto";
+    const productName = product.name ?? "Producto"
 
     // 3. Build creds (Meta required, Shopify optional but expected).
-    const metaIntegration = await requireIntegration(userId, "meta");
-    if (
-      metaIntegration.extra.provider !== "meta" ||
-      !metaIntegration.extra.pixel_id
-    ) {
-      throw new LaunchError("Integración Meta incompleta (falta pixel).");
+    const metaIntegration = await requireIntegration(userId, "meta")
+    if (metaIntegration.extra.provider !== "meta" || !metaIntegration.extra.pixel_id) {
+      throw new LaunchError("Integración Meta incompleta (falta pixel).")
     }
     const creds: MetaCreds = {
       token: metaIntegration.token,
@@ -227,28 +209,24 @@ export const launchCampaign = schemaTask({
       page_id: metaIntegration.extra.page_id,
       pixel_id: metaIntegration.extra.pixel_id,
       userId,
-    };
-    const pageId = metaIntegration.extra.page_id;
-    const pixelId = metaIntegration.extra.pixel_id;
+    }
+    const pageId = metaIntegration.extra.page_id
+    const pixelId = metaIntegration.extra.pixel_id
 
     // Resolve landing URL — Shopify integration should already exist (publish
     // precedes launch in the user flow). If absent, fall back to example.com
     // so the wrapper still has a valid CTA link, then fail loudly when there
     // is also no shopifyPageHandle to point at.
-    const shopifyIntegration = await getIntegration(userId, "shopify");
+    const shopifyIntegration = await getIntegration(userId, "shopify")
     const shopDomain =
-      shopifyIntegration?.extra.provider === "shopify"
-        ? shopifyIntegration.extra.shop_domain
-        : null;
-    const pageHandle = product.shopifyPageHandle;
+      shopifyIntegration?.extra.provider === "shopify" ? shopifyIntegration.extra.shop_domain : null
+    const pageHandle = product.shopifyPageHandle
     if (!pageHandle) {
-      throw new LaunchError(
-        "Publica la landing antes de lanzar la campaña.",
-      );
+      throw new LaunchError("Publica la landing antes de lanzar la campaña.")
     }
     const landingUrl = shopDomain
       ? `https://${shopDomain}/pages/${pageHandle}`
-      : `https://example.com/${pageHandle}`;
+      : `https://example.com/${pageHandle}`
 
     // 4. Copy generation — single batched LLM call.
     const copies = await generateCopies({
@@ -259,47 +237,47 @@ export const launchCampaign = schemaTask({
         angle: c.angle,
         transcript: c.transcript,
       })),
-    });
-    logger.info("copy_generation_done", { count: copies.size });
+    })
+    logger.info("copy_generation_done", { count: copies.size })
 
     // 5. Sequential video uploads (Meta requires per-video resumable flow).
-    const videoIds = new Map<string, string>();
+    const videoIds = new Map<string, string>()
     for (const c of selected) {
       try {
         const result = await videoUploadResumable(creds, {
           url: c.assetUrl,
           sizeBytes: c.assetBytes ?? 0,
           filename: `${c.id}.mp4`,
-        });
-        videoIds.set(c.id, result.video_id);
+        })
+        videoIds.set(c.id, result.video_id)
         logger.info("video_upload_progress", {
           creativeId: c.id,
           videoId: result.video_id,
           uploaded: videoIds.size,
           total: selected.length,
-        });
+        })
       } catch (err) {
-        const f = toFriendly(err, "Falló la subida de video a Meta.");
-        throw new LaunchError(f.friendly, f.cause);
+        const f = toFriendly(err, "Falló la subida de video a Meta.")
+        throw new LaunchError(f.friendly, f.cause)
       }
     }
 
     // 6. Image upload (thumbnail).
-    let imageHash: string;
+    let imageHash: string
     try {
       const result = await imageUpload(creds, {
         url: product.imageUrl,
         filename: "thumb.jpg",
-      });
-      imageHash = result.image_hash;
-      logger.info("image_upload_done", { imageHash });
+      })
+      imageHash = result.image_hash
+      logger.info("image_upload_done", { imageHash })
     } catch (err) {
-      const f = toFriendly(err, "Falló la subida del thumbnail a Meta.");
-      throw new LaunchError(f.friendly, f.cause);
+      const f = toFriendly(err, "Falló la subida del thumbnail a Meta.")
+      throw new LaunchError(f.friendly, f.cause)
     }
 
     // 7. Campaign create + persist row.
-    let metaCampaignId: string;
+    let metaCampaignId: string
     try {
       const result = await campaignCreate(creds, {
         name: `Replik — ${productName}`,
@@ -307,11 +285,11 @@ export const launchCampaign = schemaTask({
         status: "PAUSED",
         daily_budget_cents: 5000,
         special_ad_categories: [],
-      });
-      metaCampaignId = result.id;
+      })
+      metaCampaignId = result.id
     } catch (err) {
-      const f = toFriendly(err, "Falló la creación de la campaña en Meta.");
-      throw new LaunchError(f.friendly, f.cause);
+      const f = toFriendly(err, "Falló la creación de la campaña en Meta.")
+      throw new LaunchError(f.friendly, f.cause)
     }
     const campaignRow = await withUser(userId, async (db) => {
       const inserted = await db
@@ -326,20 +304,20 @@ export const launchCampaign = schemaTask({
           idempotencyKey,
           launchedAt: sql`now()`,
         })
-        .returning({ id: campaigns.id });
-      const row = inserted[0];
+        .returning({ id: campaigns.id })
+      const row = inserted[0]
       if (!row) {
-        throw new LaunchError("No se pudo persistir la campaña.");
+        throw new LaunchError("No se pudo persistir la campaña.")
       }
-      return row;
-    });
+      return row
+    })
     logger.info("campaign_created", {
       campaignId: campaignRow.id,
       metaCampaignId,
-    });
+    })
 
     // 8. AdSets — broad always, interest-targeted optionally.
-    const adsetIds: string[] = [];
+    const adsetIds: string[] = []
     try {
       const broad = await adsetCreate(creds, {
         campaign_id: metaCampaignId,
@@ -354,13 +332,13 @@ export const launchCampaign = schemaTask({
           advantage_audience: 1,
         },
         status: "PAUSED",
-      });
-      adsetIds.push(broad.id);
-      logger.info("adset_created", { adsetId: broad.id, kind: "broad" });
+      })
+      adsetIds.push(broad.id)
+      logger.info("adset_created", { adsetId: broad.id, kind: "broad" })
 
-      const interestCategory = asInterestCategory(product.category);
+      const interestCategory = asInterestCategory(product.category)
       if (interestCategory) {
-        const interests = interestsFor(interestCategory);
+        const interests = interestsFor(interestCategory)
         const detailed = await adsetCreate(creds, {
           campaign_id: metaCampaignId,
           name: `Detailed ${interestCategory}`,
@@ -378,38 +356,36 @@ export const launchCampaign = schemaTask({
             flexible_spec: [{ interests }],
           },
           status: "PAUSED",
-        });
-        adsetIds.push(detailed.id);
+        })
+        adsetIds.push(detailed.id)
         logger.info("adset_created", {
           adsetId: detailed.id,
           kind: "detailed",
           category: interestCategory,
-        });
+        })
       }
     } catch (err) {
-      const f = toFriendly(err, "Falló la creación del ad set en Meta.");
-      throw new LaunchError(f.friendly, f.cause);
+      const f = toFriendly(err, "Falló la creación del ad set en Meta.")
+      throw new LaunchError(f.friendly, f.cause)
     }
-    const broadAdsetId = adsetIds[0];
+    const broadAdsetId = adsetIds[0]
     if (!broadAdsetId) {
-      throw new LaunchError("No se creó ningún ad set.");
+      throw new LaunchError("No se creó ningún ad set.")
     }
 
     // 9. Per creative: creative + ad + persist `ads` row.
-    let adCount = 0;
+    let adCount = 0
     for (let i = 0; i < selected.length; i++) {
-      const c = selected[i];
-      if (!c) continue;
-      const copy = copies.get(c.id);
-      const videoId = videoIds.get(c.id);
+      const c = selected[i]
+      if (!c) continue
+      const copy = copies.get(c.id)
+      const videoId = videoIds.get(c.id)
       if (!copy || !videoId) {
-        throw new LaunchError(
-          `Estado interno inconsistente para creativo ${c.id}.`,
-        );
+        throw new LaunchError(`Estado interno inconsistente para creativo ${c.id}.`)
       }
-      const angle = c.angle ?? "default";
+      const angle = c.angle ?? "default"
 
-      let metaCreativeId: string;
+      let metaCreativeId: string
       try {
         const result = await creativeCreate(creds, {
           name: `C-${c.id}-${angle}`,
@@ -426,33 +402,33 @@ export const launchCampaign = schemaTask({
               },
             },
           },
-        });
-        metaCreativeId = result.id;
+        })
+        metaCreativeId = result.id
         logger.info(`creative_${i.toString()}_done`, {
           creativeId: c.id,
           metaCreativeId,
-        });
+        })
       } catch (err) {
-        const f = toFriendly(err, "Falló la creación del creative en Meta.");
-        throw new LaunchError(f.friendly, f.cause);
+        const f = toFriendly(err, "Falló la creación del creative en Meta.")
+        throw new LaunchError(f.friendly, f.cause)
       }
 
-      let metaAdId: string;
+      let metaAdId: string
       try {
         const result = await adCreate(creds, {
           adset_id: broadAdsetId,
           creative_id: metaCreativeId,
           name: `A-${angle}`,
           status: "PAUSED",
-        });
-        metaAdId = result.id;
+        })
+        metaAdId = result.id
         logger.info(`ad_${i.toString()}_done`, {
           creativeId: c.id,
           metaAdId,
-        });
+        })
       } catch (err) {
-        const f = toFriendly(err, "Falló la creación del ad en Meta.");
-        throw new LaunchError(f.friendly, f.cause);
+        const f = toFriendly(err, "Falló la creación del ad en Meta.")
+        throw new LaunchError(f.friendly, f.cause)
       }
 
       await withUser(userId, async (db) => {
@@ -466,9 +442,9 @@ export const launchCampaign = schemaTask({
           description: copy.description,
           ctaType: "SHOP_NOW",
           copyJson: copy,
-        });
-      });
-      adCount += 1;
+        })
+      })
+      adCount += 1
     }
 
     // 10. Mark product as launched.
@@ -476,15 +452,15 @@ export const launchCampaign = schemaTask({
       await db
         .update(products)
         .set({ status: "CAMPAIGN_LAUNCHED" })
-        .where(and(eq(products.id, productId), eq(products.userId, userId)));
-    });
+        .where(and(eq(products.id, productId), eq(products.userId, userId)))
+    })
 
     const result: LaunchResult = {
       campaignId: campaignRow.id,
       metaCampaignId,
       adCount,
-    };
-    logger.info("complete", { ...result });
-    return result;
+    }
+    logger.info("complete", { ...result })
+    return result
   },
-});
+})

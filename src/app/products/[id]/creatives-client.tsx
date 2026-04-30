@@ -1,50 +1,47 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button.tsx";
-import { CreativeCard } from "@/components/creative-card.tsx";
-import { selectCreatives } from "@/server/actions/products.ts";
-import type { Creative } from "@/db/schema";
+import { Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import * as React from "react"
+import { toast } from "sonner"
+import { CreativeCard } from "@/components/creative-card.tsx"
+import { Button } from "@/components/ui/button.tsx"
+import type { Creative } from "@/db/schema"
+import { selectCreatives } from "@/server/actions/products.ts"
 
 interface CreativesClientProps {
-  productId: string;
-  creatives: Creative[];
+  productId: string
+  creatives: Creative[]
 }
 
-export function CreativesClient({
-  productId,
-  creatives,
-}: CreativesClientProps) {
-  const router = useRouter();
-  const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = React.useState(false);
+export function CreativesClient({ productId, creatives }: CreativesClientProps) {
+  const router = useRouter()
+  const [selected, setSelected] = React.useState<Set<string>>(new Set())
+  const [submitting, setSubmitting] = React.useState(false)
 
   function toggle(id: string) {
-    const next = new Set(selected);
+    const next = new Set(selected)
     if (next.has(id)) {
-      next.delete(id);
+      next.delete(id)
     } else {
-      next.add(id);
+      next.add(id)
     }
-    setSelected(next);
+    setSelected(next)
   }
 
   async function handleContinue() {
     if (selected.size === 0) {
-      toast.error("Selecciona al menos un creativo.");
-      return;
+      toast.error("Selecciona al menos un creativo.")
+      return
     }
-    setSubmitting(true);
-    const result = await selectCreatives(productId, Array.from(selected));
-    setSubmitting(false);
+    setSubmitting(true)
+    const result = await selectCreatives(productId, Array.from(selected))
+    setSubmitting(false)
     if (!result.ok) {
-      toast.error(result.error ?? "Error al seleccionar creativos.");
-      return;
+      toast.error(result.error ?? "Error al seleccionar creativos.")
+      return
     }
-    router.push(`/products/${productId}/edit`);
+    router.push(`/products/${productId}/edit`)
   }
 
   if (creatives.length === 0) {
@@ -52,7 +49,7 @@ export function CreativesClient({
       <div className="text-center py-12 text-fg-2">
         <p className="text-body">No hay creativos disponibles.</p>
       </div>
-    );
+    )
   }
 
   return (
@@ -64,7 +61,9 @@ export function CreativesClient({
             key={creative.id}
             creative={creative}
             selected={selected.has(creative.id)}
-            onToggle={() => { toggle(creative.id); }}
+            onToggle={() => {
+              toggle(creative.id)
+            }}
             index={i}
           />
         ))}
@@ -73,20 +72,18 @@ export function CreativesClient({
       {/* Bottom bar */}
       <div className="sticky bottom-4 flex items-center justify-between gap-4 rounded-card bg-surface-elevated shadow-card border border-border px-5 py-3">
         <p className="text-callout text-fg-2">
-          <span className="font-semibold text-fg-1">{selected.size}</span>{" "}
-          seleccionado{selected.size !== 1 ? "s" : ""}
+          <span className="font-semibold text-fg-1">{selected.size}</span> seleccionado
+          {selected.size !== 1 ? "s" : ""}
         </p>
         <Button
           onClick={() => void handleContinue()}
           disabled={selected.size === 0 || submitting}
           size="lg"
         >
-          {submitting ? (
-            <Loader2 className="size-4 animate-spin mr-2" />
-          ) : null}
+          {submitting ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
           Continuar →
         </Button>
       </div>
     </div>
-  );
+  )
 }

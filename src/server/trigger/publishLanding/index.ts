@@ -1,16 +1,10 @@
-import { logger, task } from "@trigger.dev/sdk";
-import { and, eq, inArray } from "drizzle-orm";
-import { withUser } from "@/db/client";
-import {
-  assets,
-  creatives,
-  idempotencyKeys,
-  integrations,
-  products,
-  users,
-} from "@/db/schema";
-import { decrypt } from "@/lib/crypto";
-import { EncryptedExtraJson } from "@/db/zod";
+import { logger, task } from "@trigger.dev/sdk"
+import { and, eq, inArray } from "drizzle-orm"
+import { withUser } from "@/db/client"
+import { assets, creatives, idempotencyKeys, integrations, products, users } from "@/db/schema"
+import { EncryptedExtraJson } from "@/db/zod"
+import { decrypt } from "@/lib/crypto"
+import type { ShopifyCreds } from "@/lib/shopify"
 import {
   applyTemplate,
   getActiveThemeId,
@@ -18,40 +12,39 @@ import {
   pickTemplate,
   publishProduct,
   renderTemplate,
-} from "@/lib/shopify";
-import type { ShopifyCreds } from "@/lib/shopify";
-import { requireIntegration } from "@/server/integrations";
+} from "@/lib/shopify"
+import { requireIntegration } from "@/server/integrations"
 
 interface PublishLandingPayload {
-  productId: string;
-  userId: string;
+  productId: string
+  userId: string
   /**
    * Template chosen by the user via the picker. Optional — when omitted the
    * task falls back to the LLM-driven `pickTemplate` heuristic.
    */
-  templateId?: 1 | 2 | 3;
+  templateId?: 1 | 2 | 3
   /**
    * Optional copy overrides set by the user from the chat panel. Substituted
    * into the rendered template's `{{title}}` / `{{subtitle}}` variables when
    * present.
    */
   overrides?: {
-    headline?: string;
-    subheadline?: string;
-  };
+    headline?: string
+    subheadline?: string
+  }
 }
 
 interface PublishLandingResult {
-  shopify_product_id: string;
-  shopify_page_handle: string;
-  template_id: 1 | 2 | 3;
+  shopify_product_id: string
+  shopify_page_handle: string
+  template_id: 1 | 2 | 3
 }
 
 function priceCentsToString(cents: number | null | undefined): string {
-  if (cents === null || cents === undefined) return "0.00";
-  const whole = Math.floor(cents / 100);
-  const frac = (cents % 100).toString().padStart(2, "0");
-  return `${whole.toString()}.${frac}`;
+  if (cents === null || cents === undefined) return "0.00"
+  const whole = Math.floor(cents / 100)
+  const frac = (cents % 100).toString().padStart(2, "0")
+  return `${whole.toString()}.${frac}`
 }
 
 export const publishLandingTask = task({
@@ -59,18 +52,15 @@ export const publishLandingTask = task({
   maxDuration: 300,
   retry: { maxAttempts: 2 },
   machine: "small-1x",
-  run: async (
-    payload: PublishLandingPayload,
-    { ctx },
-  ): Promise<PublishLandingResult> => {
-    const { productId, userId } = payload;
-    const overrides = payload.overrides;
+  run: async (payload: PublishLandingPayload, { ctx }): Promise<PublishLandingResult> => {
+    const { productId, userId } = payload
+    const overrides = payload.overrides
     logger.info("publishLanding:start", {
       productId,
       userId,
       hasOverride: overrides !== undefined,
       explicitTemplate: payload.templateId,
-    });
+    })
 
     // 1. Load product + user inside tenant scope.
     const loaded = await withUser(userId, async (db) => {
@@ -78,24 +68,24 @@ export const publishLandingTask = task({
         .select()
         .from(products)
         .where(and(eq(products.id, productId), eq(products.userId, userId)))
-        .limit(1);
+        .limit(1)
       const userRow = await db
         .select({ whatsappNumber: users.whatsappNumber })
         .from(users)
         .where(eq(users.id, userId))
-        .limit(1);
-      return { product: productRow[0], user: userRow[0] };
-    });
-    const product = loaded.product;
-    const user = loaded.user;
-    if (!product) throw new Error(`product not found: ${productId}`);
-    if (!user) throw new Error(`user not found: ${userId}`);
+        .limit(1)
+      return { product: productRow[0], user: userRow[0] }
+    })
+    const product = loaded.product
+    const user = loaded.user
+    if (!product) throw new Error(`product not found: ${productId}`)
+    if (!user) throw new Error(`user not found: ${userId}`)
 
     // 2. Idempotency key. `attempt` is the Trigger.dev attempt number for the
     // current run — re-runs of the same attempt short-circuit to the persisted
     // state read from the products row.
-    const attempt = ctx.attempt.number;
-    const idemKey = `publish_${productId}_${attempt.toString()}`;
+    const attempt = ctx.attempt.number
+    const idemKey = `publish_${productId}_${attempt.toString()}`
     const existing = await withUser(userId, async (db) => {
       const inserted = await db
         .insert(idempotencyKeys)
@@ -105,11 +95,11 @@ export const publishLandingTask = task({
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         })
         .onConflictDoNothing()
-        .returning({ key: idempotencyKeys.key });
-      return inserted.length === 0;
-    });
+        .returning({ key: idempotencyKeys.key })
+      return inserted.length === 0
+    })
     if (existing) {
-      logger.info("publishLanding:idempotent-replay", { idemKey });
+      logger.info("publishLanding:idempotent-replay", { idemKey })
       const persisted = await withUser(userId, async (db) => {
         const rows = await db
           .select({
@@ -119,23 +109,23 @@ export const publishLandingTask = task({
           })
           .from(products)
           .where(eq(products.id, productId))
-          .limit(1);
-        return rows[0];
-      });
+          .limit(1)
+        return rows[0]
+      })
       if (
         persisted?.shopifyProductId &&
         persisted.shopifyPageHandle &&
         persisted.shopifyTemplateId
       ) {
-        const tid = persisted.shopifyTemplateId;
+        const tid = persisted.shopifyTemplateId
         if (tid !== 1 && tid !== 2 && tid !== 3) {
-          throw new Error(`invalid persisted template_id: ${tid.toString()}`);
+          throw new Error(`invalid persisted template_id: ${tid.toString()}`)
         }
         return {
           shopify_product_id: persisted.shopifyProductId,
           shopify_page_handle: persisted.shopifyPageHandle,
           template_id: tid,
-        };
+        }
       }
       // Idempotency row exists but persisted columns absent → previous attempt
       // crashed mid-pipeline. Fall through and run the pipeline again.
@@ -147,21 +137,21 @@ export const publishLandingTask = task({
       (await pickTemplate({
         name: product.name ?? "Producto",
         category: product.category,
-      }));
+      }))
     logger.info("publishLanding:template-picked", {
       templateId,
       source: payload.templateId !== undefined ? "user" : "llm",
-    });
+    })
 
     // 4. Resolve Shopify integration.
-    const shopifyCreds = await requireIntegration(userId, "shopify");
+    const shopifyCreds = await requireIntegration(userId, "shopify")
     if (shopifyCreds.extra.provider !== "shopify") {
-      throw new Error("integration extra provider mismatch");
+      throw new Error("integration extra provider mismatch")
     }
     const creds: ShopifyCreds = {
       token: shopifyCreds.token,
       shop_domain: shopifyCreds.extra.shop_domain,
-    };
+    }
 
     // 5. Create product + page on Shopify.
     const productInput: Parameters<typeof publishProduct>[1] = {
@@ -173,12 +163,12 @@ export const publishLandingTask = task({
       bundle2PricingCents: product.bundle2PricingCents ?? 0,
       bundle3PricingCents: product.bundle3PricingCents ?? 0,
       templateId,
-    };
-    const published = await publishProduct(creds, productInput);
+    }
+    const published = await publishProduct(creds, productInput)
     logger.info("publishLanding:product-published", {
       shopify_product_id: published.shopify_product_id,
       shopify_page_handle: published.shopify_page_handle,
-    });
+    })
 
     // 6. Build template vars. Pixel id sourced from Meta integration if
     // present (best-effort; landing publishes without Meta).
@@ -192,9 +182,9 @@ export const publishLandingTask = task({
             eq(creatives.userId, userId),
             eq(creatives.selectedBool, true),
           ),
-        );
-    });
-    const creativeIds = selectedCreatives.map((c) => c.id);
+        )
+    })
+    const creativeIds = selectedCreatives.map((c) => c.id)
     const editedAssets =
       creativeIds.length === 0
         ? []
@@ -209,36 +199,31 @@ export const publishLandingTask = task({
                   inArray(assets.ownerId, creativeIds),
                 ),
               ),
-          );
-    const videoUrlsCsv = editedAssets.map((a) => a.url).join(",");
+          )
+    const videoUrlsCsv = editedAssets.map((a) => a.url).join(",")
 
-    let pixelId = "";
+    let pixelId = ""
     const metaRow = await withUser(userId, async (db) => {
       return db
         .select({
           encryptedExtraJson: integrations.encryptedExtraJson,
         })
         .from(integrations)
-        .where(
-          and(
-            eq(integrations.userId, userId),
-            eq(integrations.provider, "meta"),
-          ),
-        )
-        .limit(1);
-    });
-    const metaExtraEncrypted = metaRow[0]?.encryptedExtraJson;
+        .where(and(eq(integrations.userId, userId), eq(integrations.provider, "meta")))
+        .limit(1)
+    })
+    const metaExtraEncrypted = metaRow[0]?.encryptedExtraJson
     if (metaExtraEncrypted) {
       try {
-        const decrypted = await decrypt(metaExtraEncrypted);
-        const parsed = EncryptedExtraJson.parse(JSON.parse(decrypted));
+        const decrypted = await decrypt(metaExtraEncrypted)
+        const parsed = EncryptedExtraJson.parse(JSON.parse(decrypted))
         if (parsed.provider === "meta") {
-          pixelId = parsed.pixel_id;
+          pixelId = parsed.pixel_id
         }
       } catch (err) {
         logger.warn("publishLanding:pixel-decrypt-failed", {
           message: err instanceof Error ? err.message : "unknown",
-        });
+        })
       }
     }
 
@@ -253,18 +238,18 @@ export const publishLandingTask = task({
       whatsapp_number: user.whatsappNumber ?? "",
       pixel_id: pixelId,
       shopify_page_handle: published.shopify_page_handle,
-    };
+    }
 
     // 7. Render template + push to active theme.
-    const tpl = loadTemplate(templateId);
-    const rendered = renderTemplate(tpl, vars);
-    const themeId = await getActiveThemeId(creds);
-    const assetKey = `templates/page.${published.shopify_page_handle}.json`;
-    await applyTemplate(creds, themeId, assetKey, rendered);
+    const tpl = loadTemplate(templateId)
+    const rendered = renderTemplate(tpl, vars)
+    const themeId = await getActiveThemeId(creds)
+    const assetKey = `templates/page.${published.shopify_page_handle}.json`
+    await applyTemplate(creds, themeId, assetKey, rendered)
     logger.info("publishLanding:template-applied", {
       themeId,
       assetKey,
-    });
+    })
 
     // 8. Persist final state.
     await withUser(userId, async (db) => {
@@ -276,13 +261,13 @@ export const publishLandingTask = task({
           shopifyPageHandle: published.shopify_page_handle,
           shopifyTemplateId: templateId,
         })
-        .where(eq(products.id, productId));
-    });
+        .where(eq(products.id, productId))
+    })
 
     return {
       shopify_product_id: published.shopify_product_id,
       shopify_page_handle: published.shopify_page_handle,
       template_id: templateId,
-    };
+    }
   },
-});
+})
