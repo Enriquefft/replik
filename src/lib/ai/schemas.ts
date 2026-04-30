@@ -157,6 +157,50 @@ export const AdjustCopyActionSchema = z.discriminatedUnion("kind", [
 
 export type AdjustCopyAction = z.infer<typeof AdjustCopyActionSchema>
 
+/**
+ * Per-creative context handed to the adjustCopy chat route alongside the
+ * current copy + user message (§13). Angle is nullable because the §12
+ * classifier emits null for transcripts that fall under the 15-char floor.
+ */
+export const AdjustCopyCreativeContextSchema = z.object({
+  id: z.string().min(1),
+  angle: SalesAngle.nullable(),
+})
+
+export type AdjustCopyCreativeContext = z.infer<typeof AdjustCopyCreativeContextSchema>
+
+/**
+ * Caller input for `adjustCopy` (§13). The user message is bounded so a
+ * single tenant cannot blow the model context budget; spec §13 doesn't pin
+ * an exact ceiling but 2000 chars maps to <500 tokens.
+ */
+export const AdjustCopyInputSchema = z.object({
+  current: CopyContentSchema,
+  message: z.string().min(1).max(2000),
+  context: z.object({
+    productId: z.string().min(1),
+    creatives: z.array(AdjustCopyCreativeContextSchema),
+  }),
+})
+
+export type AdjustCopyInput = z.infer<typeof AdjustCopyInputSchema>
+
+/**
+ * Discriminated result of the adjustCopy chat route (§13).
+ *
+ * - `ok: true`  → the LLM produced an `AdjustCopyAction` and (when the
+ *   action carries a copy patch) every guard passed.
+ * - `ok: false` → either the LLM could not satisfy the schema after one
+ *   critique retry, or a post-check guard rejected the patch. The client
+ *   branches on `ok` BEFORE rendering — spec §13 is explicit.
+ */
+export const AdjustCopyResultSchema = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true), action: AdjustCopyActionSchema }),
+  z.object({ ok: z.literal(false), error: z.string().min(1) }),
+])
+
+export type AdjustCopyResult = z.infer<typeof AdjustCopyResultSchema>
+
 // ─── Sales-angle classification (§12) ────────────────────────────────────────
 
 /**
