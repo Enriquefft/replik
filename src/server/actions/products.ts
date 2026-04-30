@@ -76,33 +76,6 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
   })
 }
 
-export async function getProduct(
-  rawProductId: unknown,
-): Promise<ActionResult<typeof products.$inferSelect>> {
-  const productIdParsed = z.uuid().safeParse(rawProductId)
-  if (!productIdParsed.success) {
-    return { ok: false, error: "ID de producto inválido." }
-  }
-  const productId = productIdParsed.data
-
-  const { userId } = await requireUser()
-
-  return withUser(userId, async (db) => {
-    const rows = await db
-      .select()
-      .from(products)
-      .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      .limit(1)
-
-    const row = rows[0]
-    if (!row) {
-      return { ok: false, error: "Producto no encontrado." }
-    }
-
-    return { ok: true, data: row }
-  })
-}
-
 export type CreativeWithAssets = typeof creatives.$inferSelect & {
   assets: (typeof assets.$inferSelect)[]
 }
