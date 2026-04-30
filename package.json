@@ -16,7 +16,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "trigger:dev": "trigger dev",
-    "trigger:deploy": "trigger deploy"
+    "trigger:deploy": "trigger deploy",
+    "knip": "knip",
+    "knip:fix": "knip --fix --allow-remove-files"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.72",
@@ -58,6 +60,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",
+    "knip": "^6.9.0",
     "shadcn": "^4.6.0",
     "tailwindcss": "^4",
     "typescript": "^6"

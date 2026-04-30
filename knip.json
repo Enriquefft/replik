@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/app/**/{page,layout,loading,error,not-found,route}.{ts,tsx}",
+    "src/server/trigger/**/index.ts",
+    "trigger.config.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignoreDependencies": [
+    "server-only",
+    "postcss",
+    "@radix-ui/react-label",
+    "bun-types"
+  ],
+  "ignoreBinaries": ["trigger"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreFiles": ["drizzle.config.ts"]
+}
