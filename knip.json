@@ -4,6 +4,10 @@
     "src/app/**/{page,layout,loading,error,not-found,route}.{ts,tsx}",
     "src/server/trigger/**/index.ts",
     "src/components/ui/**/*.{ts,tsx}",
+    "src/lib/types/ids.ts",
+    "src/server/actions/**/*.ts",
+    "src/lib/meta/index.ts",
+    "src/lib/meta/endpoints.ts",
     "trigger.config.ts"
   ],
   "project": ["src/**/*.{ts,tsx}"],
@@ -17,9 +21,5 @@
   ],
   "ignoreBinaries": ["trigger"],
   "ignoreExportsUsedInFile": true,
-  "ignoreFiles": [
-    "drizzle.config.ts",
-    "src/__tests__/**",
-    "src/**/__smoke__.*"
-  ]
+  "ignoreFiles": ["src/__tests__/**", "src/**/__smoke__.*"]
 }

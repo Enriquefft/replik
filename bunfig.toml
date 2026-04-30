@@ -1,0 +1,4 @@
+[test]
+# Map server-only to its no-op shim so bun:test can import Server Component
+# modules without the Next.js runtime.
+preload = ["./src/__tests__/setup.ts"]
