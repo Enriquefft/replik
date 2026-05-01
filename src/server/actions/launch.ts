@@ -17,6 +17,7 @@
 
 import { tasks } from "@trigger.dev/sdk"
 import { and, eq, like, sql } from "drizzle-orm"
+import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
@@ -26,7 +27,24 @@ export type LaunchResult =
   | { ok: true; data: { runId: string } }
   | { ok: false; needs: "meta" | "shopify"; error?: string }
 
-export async function launchCampaign(productId: string): Promise<LaunchResult> {
+const LaunchInput = z.object({
+  productId: z.uuid(),
+  budgetDailyCents: z.number().int().positive(),
+})
+
+export type LaunchInput = z.infer<typeof LaunchInput>
+
+export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
+  const parsed = LaunchInput.safeParse(rawInput)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      needs: "meta",
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos.",
+    }
+  }
+  const { productId, budgetDailyCents } = parsed.data
+
   const { userId } = await requireUser()
 
   // 1. Meta integration must exist and be fully configured (incl. pixel).
@@ -109,6 +127,7 @@ export async function launchCampaign(productId: string): Promise<LaunchResult> {
     productId,
     userId,
     attempt,
+    budgetDailyCents,
   })
 
   return { ok: true, data: { runId: handle.id } }

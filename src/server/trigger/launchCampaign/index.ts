@@ -41,6 +41,7 @@ const Payload = z.object({
   productId: z.string().min(1),
   userId: z.string().min(1),
   attempt: z.number().int().positive(),
+  budgetDailyCents: z.number().int().positive(),
 })
 
 export interface LaunchResult {
@@ -89,7 +90,7 @@ export const launchCampaign = schemaTask({
   machine: { preset: "medium-1x" },
   maxDuration: 900,
   run: async (payload): Promise<LaunchResult> => {
-    const { productId, userId, attempt } = payload
+    const { productId, userId, attempt, budgetDailyCents } = payload
     const idempotencyKey = `launch_${userId}_${productId}_${attempt.toString()}`
 
     // 1. Idempotency: claim the key. On conflict, replay the existing result.
@@ -271,7 +272,7 @@ export const launchCampaign = schemaTask({
         name: `Replik — ${productName}`,
         objective: "OUTCOME_SALES",
         status: "PAUSED",
-        daily_budget_cents: 5000,
+        daily_budget_cents: budgetDailyCents,
         special_ad_categories: [],
       })
       metaCampaignId = result.id
@@ -287,7 +288,7 @@ export const launchCampaign = schemaTask({
           userId,
           metaCampaignId,
           structure: "CBO",
-          budgetDailyCents: 5000,
+          budgetDailyCents,
           status: "PAUSED",
           idempotencyKey,
           launchedAt: sql`now()`,

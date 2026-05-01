@@ -20,13 +20,19 @@ import {
   FormMessage,
 } from "@/components/ui/form.tsx"
 import { Input } from "@/components/ui/input.tsx"
+import { SolesToCentsSchema } from "@/lib/pricing.ts"
 import { launchCampaign } from "@/server/actions/launch.ts"
 
 const LaunchSchema = z.object({
-  budget_daily_cents: z.number().int().positive("El presupuesto debe ser mayor a 0"),
+  budget_daily: SolesToCentsSchema,
 })
 
-type LaunchFormValues = z.infer<typeof LaunchSchema>
+type LaunchFormInput = z.input<typeof LaunchSchema>
+type LaunchFormOutput = z.output<typeof LaunchSchema>
+
+const DEFAULT_DAILY_BUDGET_SOLES = 120
+const EST_REACH_PER_SOL_PER_WEEK = 7 * 120
+const EST_CPA_SOLES = 26
 
 interface SelectedCreative {
   id: string
@@ -59,13 +65,16 @@ export function LaunchClient({
   const [credModalOpen, setCredModalOpen] = React.useState(false)
   const [credError, setCredError] = React.useState<string | undefined>()
 
-  const form = useForm<LaunchFormValues>({
+  const form = useForm<LaunchFormInput, unknown, LaunchFormOutput>({
     resolver: zodResolver(LaunchSchema),
-    defaultValues: { budget_daily_cents: 12000 }, // S/ 120
+    defaultValues: { budget_daily: DEFAULT_DAILY_BUDGET_SOLES },
   })
 
-  async function onSubmit(): Promise<void> {
-    const result = await launchCampaign(productId)
+  async function onSubmit(values: LaunchFormOutput): Promise<void> {
+    const result = await launchCampaign({
+      productId,
+      budgetDailyCents: values.budget_daily,
+    })
 
     if (!result.ok) {
       if (result.needs === "meta") {
@@ -87,14 +96,10 @@ export function LaunchClient({
     void form.handleSubmit(onSubmit)()
   }
 
-  const dailyBudgetCents = useWatch({
-    control: form.control,
-    name: "budget_daily_cents",
-  })
-  const dailyBudgetSoles = Number.isFinite(dailyBudgetCents) ? dailyBudgetCents / 100 : 0
-  const estReach = Math.round(dailyBudgetSoles * 7 * 120)
-  const estCPA = 26
-  const estResults = Math.round((dailyBudgetSoles * 7) / estCPA)
+  const watchedBudget = useWatch({ control: form.control, name: "budget_daily" })
+  const dailyBudgetSoles = Number.isFinite(watchedBudget) && watchedBudget > 0 ? watchedBudget : 0
+  const estReach = Math.round(dailyBudgetSoles * EST_REACH_PER_SOL_PER_WEEK)
+  const estResults = Math.round((dailyBudgetSoles * 7) / EST_CPA_SOLES)
 
   return (
     <div className="flex flex-col gap-5">
@@ -114,17 +119,18 @@ export function LaunchClient({
           >
             <FormField
               control={form.control}
-              name="budget_daily_cents"
+              name="budget_daily"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Presupuesto diario (en centavos)</FormLabel>
+                  <FormLabel>Presupuesto diario (S/)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
-                      min={1000}
-                      step={100}
-                      placeholder="12000"
+                      min={1}
+                      step={1}
+                      placeholder="120"
                       {...field}
+                      value={Number.isNaN(field.value) ? "" : field.value}
                       onChange={(e) => {
                         field.onChange(e.target.valueAsNumber)
                       }}

@@ -1,9 +1,12 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import * as React from "react"
+import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
+import { z } from "zod"
 import type { ChatMessage } from "@/components/chat-panel.tsx"
 import { ChatPanel } from "@/components/chat-panel.tsx"
 import { CredentialsModal } from "@/components/credentials-modal.tsx"
@@ -11,7 +14,9 @@ import { IphonePreview } from "@/components/iphone-preview.tsx"
 import { TaskProgress } from "@/components/task-progress.tsx"
 import { TemplateCard } from "@/components/template-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form.tsx"
 import { Input } from "@/components/ui/input.tsx"
+import { centsToSoles, SolesToCentsSchema } from "@/lib/pricing.ts"
 import type { TemplateMeta } from "@/lib/shopify/templates/index.ts"
 import { publishLanding } from "@/server/actions/landing.ts"
 import { adjustLandingCopy } from "@/server/actions/products.ts"
@@ -25,8 +30,21 @@ interface LandingClientProps {
   initialBundle3PricingCents: number
 }
 
-function formatPrice(cents: number): string {
+const BundleSchema = z.object({
+  bundle2: SolesToCentsSchema,
+  bundle3: SolesToCentsSchema,
+})
+
+type BundleFormInput = z.input<typeof BundleSchema>
+type BundleFormOutput = z.output<typeof BundleSchema>
+
+function formatPriceFromCents(cents: number): string {
   return `S/ ${(cents / 100).toFixed(0)}`
+}
+
+function formatPriceFromSoles(soles: number, fallbackCents: number): string {
+  if (!Number.isFinite(soles) || soles <= 0) return formatPriceFromCents(fallbackCents)
+  return `S/ ${soles.toFixed(0)}`
 }
 
 export function LandingClient({
@@ -43,12 +61,6 @@ export function LandingClient({
     headline?: string
     subheadline?: string
   }>({})
-  const [bundle2PricingCents, setBundle2PricingCents] = React.useState<number>(
-    initialBundle2PricingCents,
-  )
-  const [bundle3PricingCents, setBundle3PricingCents] = React.useState<number>(
-    initialBundle3PricingCents,
-  )
   const [messages, setMessages] = React.useState<ChatMessage[]>([
     {
       id: "init-0",
@@ -62,8 +74,18 @@ export function LandingClient({
   const [credModalOpen, setCredModalOpen] = React.useState(false)
   const [credError, setCredError] = React.useState<string | undefined>()
 
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? templates[0]
+  const form = useForm<BundleFormInput, unknown, BundleFormOutput>({
+    resolver: zodResolver(BundleSchema),
+    defaultValues: {
+      bundle2: centsToSoles(initialBundle2PricingCents),
+      bundle3: centsToSoles(initialBundle3PricingCents),
+    },
+  })
 
+  const watchedBundle2 = useWatch({ control: form.control, name: "bundle2" })
+  const watchedBundle3 = useWatch({ control: form.control, name: "bundle3" })
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? templates[0]
   const headline = overrides.headline ?? selectedTemplate?.headline ?? ""
   const subheadline = overrides.subheadline ?? selectedTemplate?.subheadline ?? ""
 
@@ -96,21 +118,13 @@ export function LandingClient({
     setChatPending(false)
   }
 
-  async function handlePublish() {
-    if (!Number.isFinite(bundle2PricingCents) || bundle2PricingCents <= 0) {
-      toast.error("Ingresa un precio válido para el Pack × 2.")
-      return
-    }
-    if (!Number.isFinite(bundle3PricingCents) || bundle3PricingCents <= 0) {
-      toast.error("Ingresa un precio válido para el Pack × 3.")
-      return
-    }
+  async function onPublish(values: BundleFormOutput) {
     setPublishing(true)
     const result = await publishLanding({
       productId,
       templateId: selectedTemplateId as 1 | 2 | 3,
-      bundle2PricingCents,
-      bundle3PricingCents,
+      bundle2PricingCents: values.bundle2,
+      bundle3PricingCents: values.bundle3,
       overrides,
     })
     setPublishing(false)
@@ -132,104 +146,133 @@ export function LandingClient({
   function handleCredSaved() {
     setCredModalOpen(false)
     setCredError(undefined)
-    // Retry publish
-    void handlePublish()
+    void form.handleSubmit(onPublish)()
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
       {/* Left: template picker + chat */}
-      <div className="flex flex-col gap-5">
-        {/* Template grid */}
-        <div className="grid grid-cols-3 gap-3">
-          {templates.map((tpl) => (
-            <TemplateCard
-              key={tpl.id}
-              template={tpl}
-              selected={tpl.id === selectedTemplateId}
-              onSelect={() => {
-                setSelectedTemplateId(tpl.id)
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Chat panel */}
-        <ChatPanel messages={messages} onSend={handleChat} pending={chatPending} />
-
-        {/* Bundle pricing — editable */}
-        <div className="rounded-card bg-surface glass border border-border shadow-tight p-4">
-          <p className="text-callout font-semibold text-fg-1 mb-1">Configura los packs</p>
-          <p className="text-caption text-fg-2 mb-3">
-            Sugerimos × 1.8 y × 2.5 sobre el precio unitario. Ajusta a tu margen.
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-control bg-surface-muted p-3 text-center">
-              <p className="text-caption text-fg-2 mb-1">1 unidad</p>
-              <p className="text-headline font-semibold text-fg-1">{formatPrice(pricingCents)}</p>
-            </div>
-            <div className="rounded-control bg-surface-muted p-3">
-              <p className="text-caption text-fg-2 mb-1 text-center">Pack × 2 (centavos)</p>
-              <Input
-                type="number"
-                min={1}
-                step={100}
-                value={Number.isNaN(bundle2PricingCents) ? "" : bundle2PricingCents}
-                onChange={(e) => {
-                  setBundle2PricingCents(e.target.valueAsNumber)
+      <Form {...form}>
+        <form
+          onSubmit={(e) => {
+            void form.handleSubmit(onPublish)(e)
+          }}
+          className="flex flex-col gap-5"
+        >
+          {/* Template grid */}
+          <div className="grid grid-cols-3 gap-3">
+            {templates.map((tpl) => (
+              <TemplateCard
+                key={tpl.id}
+                template={tpl}
+                selected={tpl.id === selectedTemplateId}
+                onSelect={() => {
+                  setSelectedTemplateId(tpl.id)
                 }}
-                className="text-center"
               />
-            </div>
-            <div className="rounded-control bg-surface-muted p-3">
-              <p className="text-caption text-fg-2 mb-1 text-center">Pack × 3 (centavos)</p>
-              <Input
-                type="number"
-                min={1}
-                step={100}
-                value={Number.isNaN(bundle3PricingCents) ? "" : bundle3PricingCents}
-                onChange={(e) => {
-                  setBundle3PricingCents(e.target.valueAsNumber)
-                }}
-                className="text-center"
+            ))}
+          </div>
+
+          {/* Chat panel */}
+          <ChatPanel messages={messages} onSend={handleChat} pending={chatPending} />
+
+          {/* Bundle pricing — editable */}
+          <div className="rounded-card bg-surface glass border border-border shadow-tight p-4">
+            <p className="text-callout font-semibold text-fg-1 mb-1">Configura los packs</p>
+            <p className="text-caption text-fg-2 mb-3">
+              Sugerimos × 1.8 y × 2.5 sobre el precio unitario. Ajusta a tu margen.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-control bg-surface-muted p-3 text-center">
+                <p className="text-caption text-fg-2 mb-1">1 unidad</p>
+                <p className="text-headline font-semibold text-fg-1">
+                  {formatPriceFromCents(pricingCents)}
+                </p>
+              </div>
+              <FormField
+                control={form.control}
+                name="bundle2"
+                render={({ field }) => (
+                  <FormItem className="rounded-control bg-surface-muted p-3">
+                    <p className="text-caption text-fg-2 mb-1 text-center">Pack × 2 (S/)</p>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0.01}
+                        step={0.01}
+                        {...field}
+                        value={Number.isNaN(field.value) ? "" : field.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.valueAsNumber)
+                        }}
+                        className="text-center"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-center" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bundle3"
+                render={({ field }) => (
+                  <FormItem className="rounded-control bg-surface-muted p-3">
+                    <p className="text-caption text-fg-2 mb-1 text-center">Pack × 3 (S/)</p>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0.01}
+                        step={0.01}
+                        {...field}
+                        value={Number.isNaN(field.value) ? "" : field.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.valueAsNumber)
+                        }}
+                        className="text-center"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-center" />
+                  </FormItem>
+                )}
               />
             </div>
           </div>
-        </div>
 
-        {/* Publish button */}
-        {runId ? (
-          <TaskProgress
-            runId={runId}
-            step="Publicando landing en Shopify…"
-            detail="Creando producto + página + aplicando template"
-          />
-        ) : (
-          <Button
-            size="lg"
-            className="w-full bg-mode-web text-fg-on-accent hover:bg-mode-web/90"
-            onClick={() => void handlePublish()}
-            disabled={publishing}
-          >
-            {publishing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
-            Publicar landing en Shopify
-          </Button>
-        )}
+          {/* Publish button */}
+          {runId ? (
+            <TaskProgress
+              runId={runId}
+              step="Publicando landing en Shopify…"
+              detail="Creando producto + página + aplicando template"
+            />
+          ) : (
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full bg-mode-web text-fg-on-accent hover:bg-mode-web/90"
+              disabled={publishing}
+            >
+              {publishing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Publicar landing en Shopify
+            </Button>
+          )}
 
-        {/* Continue to launch */}
-        {runId && (
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              router.push(`/products/${productId}/launch`)
-            }}
-          >
-            Continuar → Lanzar campaña
-          </Button>
-        )}
-      </div>
+          {/* Continue to launch */}
+          {runId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full"
+              onClick={() => {
+                router.push(`/products/${productId}/launch`)
+              }}
+            >
+              Continuar → Lanzar campaña
+            </Button>
+          )}
+        </form>
+      </Form>
 
       {/* Right: iPhone preview */}
       <div className="hidden lg:flex flex-col gap-4">
@@ -259,17 +302,17 @@ export function LandingClient({
               {[
                 {
                   label: "1 unidad",
-                  price: pricingCents,
+                  display: formatPriceFromCents(pricingCents),
                   badge: null,
                 },
                 {
                   label: "Pack × 2",
-                  price: bundle2PricingCents,
+                  display: formatPriceFromSoles(watchedBundle2, initialBundle2PricingCents),
                   badge: "Ahorra 15%",
                 },
                 {
                   label: "Pack × 3",
-                  price: bundle3PricingCents,
+                  display: formatPriceFromSoles(watchedBundle3, initialBundle3PricingCents),
                   badge: "Más popular",
                 },
               ].map((pack) => (
@@ -283,7 +326,7 @@ export function LandingClient({
                   }}
                 >
                   <span className="font-medium">{pack.label}</span>
-                  <span className="font-semibold">{formatPrice(pack.price)}</span>
+                  <span className="font-semibold">{pack.display}</span>
                 </div>
               ))}
             </div>

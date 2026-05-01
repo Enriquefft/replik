@@ -17,20 +17,17 @@ import {
   FormMessage,
 } from "@/components/ui/form.tsx"
 import { Input } from "@/components/ui/input.tsx"
+import { SolesToCentsSchema } from "@/lib/pricing.ts"
 import { createProduct } from "@/server/actions/products.ts"
-
-const priceField = z
-  .number({ error: "Ingresa el precio en centavos" })
-  .int("El precio debe ser un número entero")
-  .positive("El precio debe ser mayor a 0")
 
 const AddProductSchema = z.object({
   source_url: z.url("Debe ser una URL válida"),
-  pricing_cents: priceField,
+  pricing: SolesToCentsSchema,
   whatsapp_number: z.string().min(7, "Número inválido").optional(),
 })
 
-type AddProductFormValues = z.infer<typeof AddProductSchema>
+type AddProductFormInput = z.input<typeof AddProductSchema>
+type AddProductFormOutput = z.output<typeof AddProductSchema>
 
 interface AddProductFormProps {
   initialWhatsapp?: string | null
@@ -40,19 +37,23 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
   const router = useRouter()
   const needsWhatsapp = !initialWhatsapp
 
-  const form = useForm<AddProductFormValues>({
+  const form = useForm<AddProductFormInput, unknown, AddProductFormOutput>({
     resolver: zodResolver(AddProductSchema),
     defaultValues: {
       source_url: "",
-      pricing_cents: NaN,
+      pricing: Number.NaN,
       ...(initialWhatsapp !== null && initialWhatsapp !== undefined
         ? { whatsapp_number: initialWhatsapp }
         : {}),
     },
   })
 
-  async function onSubmit(values: AddProductFormValues) {
-    const result = await createProduct(values)
+  async function onSubmit(values: AddProductFormOutput) {
+    const result = await createProduct({
+      source_url: values.source_url,
+      pricing_cents: values.pricing,
+      ...(values.whatsapp_number !== undefined && { whatsapp_number: values.whatsapp_number }),
+    })
     if (!result.ok) {
       toast.error(result.error ?? "Error al crear el producto.")
       return
@@ -127,18 +128,19 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
             {/* Pricing */}
             <FormField
               control={form.control}
-              name="pricing_cents"
+              name="pricing"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <Package className="size-3.5 text-fg-2" strokeWidth={1.8} />
-                    Precio por unidad (en centavos)
+                    Precio por unidad (S/)
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="number"
-                      min={1}
-                      placeholder="7900"
+                      min={0.01}
+                      step={0.01}
+                      placeholder="79.90"
                       {...field}
                       value={Number.isNaN(field.value) ? "" : field.value}
                       onChange={(e) => {

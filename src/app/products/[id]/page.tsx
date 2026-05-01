@@ -1,8 +1,8 @@
 import { auth } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
+import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { ScrapeProgress } from "@/components/scrape-progress.tsx"
-import { ErrorCard } from "@/components/ui/error-card.tsx"
 import { requireUser, withUser } from "@/db/client"
 import { creatives, products } from "@/db/schema"
 import { productTag } from "@/lib/trigger-tags.ts"
@@ -42,10 +42,20 @@ export default async function ProductPage({ params }: PageProps) {
 
   if (productData.status === "SCRAPE_EMPTY") {
     return (
-      <ErrorCard
+      <RetryScrapeCard
+        productId={productId}
         title="No encontramos creativos"
-        detail="Meta Ad Library y Apify no devolvieron resultados para este producto. Intenta con una URL diferente."
-        primary={{ label: "Intentar con otro producto", href: "/" }}
+        detail="Meta Ad Library y Apify no devolvieron resultados para este producto. Puedes reintentar o probar con otra URL."
+      />
+    )
+  }
+
+  if (productData.status === "FAILED") {
+    return (
+      <RetryScrapeCard
+        productId={productId}
+        title="El análisis falló"
+        detail="No pudimos completar el scraping de este producto. Reintenta o cambia la URL."
       />
     )
   }
@@ -56,6 +66,21 @@ export default async function ProductPage({ params }: PageProps) {
       .from(creatives)
       .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
   })
+
+  if (creativeRows.length === 0) {
+    const isPartial = productData.status === "SCRAPE_PARTIAL"
+    return (
+      <RetryScrapeCard
+        productId={productId}
+        title={isPartial ? "Análisis incompleto" : "No hay creativos disponibles"}
+        detail={
+          isPartial
+            ? "No pudimos extraer suficientes datos del producto para buscar anuncios. Reintenta o usa otra URL."
+            : "No encontramos creativos para este producto. Reintenta o usa otra URL."
+        }
+      />
+    )
+  }
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-8">

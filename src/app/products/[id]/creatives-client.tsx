@@ -44,14 +44,6 @@ export function CreativesClient({ productId, creatives }: CreativesClientProps) 
     router.push(`/products/${productId}/edit`)
   }
 
-  if (creatives.length === 0) {
-    return (
-      <div className="text-center py-12 text-fg-2">
-        <p className="text-body">No hay creativos disponibles.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-4">
       {/* Grid */}

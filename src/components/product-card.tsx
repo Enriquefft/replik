@@ -17,6 +17,7 @@ const STATUS_CONFIG: Record<
   LANDING_PUBLISHED: { label: "Landing publicada", variant: "default" },
   CAMPAIGN_LAUNCHED: { label: "Campaña activa", variant: "default" },
   SCRAPE_EMPTY: { label: "Sin creativos", variant: "destructive" },
+  SCRAPE_PARTIAL: { label: "Análisis incompleto", variant: "destructive" },
   FAILED: { label: "Error", variant: "destructive" },
 }
 
