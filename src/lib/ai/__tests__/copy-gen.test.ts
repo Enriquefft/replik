@@ -300,6 +300,7 @@ describe("generateCopy — explicit semantics", () => {
       shopifyProductId: null,
       shopifyPageHandle: "producto-x",
       shopifyTemplateId: 1,
+      description: null,
       createdAt: new Date("2026-04-30T00:00:00.000Z"),
     },
     creatives: [
