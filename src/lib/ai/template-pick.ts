@@ -14,7 +14,7 @@ import { generateText, Output } from "ai"
 import { wrapUntrusted } from "@/lib/ai/guards.ts"
 import { defaultTemperature, MODELS } from "@/lib/ai/models.ts"
 import { withRetry } from "@/lib/ai/retry.ts"
-import type { TemplatePickInput, TemplatePickResult } from "@/lib/ai/schemas.ts"
+import type { TemplatePickInput } from "@/lib/ai/schemas.ts"
 import { TemplatePickResultSchema } from "@/lib/ai/schemas.ts"
 import type { TemplateId } from "@/lib/ai/taxonomies.ts"
 
@@ -111,22 +111,7 @@ function buildUserMessage(input: TemplatePickInput): {
   }
 }
 
-/**
- * Parse the raw JSON output from the LLM into a `TemplatePickResult`-shaped
- * object. We use `Output.json()` rather than `Output.object({ schema })`
- * so that schema validation is deferred to `validateResult` — this keeps
- * the bumped-tier retry path reachable when the primary call returns valid
- * JSON but an invalid `templateId` value.
- */
-function parseRawOutput(raw: unknown): TemplatePickResult {
-  // Cast without assertion — validateResult will catch bad shapes.
-  return raw as TemplatePickResult
-}
-
-async function callLLM(
-  input: TemplatePickInput,
-  model: LanguageModel,
-): Promise<TemplatePickResult> {
+async function callLLM(input: TemplatePickInput, model: LanguageModel): Promise<unknown> {
   const result = await generateText({
     model,
     output: Output.json(),
@@ -134,14 +119,14 @@ async function callLLM(
     system: TEMPLATE_PICK_SYSTEM_PROMPT,
     messages: [buildUserMessage(input)],
   })
-  return parseRawOutput(result.output)
+  return result.output
 }
 
 async function callLLMWithCritique(
   input: TemplatePickInput,
   critique: string,
   bumpedModel: LanguageModel,
-): Promise<TemplatePickResult> {
+): Promise<unknown> {
   const result = await generateText({
     model: bumpedModel,
     output: Output.json(),
@@ -169,14 +154,20 @@ async function callLLMWithCritique(
       },
     ],
   })
-  return parseRawOutput(result.output)
+  return result.output
 }
 
 // ─── Validate ─────────────────────────────────────────────────────────────────
 
-function validateResult(
-  result: TemplatePickResult,
-): { ok: true } | { ok: false; critique: string } {
+/**
+ * Validate the raw LLM output against `TemplatePickResultSchema`.
+ *
+ * `Output.json()` (rather than `Output.object({ schema })`) defers Zod
+ * validation to this function. This keeps the bumped-tier retry path
+ * reachable when the primary call returns valid JSON whose `templateId`
+ * fails the schema's literal-union constraint.
+ */
+function validateResult(result: unknown): { ok: true } | { ok: false; critique: string } {
   const parsed = TemplatePickResultSchema.safeParse(result)
   if (parsed.success) {
     return { ok: true }
@@ -204,7 +195,7 @@ export async function pickTemplate(
   model: LanguageModel = anthropic(MODELS.CLASSIFIER),
   bumpedModel: LanguageModel = anthropic(MODELS.CREATIVE),
 ): Promise<TemplateId> {
-  const result = await withRetry(
+  const result = await withRetry<TemplatePickInput, unknown>(
     {
       primary: (inp) => callLLM(inp, model),
       bumped: (inp, critique) => callLLMWithCritique(inp, critique, bumpedModel),
@@ -213,5 +204,5 @@ export async function pickTemplate(
     },
     input,
   )
-  return result.templateId
+  return TemplatePickResultSchema.parse(result).templateId
 }
