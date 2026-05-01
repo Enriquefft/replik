@@ -12,6 +12,9 @@ const AI_SPEAK_EM_DASH = /—/
 /** ALL-CAPS word of 3 or more letters (allow short brand tokens like "TV"). */
 const AI_SPEAK_ALL_CAPS = /\b[A-Z]{3,}\b/
 
+/** Three or more comma-separated adjectives in a row — classic AI marketing voice (§5). */
+const AI_SPEAK_TRIPLE_ADJECTIVE = /\b\w+,\s+\w+,\s+\w+\b/i
+
 /** Two or more consecutive exclamation marks. */
 const AI_SPEAK_EXCLAMATION_CHAIN = /!{2,}/
 
@@ -50,6 +53,9 @@ export function aiSpeak(text: string): GuardResult {
   }
   if (AI_SPEAK_ALL_CAPS.test(text)) {
     return { ok: false, reason: "AI_SPEAK_ALL_CAPS" }
+  }
+  if (AI_SPEAK_TRIPLE_ADJECTIVE.test(text)) {
+    return { ok: false, reason: "AI_SPEAK_TRIPLE_ADJECTIVE" }
   }
   if (AI_SPEAK_EXCLAMATION_CHAIN.test(text)) {
     return { ok: false, reason: "AI_SPEAK_EXCLAMATION_CHAIN" }
