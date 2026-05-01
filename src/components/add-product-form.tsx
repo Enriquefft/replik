@@ -19,11 +19,16 @@ import {
 import { Input } from "@/components/ui/input.tsx"
 import { createProduct } from "@/server/actions/products.ts"
 
+const priceField = z
+  .number({ error: "Ingresa el precio en centavos" })
+  .int("El precio debe ser un número entero")
+  .positive("El precio debe ser mayor a 0")
+
 const AddProductSchema = z.object({
   source_url: z.url("Debe ser una URL válida"),
-  pricing_cents: z.number().int().positive("El precio debe ser mayor a 0"),
-  bundle_2_pricing_cents: z.number().int().positive("El precio debe ser mayor a 0"),
-  bundle_3_pricing_cents: z.number().int().positive("El precio debe ser mayor a 0"),
+  pricing_cents: priceField,
+  bundle_2_pricing_cents: priceField,
+  bundle_3_pricing_cents: priceField,
   whatsapp_number: z.string().min(7, "Número inválido").optional(),
 })
 
@@ -64,7 +69,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
       {/* Header card */}
-      <div className="rounded-card bg-surface shadow-card border border-border p-6">
+      <div className="rounded-card bg-surface glass shadow-card border border-border p-6">
         <p className="text-caption font-semibold uppercase tracking-widest text-mode-web-badge-fg">
           Paso 1 · Cuéntame del producto
         </p>
@@ -76,7 +81,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
       </div>
 
       {/* Form card */}
-      <div className="rounded-card bg-surface shadow-card border border-border p-6">
+      <div className="rounded-card bg-surface glass shadow-card border border-border p-6">
         <Form {...form}>
           <form
             onSubmit={(e) => {
@@ -95,7 +100,11 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                     URL del competidor
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="https://tienda.com/products/producto" {...field} />
+                    <Input
+                      placeholder="https://tienda.com/products/producto"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormDescription>
                     <span className="text-caption text-fg-3 font-semibold uppercase tracking-wide">
@@ -138,6 +147,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                           min={1}
                           placeholder="7900"
                           {...field}
+                          value={Number.isNaN(field.value) ? "" : field.value}
                           onChange={(e) => {
                             field.onChange(e.target.valueAsNumber)
                           }}
@@ -159,6 +169,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                           min={1}
                           placeholder="12900"
                           {...field}
+                          value={Number.isNaN(field.value) ? "" : field.value}
                           onChange={(e) => {
                             field.onChange(e.target.valueAsNumber)
                           }}
@@ -180,6 +191,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                           min={1}
                           placeholder="16900"
                           {...field}
+                          value={Number.isNaN(field.value) ? "" : field.value}
                           onChange={(e) => {
                             field.onChange(e.target.valueAsNumber)
                           }}
@@ -204,7 +216,7 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                       Tu WhatsApp (para pedidos COD)
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="+51 999 999 999" {...field} />
+                      <Input placeholder="+51 999 999 999" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormDescription>
                       Los clientes serán redirigidos aquí al ordenar.
