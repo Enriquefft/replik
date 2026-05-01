@@ -16,7 +16,6 @@ export {
 export { ShopifyAuthError } from "./errors"
 export type { TemplateVars } from "./render"
 export { renderTemplate } from "./render"
-export { pickTemplate } from "./templatePicker"
 export { loadTemplate } from "./templates"
 
 export interface ShopifyValidateInput {

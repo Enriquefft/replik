@@ -3,13 +3,14 @@ import { and, eq, inArray } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, integrations, products, users } from "@/db/schema"
 import { EncryptedExtraJson } from "@/db/zod"
+import { TemplatePickInputSchema } from "@/lib/ai/schemas.ts"
+import { pickTemplate } from "@/lib/ai/template-pick.ts"
 import { decrypt } from "@/lib/crypto"
 import type { ShopifyCreds } from "@/lib/shopify"
 import {
   applyTemplate,
   getActiveThemeId,
   loadTemplate,
-  pickTemplate,
   publishProduct,
   renderTemplate,
 } from "@/lib/shopify"
@@ -132,12 +133,34 @@ export const publishLandingTask = task({
     }
 
     // 3. Resolve template — explicit user choice wins; otherwise LLM picks.
-    const templateId =
-      payload.templateId ??
-      (await pickTemplate({
+    let templateId: 1 | 2 | 3
+    if (payload.templateId !== undefined) {
+      templateId = payload.templateId
+    } else if (product.imageUrl === null || product.category === null) {
+      // Cannot call vision-based pickTemplate without both imageUrl and category.
+      logger.warn("publishLanding:template-pick-skipped", {
+        missingImageUrl: product.imageUrl === null,
+        missingCategory: product.category === null,
+      })
+      templateId = 1
+    } else {
+      const priceText = `$${priceCentsToString(product.pricingCents)}`
+      const templatePickInput = TemplatePickInputSchema.safeParse({
         name: product.name ?? "Producto",
         category: product.category,
-      }))
+        description: product.description ?? "",
+        priceText,
+        heroImageUrl: product.imageUrl,
+      })
+      if (!templatePickInput.success) {
+        logger.warn("publishLanding:template-pick-input-invalid", {
+          error: templatePickInput.error.message,
+        })
+        templateId = 1
+      } else {
+        templateId = await pickTemplate(templatePickInput.data)
+      }
+    }
     logger.info("publishLanding:template-picked", {
       templateId,
       source: payload.templateId !== undefined ? "user" : "llm",
