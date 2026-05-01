@@ -106,7 +106,7 @@ export function MarketingHome({ signedIn }: MarketingHomeProps) {
     : { href: "/sign-up", label: "Probar Replik gratis →" }
 
   return (
-    <div className="min-h-screen bg-page-alt text-fg-1">
+    <main className="min-h-screen bg-page-alt text-fg-1">
       <div className="mx-auto w-full max-w-[1100px] px-6">
         {/* Marketing nav — hidden when signed-in (global Nav from layout takes over). */}
         {!signedIn && (
@@ -171,7 +171,10 @@ export function MarketingHome({ signedIn }: MarketingHomeProps) {
             ) : (
               <button
                 type="button"
-                className="inline-flex h-[52px] items-center gap-2 rounded-[14px] border-[1.5px] border-border-input bg-surface-solid px-[26px] text-[15px] font-semibold text-fg-1 transition-colors hover:bg-page"
+                disabled
+                aria-disabled="true"
+                title="Próximamente"
+                className="inline-flex h-[52px] cursor-not-allowed items-center gap-2 rounded-[14px] border-[1.5px] border-border-input bg-surface-solid px-[26px] text-[15px] font-semibold text-fg-1 opacity-60"
               >
                 Ver demo · 90 segundos
               </button>
@@ -325,6 +328,6 @@ export function MarketingHome({ signedIn }: MarketingHomeProps) {
           </span>
         </footer>
       </div>
-    </div>
+    </main>
   )
 }
