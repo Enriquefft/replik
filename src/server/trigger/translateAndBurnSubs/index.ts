@@ -1,10 +1,12 @@
-import { logger, task } from "@trigger.dev/sdk"
+import { logger, metadata, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { cuesToSrt, translateSrt } from "@/lib/ai/srt-translate.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
+import { logError, withTiming } from "@/lib/observability/log.ts"
 import { burnSubs, uploadEditedVideo, uploadSrt } from "@/lib/video"
+import type { BurnPhase } from "./metadata.ts"
 
 interface TranslateAndBurnSubsPayload {
   creativeId: string
@@ -47,196 +49,217 @@ export const translateAndBurnSubsTask = task({
       attempt,
     })
 
-    // 1. Idempotency row. On conflict, replay from persisted assets.
-    const idemKey = `burn_${creativeId}_${attempt.toString()}`
-    const replay = await withUser(userId, async (db) => {
-      const inserted = await db
-        .insert(idempotencyKeys)
-        .values({
-          key: idemKey,
-          userId,
-          expiresAt: new Date(Date.now() + ONE_DAY_MS),
-        })
-        .onConflictDoNothing()
-        .returning({ key: idempotencyKeys.key })
-      return inserted.length === 0
-    })
-    if (replay) {
-      logger.info("translateAndBurnSubs:idempotent-replay", { idemKey })
-      const persisted = await loadPersistedAssets(userId, creativeId)
-      if (persisted) return persisted
-      // Idempotency row exists but assets missing → previous attempt crashed
-      // mid-pipeline. Fall through and re-run the work.
-    }
+    try {
+      // 1. Idempotency row. On conflict, replay from persisted assets.
+      const idemKey = `burn_${creativeId}_${attempt.toString()}`
+      const replay = await withUser(userId, async (db) => {
+        const inserted = await db
+          .insert(idempotencyKeys)
+          .values({
+            key: idemKey,
+            userId,
+            expiresAt: new Date(Date.now() + ONE_DAY_MS),
+          })
+          .onConflictDoNothing()
+          .returning({ key: idempotencyKeys.key })
+        return inserted.length === 0
+      })
+      if (replay) {
+        logger.info("translateAndBurnSubs:idempotent-replay", { idemKey })
+        const persisted = await loadPersistedAssets(userId, creativeId)
+        if (persisted) return persisted
+        // Idempotency row exists but assets missing → previous attempt crashed
+        // mid-pipeline. Fall through and re-run the work.
+      }
 
-    // 2. Load creative inside tenant scope. Guard `selected` and transcript.
-    const creative = await withUser(userId, async (db) => {
-      const rows = await db
-        .select({
-          id: creatives.id,
-          productId: creatives.productId,
-          transcriptText: creatives.transcriptText,
-          language: creatives.language,
-          selectedBool: creatives.selectedBool,
-        })
-        .from(creatives)
-        .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
-        .limit(1)
-      return rows[0]
-    })
-    if (!creative) throw new Error(`creative not found: ${creativeId}`)
-    if (!creative.selectedBool) {
-      throw new Error(`creative not selected: ${creativeId}`)
-    }
-    if (creative.transcriptText === null) {
-      throw new Error(`creative transcript missing: ${creativeId}`)
-    }
+      // 2. Load creative inside tenant scope. Guard `selected` and transcript.
+      const creative = await withUser(userId, async (db) => {
+        const rows = await db
+          .select({
+            id: creatives.id,
+            productId: creatives.productId,
+            transcriptText: creatives.transcriptText,
+            language: creatives.language,
+            selectedBool: creatives.selectedBool,
+          })
+          .from(creatives)
+          .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
+          .limit(1)
+        return rows[0]
+      })
+      if (!creative) throw new Error(`creative not found: ${creativeId}`)
+      if (!creative.selectedBool) {
+        throw new Error(`creative not selected: ${creativeId}`)
+      }
+      if (creative.transcriptText === null) {
+        throw new Error(`creative transcript missing: ${creativeId}`)
+      }
 
-    // 2b. Load product for brand tokens (§10 brand-token preservation).
-    const product = await withUser(userId, async (db) => {
-      const rows = await db
-        .select({ brandTokens: products.brandTokens })
-        .from(products)
-        .where(and(eq(products.id, creative.productId), eq(products.userId, userId)))
-        .limit(1)
-      return rows[0]
-    })
-    if (!product) throw new Error(`product not found for creative: ${creativeId}`)
+      // 2b. Load product for brand tokens (§10 brand-token preservation).
+      const product = await withUser(userId, async (db) => {
+        const rows = await db
+          .select({ brandTokens: products.brandTokens })
+          .from(products)
+          .where(and(eq(products.id, creative.productId), eq(products.userId, userId)))
+          .limit(1)
+        return rows[0]
+      })
+      if (!product) throw new Error(`product not found for creative: ${creativeId}`)
 
-    // 3. Resolve original video asset.
-    const originalAsset = await withUser(userId, async (db) => {
-      const rows = await db
-        .select({ url: assets.url })
-        .from(assets)
-        .where(
-          and(
-            eq(assets.ownerType, "creative"),
-            eq(assets.ownerId, creativeId),
-            eq(assets.kind, "original_video"),
-          ),
+      // 3. Resolve original video asset.
+      const originalAsset = await withUser(userId, async (db) => {
+        const rows = await db
+          .select({ url: assets.url })
+          .from(assets)
+          .where(
+            and(
+              eq(assets.ownerType, "creative"),
+              eq(assets.ownerId, creativeId),
+              eq(assets.kind, "original_video"),
+            ),
+          )
+          .limit(1)
+        return rows[0]
+      })
+      if (!originalAsset) {
+        throw new Error(`original_video asset missing for creative ${creativeId}`)
+      }
+
+      // 4. Re-transcribe to obtain a real timed SRT. L3a only persists plain
+      // text; we cannot fabricate timestamps from it.
+      metadata.set("phase", "transcribe" satisfies BurnPhase)
+      logger.info("transcribe_started", { creativeId })
+      const videoResponse = await fetch(originalAsset.url, { redirect: "follow" })
+      if (!videoResponse.ok) {
+        throw new Error(
+          `original video download failed ${videoResponse.status.toString()} ${videoResponse.statusText}`,
         )
-        .limit(1)
-      return rows[0]
-    })
-    if (!originalAsset) {
-      throw new Error(`original_video asset missing for creative ${creativeId}`)
-    }
-
-    // 4. Re-transcribe to obtain a real timed SRT. L3a only persists plain
-    // text; we cannot fabricate timestamps from it.
-    logger.info("transcribe_started", { creativeId })
-    const videoResponse = await fetch(originalAsset.url, { redirect: "follow" })
-    if (!videoResponse.ok) {
-      throw new Error(
-        `original video download failed ${videoResponse.status.toString()} ${videoResponse.statusText}`,
+      }
+      const audioBuffer = Buffer.from(await videoResponse.arrayBuffer())
+      const transcribed = await withTiming(
+        "task.translateAndBurn.transcribe",
+        () => transcribe({ mode: "srt", audio: audioBuffer }),
+        { creativeId },
       )
-    }
-    const audioBuffer = Buffer.from(await videoResponse.arrayBuffer())
-    const transcribed = await transcribe({ mode: "srt", audio: audioBuffer })
-    if (transcribed.srt === null || transcribed.srt.length === 0) {
-      throw new Error(`transcribe returned empty SRT for creative ${creativeId}`)
-    }
-    logger.info("transcribe_done", {
-      creativeId,
-      language: transcribed.language,
-      srtBytes: transcribed.srt.length,
-    })
-
-    // Whisper's `language` is the raw two-letter code (e.g. "en", "es").
-    // The DB column is informational only; whatever L3a stored takes
-    // precedence for display, but the burn pipeline relies on Whisper's
-    // detection (it's tied to the actual SRT we just produced).
-    const language = transcribed.language
-    const sourceSrt = transcribed.srt
-
-    // 5. Translate when source isn't Spanish (§10).
-    //
-    // The translator is a single-batch Opus 4.7 call (≤60 cues). On
-    // unrecoverable failure it returns `{ translated: false, cues: <source> }`
-    // verbatim — the publish path never blocks.
-    let finalSrt: string
-    let translated: boolean
-    if (language === "es") {
-      finalSrt = sourceSrt
-      translated = false
-    } else {
-      logger.info("translate_started", {
+      if (transcribed.srt === null || transcribed.srt.length === 0) {
+        throw new Error(`transcribe returned empty SRT for creative ${creativeId}`)
+      }
+      logger.info("transcribe_done", {
         creativeId,
-        from: language,
-        to: "es-PE",
+        language: transcribed.language,
+        srtBytes: transcribed.srt.length,
       })
-      const result = await translateSrt({
-        sourceSrt,
-        brandTokens: product.brandTokens,
-        targetLocale: "es-PE",
+
+      // Whisper's `language` is the raw two-letter code (e.g. "en", "es").
+      // The DB column is informational only; whatever L3a stored takes
+      // precedence for display, but the burn pipeline relies on Whisper's
+      // detection (it's tied to the actual SRT we just produced).
+      const language = transcribed.language
+      const sourceSrt = transcribed.srt
+
+      // 5. Translate when source isn't Spanish (§10).
+      let finalSrt: string
+      let translated: boolean
+      if (language === "es") {
+        finalSrt = sourceSrt
+        translated = false
+      } else {
+        metadata.set("phase", "translate" satisfies BurnPhase)
+        logger.info("translate_started", {
+          creativeId,
+          from: language,
+          to: "es-PE",
+        })
+        const result = await withTiming(
+          "task.translateAndBurn.translate",
+          () =>
+            translateSrt({
+              sourceSrt,
+              brandTokens: product.brandTokens,
+              targetLocale: "es-PE",
+            }),
+          { creativeId },
+        )
+        finalSrt = cuesToSrt(result.cues)
+        translated = result.translated
+        logger.info("translate_done", {
+          creativeId,
+          srtBytes: finalSrt.length,
+          translated,
+        })
+      }
+
+      // 6. Upload the SRT and persist as an asset.
+      const srtUpload = await uploadSrt(finalSrt, `${creativeId}.srt`)
+      await withUser(userId, async (db) => {
+        await db.insert(assets).values({
+          ownerType: "creative",
+          ownerId: creativeId,
+          kind: "srt",
+          url: srtUpload.url,
+          bytes: Buffer.byteLength(finalSrt, "utf8"),
+          mime: "text/plain",
+        })
       })
-      finalSrt = cuesToSrt(result.cues)
-      translated = result.translated
-      logger.info("translate_done", {
+
+      // 7. Burn the SRT into the video.
+      metadata.set("phase", "burn" satisfies BurnPhase)
+      logger.info("burn_started", { creativeId })
+      const burned = await withTiming(
+        "task.translateAndBurn.burn",
+        () => burnSubs({ videoUrl: originalAsset.url, srt: finalSrt }),
+        { creativeId },
+      )
+      metadata.set("bytes", burned.buffer.byteLength)
+      logger.info("burn_done", {
         creativeId,
-        srtBytes: finalSrt.length,
-        translated,
-      })
-    }
-
-    // 6. Upload the SRT and persist as an asset.
-    const srtUpload = await uploadSrt(finalSrt, `${creativeId}.srt`)
-    await withUser(userId, async (db) => {
-      await db.insert(assets).values({
-        ownerType: "creative",
-        ownerId: creativeId,
-        kind: "srt",
-        url: srtUpload.url,
-        bytes: Buffer.byteLength(finalSrt, "utf8"),
-        mime: "text/plain",
-      })
-    })
-
-    // 7. Burn the SRT into the video.
-    logger.info("burn_started", { creativeId })
-    const burned = await burnSubs({
-      videoUrl: originalAsset.url,
-      srt: finalSrt,
-    })
-    logger.info("burn_done", {
-      creativeId,
-      bytes: burned.buffer.byteLength,
-    })
-
-    // 8. Upload the edited video.
-    const videoUpload = await uploadEditedVideo(burned.buffer, `${creativeId}.mp4`)
-    logger.info("upload_done", {
-      creativeId,
-      key: videoUpload.key,
-      url: videoUpload.url,
-    })
-
-    // 9. Persist edited video asset.
-    await withUser(userId, async (db) => {
-      await db.insert(assets).values({
-        ownerType: "creative",
-        ownerId: creativeId,
-        kind: "edited_video",
-        url: videoUpload.url,
         bytes: burned.buffer.byteLength,
-        mime: "video/mp4",
       })
-    })
 
-    // 10. Persist `translated` flag onto the creatives row so the UI can
-    // surface a badge when the fallback fired (§10 / §6 Phase 3 item 5).
-    await withUser(userId, async (db) => {
-      await db
-        .update(creatives)
-        .set({ translated })
-        .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
-    })
+      // 8. Upload the edited video.
+      metadata.set("phase", "upload" satisfies BurnPhase)
+      const videoUpload = await withTiming(
+        "task.translateAndBurn.upload",
+        () => uploadEditedVideo(burned.buffer, `${creativeId}.mp4`),
+        { creativeId },
+      )
+      logger.info("upload_done", {
+        creativeId,
+        key: videoUpload.key,
+        url: videoUpload.url,
+      })
 
-    return {
-      editedUrl: videoUpload.url,
-      srtUrl: srtUpload.url,
-      language,
-      translated,
+      // 9. Persist edited video asset.
+      await withUser(userId, async (db) => {
+        await db.insert(assets).values({
+          ownerType: "creative",
+          ownerId: creativeId,
+          kind: "edited_video",
+          url: videoUpload.url,
+          bytes: burned.buffer.byteLength,
+          mime: "video/mp4",
+        })
+      })
+
+      // 10. Persist `translated` flag onto the creatives row so the UI can
+      // surface a badge when the fallback fired (§10 / §6 Phase 3 item 5).
+      await withUser(userId, async (db) => {
+        await db
+          .update(creatives)
+          .set({ translated })
+          .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
+      })
+
+      return {
+        editedUrl: videoUpload.url,
+        srtUrl: srtUpload.url,
+        language,
+        translated,
+      }
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err)
+      logError("task.translateAndBurn.fatal", { creativeId, userId, attempt, reason })
+      throw err
     }
   },
 })

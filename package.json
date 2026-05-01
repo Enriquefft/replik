@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio",
     "trigger:dev": "bunx trigger.dev@4.4.4 dev",
     "trigger:deploy": "bunx trigger.dev@4.4.4 deploy",
+    "onboard": "bun --preload ./scripts/_preload.ts scripts/onboard.ts",
     "knip": "DATABASE_URL=postgresql://ci:ci@localhost/ci knip",
     "knip:fix": "DATABASE_URL=postgresql://ci:ci@localhost/ci knip --fix --allow-remove-files",
     "prepare": "lefthook install || true"

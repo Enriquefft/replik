@@ -18,7 +18,7 @@ import "server-only"
  *  - Final status everywhere is `PAUSED` — the dashboard owns "go live".
  */
 
-import { logger, schemaTask } from "@trigger.dev/sdk"
+import { logger, metadata, schemaTask } from "@trigger.dev/sdk"
 import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { withUser } from "@/db/client"
@@ -35,7 +35,9 @@ import {
   videoUploadResumable,
 } from "@/lib/meta"
 import { interestsFor } from "@/lib/meta/interests"
+import { logError, withTiming } from "@/lib/observability/log.ts"
 import { getIntegration, requireIntegration } from "@/server/integrations"
+import type { LaunchPhase } from "./metadata.ts"
 
 const Payload = z.object({
   productId: z.string().min(1),
@@ -93,362 +95,421 @@ export const launchCampaign = schemaTask({
     const { productId, userId, attempt, budgetDailyCents } = payload
     const idempotencyKey = `launch_${userId}_${productId}_${attempt.toString()}`
 
-    // 1. Idempotency: claim the key. On conflict, replay the existing result.
-    const claimed = await withUser(userId, async (db) => {
-      const inserted = await db
-        .insert(idempotencyKeys)
-        .values({
-          key: idempotencyKey,
-          userId,
-          expiresAt: sql`now() + interval '7 days'`,
-        })
-        .onConflictDoNothing({ target: idempotencyKeys.key })
-        .returning({ key: idempotencyKeys.key })
-      return inserted.length > 0
-    })
-    logger.info("idempotency_check", { idempotencyKey, claimed })
-    if (!claimed) {
-      const existing = await withUser(userId, async (db) => {
-        const campRows = await db
-          .select({
-            id: campaigns.id,
-            metaCampaignId: campaigns.metaCampaignId,
+    try {
+      // 1. Idempotency: claim the key. On conflict, replay the existing result.
+      const claimed = await withUser(userId, async (db) => {
+        const inserted = await db
+          .insert(idempotencyKeys)
+          .values({
+            key: idempotencyKey,
+            userId,
+            expiresAt: sql`now() + interval '7 days'`,
           })
-          .from(campaigns)
-          .where(and(eq(campaigns.userId, userId), eq(campaigns.idempotencyKey, idempotencyKey)))
-          .limit(1)
-        const camp = campRows[0]
-        if (!camp?.metaCampaignId) return null
-        const adRows = await db.select({ id: ads.id }).from(ads).where(eq(ads.campaignId, camp.id))
-        return {
-          campaignId: camp.id,
-          metaCampaignId: camp.metaCampaignId,
-          adCount: adRows.length,
+          .onConflictDoNothing({ target: idempotencyKeys.key })
+          .returning({ key: idempotencyKeys.key })
+        return inserted.length > 0
+      })
+      logger.info("idempotency_check", { idempotencyKey, claimed })
+      if (!claimed) {
+        const existing = await withUser(userId, async (db) => {
+          const campRows = await db
+            .select({
+              id: campaigns.id,
+              metaCampaignId: campaigns.metaCampaignId,
+            })
+            .from(campaigns)
+            .where(and(eq(campaigns.userId, userId), eq(campaigns.idempotencyKey, idempotencyKey)))
+            .limit(1)
+          const camp = campRows[0]
+          if (!camp?.metaCampaignId) return null
+          const adRows = await db
+            .select({ id: ads.id })
+            .from(ads)
+            .where(eq(ads.campaignId, camp.id))
+          return {
+            campaignId: camp.id,
+            metaCampaignId: camp.metaCampaignId,
+            adCount: adRows.length,
+          }
+        })
+        if (existing) {
+          logger.info("complete", { ...existing, replayed: true })
+          return existing
         }
-      })
-      if (existing) {
-        logger.info("complete", { ...existing, replayed: true })
-        return existing
+        // Idempotency row exists but the campaign row doesn't yet — a previous
+        // attempt crashed mid-flight. Surface a friendly error: a fresh attempt
+        // (incremented `attempt`) is the safe path forward.
+        throw new LaunchError(
+          "Lanzamiento previo quedó incompleto. Reintenta para crear un nuevo intento.",
+        )
       }
-      // Idempotency row exists but the campaign row doesn't yet — a previous
-      // attempt crashed mid-flight. Surface a friendly error: a fresh attempt
-      // (incremented `attempt`) is the safe path forward.
-      throw new LaunchError(
-        "Lanzamiento previo quedó incompleto. Reintenta para crear un nuevo intento.",
+
+      // 2. Load product, selected creatives + their edited_video assets.
+      const loaded = await withUser(userId, async (db) => {
+        const prodRows = await db
+          .select()
+          .from(products)
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .limit(1)
+        const product = prodRows[0]
+        if (!product) return null
+        const creativeRows = await db
+          .select({
+            id: creatives.id,
+            angle: creatives.angle,
+            transcript: creatives.transcriptText,
+            language: creatives.language,
+            assetUrl: assets.url,
+            assetBytes: assets.bytes,
+          })
+          .from(creatives)
+          .innerJoin(
+            assets,
+            and(
+              eq(assets.ownerId, creatives.id),
+              eq(assets.ownerType, "creative"),
+              eq(assets.kind, "edited_video"),
+            ),
+          )
+          .where(
+            and(
+              eq(creatives.productId, productId),
+              eq(creatives.userId, userId),
+              eq(creatives.selectedBool, true),
+            ),
+          )
+        return { product, creatives: creativeRows }
+      })
+      if (!loaded) {
+        throw new LaunchError("Producto no encontrado.")
+      }
+      const { product, creatives: selected } = loaded
+      if (selected.length === 0) {
+        throw new LaunchError("No hay creativos editados listos.")
+      }
+      if (!product.imageUrl) {
+        throw new LaunchError("El producto no tiene imagen para el thumbnail.")
+      }
+      const productImageUrl = product.imageUrl
+      const productName = product.name ?? "Producto"
+
+      // 3. Build creds (Meta required, Shopify optional but expected).
+      const metaIntegration = await requireIntegration(userId, "meta")
+      if (metaIntegration.extra.provider !== "meta" || !metaIntegration.extra.pixel_id) {
+        throw new LaunchError("Integración Meta incompleta (falta pixel).")
+      }
+      const creds: MetaCreds = {
+        token: metaIntegration.token,
+        ad_account_id: metaIntegration.extra.ad_account_id,
+        page_id: metaIntegration.extra.page_id,
+        pixel_id: metaIntegration.extra.pixel_id,
+        userId,
+      }
+      const pageId = metaIntegration.extra.page_id
+      const pixelId = metaIntegration.extra.pixel_id
+
+      // Resolve landing URL — Shopify integration should already exist (publish
+      // precedes launch in the user flow). If absent, fall back to example.com
+      // so the wrapper still has a valid CTA link, then fail loudly when there
+      // is also no shopifyPageHandle to point at.
+      const shopifyIntegration = await getIntegration(userId, "shopify")
+      const shopDomain =
+        shopifyIntegration?.extra.provider === "shopify"
+          ? shopifyIntegration.extra.shop_domain
+          : null
+      const pageHandle = product.shopifyPageHandle
+      if (!pageHandle) {
+        throw new LaunchError("Publica la landing antes de lanzar la campaña.")
+      }
+      const landingUrl = shopDomain
+        ? `https://${shopDomain}/pages/${pageHandle}`
+        : `https://example.com/${pageHandle}`
+
+      // 4. Copy generation — §11 best-of-5 + Opus judge + post-check.
+      // One copy unit shared across every ad in this launch.
+      metadata.set("phase", "copy" satisfies LaunchPhase)
+      const copy = await withTiming(
+        "task.launch.copy",
+        () =>
+          generateCopy({
+            product,
+            creatives: selected.map((c) => ({
+              id: c.id,
+              angle: c.angle,
+              transcript: c.transcript ?? "",
+              language: c.language ?? "es",
+            })),
+          }),
+        { productId, creativeCount: selected.length },
       )
-    }
+      logger.info("copy_generation_done", { adCount: selected.length })
 
-    // 2. Load product, selected creatives + their edited_video assets.
-    const loaded = await withUser(userId, async (db) => {
-      const prodRows = await db
-        .select()
-        .from(products)
-        .where(and(eq(products.id, productId), eq(products.userId, userId)))
-        .limit(1)
-      const product = prodRows[0]
-      if (!product) return null
-      const creativeRows = await db
-        .select({
-          id: creatives.id,
-          angle: creatives.angle,
-          transcript: creatives.transcriptText,
-          language: creatives.language,
-          assetUrl: assets.url,
-          assetBytes: assets.bytes,
-        })
-        .from(creatives)
-        .innerJoin(
-          assets,
-          and(
-            eq(assets.ownerId, creatives.id),
-            eq(assets.ownerType, "creative"),
-            eq(assets.kind, "edited_video"),
-          ),
-        )
-        .where(
-          and(
-            eq(creatives.productId, productId),
-            eq(creatives.userId, userId),
-            eq(creatives.selectedBool, true),
-          ),
-        )
-      return { product, creatives: creativeRows }
-    })
-    if (!loaded) {
-      throw new LaunchError("Producto no encontrado.")
-    }
-    const { product, creatives: selected } = loaded
-    if (selected.length === 0) {
-      throw new LaunchError("No hay creativos editados listos.")
-    }
-    if (!product.imageUrl) {
-      throw new LaunchError("El producto no tiene imagen para el thumbnail.")
-    }
-    const productName = product.name ?? "Producto"
+      // 5. Sequential video uploads (Meta requires per-video resumable flow).
+      metadata.set("phase", "upload_videos" satisfies LaunchPhase)
+      metadata.set("videosTotal", selected.length)
+      metadata.set("videosUploaded", 0)
+      const videoIds = new Map<string, string>()
+      for (const c of selected) {
+        try {
+          const result = await withTiming(
+            "task.launch.upload_video",
+            () =>
+              videoUploadResumable(creds, {
+                url: c.assetUrl,
+                sizeBytes: c.assetBytes ?? 0,
+                filename: `${c.id}.mp4`,
+              }),
+            { creativeId: c.id },
+          )
+          videoIds.set(c.id, result.video_id)
+          metadata.increment("videosUploaded", 1)
+          logger.info("video_upload_progress", {
+            creativeId: c.id,
+            videoId: result.video_id,
+            uploaded: videoIds.size,
+            total: selected.length,
+          })
+        } catch (err) {
+          const f = toFriendly(err, "Falló la subida de video a Meta.")
+          throw new LaunchError(f.friendly, f.cause)
+        }
+      }
 
-    // 3. Build creds (Meta required, Shopify optional but expected).
-    const metaIntegration = await requireIntegration(userId, "meta")
-    if (metaIntegration.extra.provider !== "meta" || !metaIntegration.extra.pixel_id) {
-      throw new LaunchError("Integración Meta incompleta (falta pixel).")
-    }
-    const creds: MetaCreds = {
-      token: metaIntegration.token,
-      ad_account_id: metaIntegration.extra.ad_account_id,
-      page_id: metaIntegration.extra.page_id,
-      pixel_id: metaIntegration.extra.pixel_id,
-      userId,
-    }
-    const pageId = metaIntegration.extra.page_id
-    const pixelId = metaIntegration.extra.pixel_id
-
-    // Resolve landing URL — Shopify integration should already exist (publish
-    // precedes launch in the user flow). If absent, fall back to example.com
-    // so the wrapper still has a valid CTA link, then fail loudly when there
-    // is also no shopifyPageHandle to point at.
-    const shopifyIntegration = await getIntegration(userId, "shopify")
-    const shopDomain =
-      shopifyIntegration?.extra.provider === "shopify" ? shopifyIntegration.extra.shop_domain : null
-    const pageHandle = product.shopifyPageHandle
-    if (!pageHandle) {
-      throw new LaunchError("Publica la landing antes de lanzar la campaña.")
-    }
-    const landingUrl = shopDomain
-      ? `https://${shopDomain}/pages/${pageHandle}`
-      : `https://example.com/${pageHandle}`
-
-    // 4. Copy generation — §11 best-of-5 + Opus judge + post-check.
-    // One copy unit shared across every ad in this launch.
-    const copy = await generateCopy({
-      product,
-      creatives: selected.map((c) => ({
-        id: c.id,
-        angle: c.angle,
-        transcript: c.transcript ?? "",
-        language: c.language ?? "es",
-      })),
-    })
-    logger.info("copy_generation_done", { adCount: selected.length })
-
-    // 5. Sequential video uploads (Meta requires per-video resumable flow).
-    const videoIds = new Map<string, string>()
-    for (const c of selected) {
+      // 6. Image upload (thumbnail).
+      metadata.set("phase", "upload_image" satisfies LaunchPhase)
+      let imageHash: string
       try {
-        const result = await videoUploadResumable(creds, {
-          url: c.assetUrl,
-          sizeBytes: c.assetBytes ?? 0,
-          filename: `${c.id}.mp4`,
-        })
-        videoIds.set(c.id, result.video_id)
-        logger.info("video_upload_progress", {
-          creativeId: c.id,
-          videoId: result.video_id,
-          uploaded: videoIds.size,
-          total: selected.length,
-        })
+        const result = await withTiming(
+          "task.launch.upload_image",
+          () => imageUpload(creds, { url: productImageUrl, filename: "thumb.jpg" }),
+          { productId },
+        )
+        imageHash = result.image_hash
+        logger.info("image_upload_done", { imageHash })
       } catch (err) {
-        const f = toFriendly(err, "Falló la subida de video a Meta.")
+        const f = toFriendly(err, "Falló la subida del thumbnail a Meta.")
         throw new LaunchError(f.friendly, f.cause)
       }
-    }
 
-    // 6. Image upload (thumbnail).
-    let imageHash: string
-    try {
-      const result = await imageUpload(creds, {
-        url: product.imageUrl,
-        filename: "thumb.jpg",
-      })
-      imageHash = result.image_hash
-      logger.info("image_upload_done", { imageHash })
-    } catch (err) {
-      const f = toFriendly(err, "Falló la subida del thumbnail a Meta.")
-      throw new LaunchError(f.friendly, f.cause)
-    }
-
-    // 7. Campaign create + persist row.
-    let metaCampaignId: string
-    try {
-      const result = await campaignCreate(creds, {
-        name: `Replik — ${productName}`,
-        objective: "OUTCOME_SALES",
-        status: "PAUSED",
-        daily_budget_cents: budgetDailyCents,
-        special_ad_categories: [],
-      })
-      metaCampaignId = result.id
-    } catch (err) {
-      const f = toFriendly(err, "Falló la creación de la campaña en Meta.")
-      throw new LaunchError(f.friendly, f.cause)
-    }
-    const campaignRow = await withUser(userId, async (db) => {
-      const inserted = await db
-        .insert(campaigns)
-        .values({
-          productId,
-          userId,
-          metaCampaignId,
-          structure: "CBO",
-          budgetDailyCents,
-          status: "PAUSED",
-          idempotencyKey,
-          launchedAt: sql`now()`,
-        })
-        .returning({ id: campaigns.id })
-      const row = inserted[0]
-      if (!row) {
-        throw new LaunchError("No se pudo persistir la campaña.")
-      }
-      return row
-    })
-    logger.info("campaign_created", {
-      campaignId: campaignRow.id,
-      metaCampaignId,
-    })
-
-    // 8. AdSets — broad always, interest-targeted optionally.
-    const adsetIds: string[] = []
-    try {
-      const broad = await adsetCreate(creds, {
-        campaign_id: metaCampaignId,
-        name: "Broad PE",
-        optimization_goal: "OFFSITE_CONVERSIONS",
-        billing_event: "IMPRESSIONS",
-        promoted_object: { pixel_id: pixelId, custom_event_type: "PURCHASE" },
-        targeting: {
-          geo_locations: { countries: ["PE"] },
-          age_min: 18,
-          age_max: 65,
-          advantage_audience: 1,
-        },
-        status: "PAUSED",
-      })
-      adsetIds.push(broad.id)
-      logger.info("adset_created", { adsetId: broad.id, kind: "broad" })
-
-      const interestCategory = asInterestCategory(product.category)
-      if (interestCategory) {
-        const interests = interestsFor(interestCategory)
-        const detailed = await adsetCreate(creds, {
-          campaign_id: metaCampaignId,
-          name: `Detailed ${interestCategory}`,
-          optimization_goal: "OFFSITE_CONVERSIONS",
-          billing_event: "IMPRESSIONS",
-          promoted_object: {
-            pixel_id: pixelId,
-            custom_event_type: "PURCHASE",
-          },
-          targeting: {
-            geo_locations: { countries: ["PE"] },
-            age_min: 18,
-            age_max: 65,
-            advantage_audience: 1,
-            flexible_spec: [{ interests }],
-          },
-          status: "PAUSED",
-        })
-        adsetIds.push(detailed.id)
-        logger.info("adset_created", {
-          adsetId: detailed.id,
-          kind: "detailed",
-          category: interestCategory,
-        })
-      }
-    } catch (err) {
-      const f = toFriendly(err, "Falló la creación del ad set en Meta.")
-      throw new LaunchError(f.friendly, f.cause)
-    }
-    const broadAdsetId = adsetIds[0]
-    if (!broadAdsetId) {
-      throw new LaunchError("No se creó ningún ad set.")
-    }
-
-    // 9. Per creative: creative + ad + persist `ads` row.
-    let adCount = 0
-    for (let i = 0; i < selected.length; i++) {
-      const c = selected[i]
-      if (!c) continue
-      const videoId = videoIds.get(c.id)
-      if (!videoId) {
-        throw new LaunchError(`Estado interno inconsistente para creativo ${c.id}.`)
-      }
-      const angle = c.angle ?? "default"
-
-      let metaCreativeId: string
+      // 7. Campaign create + persist row.
+      metadata.set("phase", "campaign" satisfies LaunchPhase)
+      let metaCampaignId: string
       try {
-        const result = await creativeCreate(creds, {
-          name: `C-${c.id}-${angle}`,
-          object_story_spec: {
-            page_id: pageId,
-            video_data: {
-              video_id: videoId,
-              image_hash: imageHash,
-              message: copy.primaryText,
-              title: copy.headline,
-              call_to_action: {
-                type: "SHOP_NOW",
-                value: { link: landingUrl },
+        const result = await withTiming(
+          "task.launch.campaign_create",
+          () =>
+            campaignCreate(creds, {
+              name: `Replik — ${productName}`,
+              objective: "OUTCOME_SALES",
+              status: "PAUSED",
+              daily_budget_cents: budgetDailyCents,
+              special_ad_categories: [],
+            }),
+          { productId },
+        )
+        metaCampaignId = result.id
+      } catch (err) {
+        const f = toFriendly(err, "Falló la creación de la campaña en Meta.")
+        throw new LaunchError(f.friendly, f.cause)
+      }
+      const campaignRow = await withUser(userId, async (db) => {
+        const inserted = await db
+          .insert(campaigns)
+          .values({
+            productId,
+            userId,
+            metaCampaignId,
+            structure: "CBO",
+            budgetDailyCents,
+            status: "PAUSED",
+            idempotencyKey,
+            launchedAt: sql`now()`,
+          })
+          .returning({ id: campaigns.id })
+        const row = inserted[0]
+        if (!row) {
+          throw new LaunchError("No se pudo persistir la campaña.")
+        }
+        return row
+      })
+      logger.info("campaign_created", {
+        campaignId: campaignRow.id,
+        metaCampaignId,
+      })
+
+      // 8. AdSets — broad always, interest-targeted optionally.
+      metadata.set("phase", "adsets" satisfies LaunchPhase)
+      const adsetIds: string[] = []
+      try {
+        const broad = await withTiming(
+          "task.launch.adset_create",
+          () =>
+            adsetCreate(creds, {
+              campaign_id: metaCampaignId,
+              name: "Broad PE",
+              optimization_goal: "OFFSITE_CONVERSIONS",
+              billing_event: "IMPRESSIONS",
+              promoted_object: { pixel_id: pixelId, custom_event_type: "PURCHASE" },
+              targeting: {
+                geo_locations: { countries: ["PE"] },
+                age_min: 18,
+                age_max: 65,
+                advantage_audience: 1,
               },
-            },
-          },
-        })
-        metaCreativeId = result.id
-        logger.info(`creative_${i.toString()}_done`, {
-          creativeId: c.id,
-          metaCreativeId,
-        })
+              status: "PAUSED",
+            }),
+          { kind: "broad" },
+        )
+        adsetIds.push(broad.id)
+        logger.info("adset_created", { adsetId: broad.id, kind: "broad" })
+
+        const interestCategory = asInterestCategory(product.category)
+        if (interestCategory) {
+          const interests = interestsFor(interestCategory)
+          const detailed = await withTiming(
+            "task.launch.adset_create",
+            () =>
+              adsetCreate(creds, {
+                campaign_id: metaCampaignId,
+                name: `Detailed ${interestCategory}`,
+                optimization_goal: "OFFSITE_CONVERSIONS",
+                billing_event: "IMPRESSIONS",
+                promoted_object: {
+                  pixel_id: pixelId,
+                  custom_event_type: "PURCHASE",
+                },
+                targeting: {
+                  geo_locations: { countries: ["PE"] },
+                  age_min: 18,
+                  age_max: 65,
+                  advantage_audience: 1,
+                  flexible_spec: [{ interests }],
+                },
+                status: "PAUSED",
+              }),
+            { kind: "detailed", category: interestCategory },
+          )
+          adsetIds.push(detailed.id)
+          logger.info("adset_created", {
+            adsetId: detailed.id,
+            kind: "detailed",
+            category: interestCategory,
+          })
+        }
       } catch (err) {
-        const f = toFriendly(err, "Falló la creación del creative en Meta.")
+        const f = toFriendly(err, "Falló la creación del ad set en Meta.")
         throw new LaunchError(f.friendly, f.cause)
       }
-
-      let metaAdId: string
-      try {
-        const result = await adCreate(creds, {
-          adset_id: broadAdsetId,
-          creative_id: metaCreativeId,
-          name: `A-${angle}`,
-          status: "PAUSED",
-        })
-        metaAdId = result.id
-        logger.info(`ad_${i.toString()}_done`, {
-          creativeId: c.id,
-          metaAdId,
-        })
-      } catch (err) {
-        const f = toFriendly(err, "Falló la creación del ad en Meta.")
-        throw new LaunchError(f.friendly, f.cause)
+      const broadAdsetId = adsetIds[0]
+      if (!broadAdsetId) {
+        throw new LaunchError("No se creó ningún ad set.")
       }
 
+      // 9. Per creative: creative + ad + persist `ads` row.
+      metadata.set("phase", "ads" satisfies LaunchPhase)
+      metadata.set("adsCreated", 0)
+      let adCount = 0
+      for (let i = 0; i < selected.length; i++) {
+        const c = selected[i]
+        if (!c) continue
+        const videoId = videoIds.get(c.id)
+        if (!videoId) {
+          throw new LaunchError(`Estado interno inconsistente para creativo ${c.id}.`)
+        }
+        const angle = c.angle ?? "default"
+
+        let metaCreativeId: string
+        try {
+          const result = await withTiming(
+            "task.launch.creative_create",
+            () =>
+              creativeCreate(creds, {
+                name: `C-${c.id}-${angle}`,
+                object_story_spec: {
+                  page_id: pageId,
+                  video_data: {
+                    video_id: videoId,
+                    image_hash: imageHash,
+                    message: copy.primaryText,
+                    title: copy.headline,
+                    call_to_action: {
+                      type: "SHOP_NOW",
+                      value: { link: landingUrl },
+                    },
+                  },
+                },
+              }),
+            { creativeId: c.id, angle },
+          )
+          metaCreativeId = result.id
+          logger.info(`creative_${i.toString()}_done`, {
+            creativeId: c.id,
+            metaCreativeId,
+          })
+        } catch (err) {
+          const f = toFriendly(err, "Falló la creación del creative en Meta.")
+          throw new LaunchError(f.friendly, f.cause)
+        }
+
+        let metaAdId: string
+        try {
+          const result = await withTiming(
+            "task.launch.ad_create",
+            () =>
+              adCreate(creds, {
+                adset_id: broadAdsetId,
+                creative_id: metaCreativeId,
+                name: `A-${angle}`,
+                status: "PAUSED",
+              }),
+            { creativeId: c.id, angle },
+          )
+          metaAdId = result.id
+          logger.info(`ad_${i.toString()}_done`, {
+            creativeId: c.id,
+            metaAdId,
+          })
+        } catch (err) {
+          const f = toFriendly(err, "Falló la creación del ad en Meta.")
+          throw new LaunchError(f.friendly, f.cause)
+        }
+
+        await withUser(userId, async (db) => {
+          await db.insert(ads).values({
+            campaignId: campaignRow.id,
+            userId,
+            creativeId: c.id,
+            metaAdId,
+            primaryText: copy.primaryText,
+            headline: copy.headline,
+            description: copy.description,
+            ctaType: "SHOP_NOW",
+            copyJson: copy,
+          })
+        })
+        metadata.increment("adsCreated", 1)
+        adCount += 1
+      }
+
+      // 10. Mark product as launched.
       await withUser(userId, async (db) => {
-        await db.insert(ads).values({
-          campaignId: campaignRow.id,
-          userId,
-          creativeId: c.id,
-          metaAdId,
-          primaryText: copy.primaryText,
-          headline: copy.headline,
-          description: copy.description,
-          ctaType: "SHOP_NOW",
-          copyJson: copy,
-        })
+        await db
+          .update(products)
+          .set({ status: "CAMPAIGN_LAUNCHED" })
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
       })
-      adCount += 1
-    }
 
-    // 10. Mark product as launched.
-    await withUser(userId, async (db) => {
-      await db
-        .update(products)
-        .set({ status: "CAMPAIGN_LAUNCHED" })
-        .where(and(eq(products.id, productId), eq(products.userId, userId)))
-    })
-
-    const result: LaunchResult = {
-      campaignId: campaignRow.id,
-      metaCampaignId,
-      adCount,
+      const result: LaunchResult = {
+        campaignId: campaignRow.id,
+        metaCampaignId,
+        adCount,
+      }
+      logger.info("complete", { ...result })
+      return result
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err)
+      logError("task.launch.fatal", { productId, userId, attempt, reason })
+      throw err
     }
-    logger.info("complete", { ...result })
-    return result
   },
 })

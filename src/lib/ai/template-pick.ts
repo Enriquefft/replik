@@ -17,6 +17,7 @@ import { withRetry } from "@/lib/ai/retry.ts"
 import type { TemplatePickInput } from "@/lib/ai/schemas.ts"
 import { TemplatePickResultSchema } from "@/lib/ai/schemas.ts"
 import type { TemplateId } from "@/lib/ai/taxonomies.ts"
+import { withTiming } from "@/lib/observability/log.ts"
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
@@ -195,14 +196,19 @@ export async function pickTemplate(
   model: LanguageModel = anthropic(MODELS.CLASSIFIER),
   bumpedModel: LanguageModel = anthropic(MODELS.CREATIVE),
 ): Promise<TemplateId> {
-  const result = await withRetry<TemplatePickInput, unknown>(
-    {
-      primary: (inp) => callLLM(inp, model),
-      bumped: (inp, critique) => callLLMWithCritique(inp, critique, bumpedModel),
-      fallback: () => ({ templateId: 1 as const }),
-      validate: validateResult,
-    },
-    input,
+  const result = await withTiming(
+    "ai.template_pick",
+    () =>
+      withRetry<TemplatePickInput, unknown>(
+        {
+          primary: (inp) => callLLM(inp, model),
+          bumped: (inp, critique) => callLLMWithCritique(inp, critique, bumpedModel),
+          fallback: () => ({ templateId: 1 as const }),
+          validate: validateResult,
+        },
+        input,
+      ),
+    { category: input.category },
   )
   return TemplatePickResultSchema.parse(result).templateId
 }

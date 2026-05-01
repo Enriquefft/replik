@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { products } from "@/db/schema"
+import { logEvent, withTiming } from "@/lib/observability/log.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
 import type { publishLandingTask } from "@/server/trigger/publishLanding"
 import type { ActionResult } from "./types.ts"
@@ -41,53 +42,65 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
 
   const { userId } = await requireUser()
 
-  // Verify product belongs to user, then persist bundle prices set in the
-  // landing UI so the trigger task and downstream surfaces (launch page, copy
-  // gen) read consistent values from the DB.
-  const owned = await withUser(userId, async (db) => {
-    const rows = await db
-      .update(products)
-      .set({
-        bundle2PricingCents,
-        bundle3PricingCents,
+  return withTiming(
+    "action.landing.publish",
+    async (): Promise<ActionResult<{ runId: string }>> => {
+      // Verify product belongs to user, then persist bundle prices set in the
+      // landing UI so the trigger task and downstream surfaces (launch page, copy
+      // gen) read consistent values from the DB.
+      const owned = await withUser(userId, async (db) => {
+        const rows = await db
+          .update(products)
+          .set({
+            bundle2PricingCents,
+            bundle3PricingCents,
+          })
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .returning({ id: products.id })
+        return rows[0]
       })
-      .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      .returning({ id: products.id })
-    return rows[0]
-  })
-  if (!owned) {
-    return { ok: false, error: "Producto no encontrado." }
-  }
+      if (!owned) {
+        return { ok: false, error: "Producto no encontrado." }
+      }
 
-  // Gate on Shopify integration. We do not need Meta to publish a landing —
-  // pixel_id is injected when present, otherwise empty string at render time.
-  try {
-    await requireIntegration(userId, "shopify")
-  } catch (err) {
-    if (err instanceof IntegrationMissingError) {
-      return { ok: false, needs: "shopify" }
-    }
-    throw err
-  }
-
-  const overridesPayload =
-    overrides === undefined
-      ? undefined
-      : {
-          ...(overrides.headline !== undefined && {
-            headline: overrides.headline,
-          }),
-          ...(overrides.subheadline !== undefined && {
-            subheadline: overrides.subheadline,
-          }),
+      // Gate on Shopify integration. We do not need Meta to publish a landing —
+      // pixel_id is injected when present, otherwise empty string at render time.
+      try {
+        await requireIntegration(userId, "shopify")
+      } catch (err) {
+        if (err instanceof IntegrationMissingError) {
+          return { ok: false, needs: "shopify" }
         }
+        throw err
+      }
 
-  const handle = await tasks.trigger<typeof publishLandingTask>("publishLanding", {
-    productId,
-    userId,
-    ...(templateId !== undefined && { templateId }),
-    ...(overridesPayload !== undefined && { overrides: overridesPayload }),
-  })
+      const overridesPayload =
+        overrides === undefined
+          ? undefined
+          : {
+              ...(overrides.headline !== undefined && {
+                headline: overrides.headline,
+              }),
+              ...(overrides.subheadline !== undefined && {
+                subheadline: overrides.subheadline,
+              }),
+            }
 
-  return { ok: true, data: { runId: handle.id } }
+      const handle = await tasks.trigger<typeof publishLandingTask>("publishLanding", {
+        productId,
+        userId,
+        ...(templateId !== undefined && { templateId }),
+        ...(overridesPayload !== undefined && { overrides: overridesPayload }),
+      })
+
+      logEvent("action.landing.publish.triggered", {
+        productId,
+        runId: handle.id,
+        templateId,
+      })
+
+      return { ok: true, data: { runId: handle.id } }
+    },
+    { productId },
+  )
 }

@@ -6,6 +6,7 @@ import { z } from "zod"
 
 import { MODELS } from "@/lib/ai/models.ts"
 import { type TranscribeResult, TranscribeResultSchema } from "@/lib/ai/schemas.ts"
+import { logEvent, withTiming } from "@/lib/observability/log.ts"
 
 /**
  * Whisper / transcription pipeline (§9).
@@ -78,6 +79,7 @@ const BOILERPLATE_NEEDLES: readonly string[] = [
 export async function transcribe(input: TranscribeInput): Promise<TranscribeResult> {
   const parsed = TranscribeInputSchema.parse(input)
   const language = parsed.language ?? "es"
+  const startedAt = Date.now()
 
   const duration = await ffprobeDuration(parsed.audio)
   const chunks =
@@ -91,11 +93,18 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
 
   for (const chunk of chunks) {
     if (parsed.mode === "text") {
-      const result = await transcribeText(chunk.audio, language)
+      const result = await withTiming(
+        "ai.transcribe",
+        () => transcribeText(chunk.audio, language),
+        { mode: "text", chunkBytes: chunk.audio.byteLength },
+      )
       detectedLanguage = result.language || detectedLanguage
       textParts.push(result.text)
     } else {
-      const result = await transcribeSrt(chunk.audio, language)
+      const result = await withTiming("ai.transcribe", () => transcribeSrt(chunk.audio, language), {
+        mode: "srt",
+        chunkBytes: chunk.audio.byteLength,
+      })
       detectedLanguage = result.language || detectedLanguage
       for (const seg of result.segments) {
         segments.push({
@@ -111,6 +120,13 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
 
   if (parsed.mode === "text") {
     const transcriptText = stripBoilerplate(textParts.join(" ").trim())
+    logEvent("ai.transcribe.summary", {
+      mode: "text",
+      chunks: chunks.length,
+      durationSeconds: duration,
+      ms: Date.now() - startedAt,
+      language: detectedLanguage,
+    })
     return TranscribeResultSchema.parse({
       transcriptText,
       srt: null,
@@ -128,6 +144,15 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
     .map((s) => s.text.trim())
     .join(" ")
     .trim()
+
+  logEvent("ai.transcribe.summary", {
+    mode: "srt",
+    chunks: chunks.length,
+    durationSeconds: duration,
+    segments: cleaned.length,
+    ms: Date.now() - startedAt,
+    language: detectedLanguage,
+  })
 
   if (cleaned.length === 0) {
     return TranscribeResultSchema.parse({

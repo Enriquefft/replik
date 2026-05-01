@@ -10,7 +10,6 @@ import "server-only"
 
 import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
-import { logger } from "@trigger.dev/sdk"
 import { generateObject } from "ai"
 import { z } from "zod"
 
@@ -19,6 +18,7 @@ import { MODELS, runHash, salesAngleTemperature } from "@/lib/ai/models.ts"
 import type { SalesAngleClassification } from "@/lib/ai/schemas.ts"
 import { SalesAngleClassificationSchema } from "@/lib/ai/schemas.ts"
 import { SalesAngle } from "@/lib/ai/taxonomies.ts"
+import { logEvent, withTiming } from "@/lib/observability/log.ts"
 
 // ─── Input schema ─────────────────────────────────────────────────────────────
 
@@ -67,8 +67,9 @@ async function callOnce(
   creatives: AngleClassifyInput["creatives"],
   model: LanguageModelV3,
 ): Promise<SalesAngleClassification> {
+  const hash = runHash(JSON.stringify(creatives))
   // Log run hash for variance tracking per §2 — Anthropic exposes no seed.
-  logger.info("ai:run", { site: "angle-classify", runHash: runHash(JSON.stringify(creatives)) })
+  logEvent("ai.classify_angle.call", { runHash: hash, count: creatives.length })
 
   const prompt = JSON.stringify(
     creatives.map((c) => ({
@@ -78,13 +79,18 @@ async function callOnce(
     })),
   )
 
-  const result = await generateObject({
-    model,
-    schema: SalesAngleClassificationSchema,
-    temperature: salesAngleTemperature,
-    system: SYSTEM_PROMPT,
-    prompt,
-  })
+  const result = await withTiming(
+    "ai.classify_angle.call",
+    () =>
+      generateObject({
+        model,
+        schema: SalesAngleClassificationSchema,
+        temperature: salesAngleTemperature,
+        system: SYSTEM_PROMPT,
+        prompt,
+      }),
+    { runHash: hash },
+  )
 
   return result.object
 }
@@ -206,8 +212,13 @@ export async function classifyAngle(
     return { angles }
   }
 
-  const settled = await Promise.allSettled(
-    Array.from({ length: PARALLEL_CALLS }, () => callOnce(toClassify, modelFactory())),
+  const settled = await withTiming(
+    "ai.classify_angle",
+    () =>
+      Promise.allSettled(
+        Array.from({ length: PARALLEL_CALLS }, () => callOnce(toClassify, modelFactory())),
+      ),
+    { count: toClassify.length },
   )
 
   const callResults: SalesAngleClassification[] = []

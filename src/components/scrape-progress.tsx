@@ -3,16 +3,16 @@
 import { useQuery } from "@tanstack/react-query"
 import type { RealtimeRun, RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
-import { Check, Loader2, RotateCw } from "lucide-react"
+import { Check, Image as ImageIcon, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
-import { ErrorCard } from "@/components/ui/error-card.tsx"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { Skeleton } from "@/components/ui/skeleton.tsx"
 import { isRunFailed } from "@/lib/trigger-status.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import type { ProductId } from "@/lib/types/ids.ts"
 import { cn } from "@/lib/utils.ts"
-import { getProductStatus, retryScrape } from "@/server/actions/products.ts"
+import { getProductStatus } from "@/server/actions/products.ts"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import {
   type ScrapePhase,
@@ -131,13 +131,13 @@ function parseMetadata(value: unknown): ScrapeProgressMetadata | null {
 interface ScrapeProgressProps {
   productId: ProductId
   accessToken: string
+  sourceUrl: string
 }
 
-export function ScrapeProgress({ productId, accessToken }: ScrapeProgressProps) {
+export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProgressProps) {
   const router = useRouter()
   const [startedAt] = useState(() => Date.now())
   const [elapsedSec, setElapsedSec] = useState(0)
-  const [isRetrying, startRetry] = useTransition()
   const refreshFiredRef = useRef(false)
 
   const { runs, error: realtimeError } = useRealtimeRunsWithTag<typeof scrapeProduct>(
@@ -183,38 +183,15 @@ export function ScrapeProgress({ productId, accessToken }: ScrapeProgressProps) 
     }
   }, [startedAt])
 
-  const onRetry = useCallback(() => {
-    startRetry(async () => {
-      const result = await retryScrape(productId)
-      if (result.ok) {
-        refreshFiredRef.current = false
-        router.refresh()
-      }
-    })
-  }, [productId, router])
-
   if (failed) {
-    return (
-      <ErrorCard
-        title="Algo salió mal"
-        detail="El análisis no pudo completarse. Puedes reintentar o probar con otra URL."
-        primary={{
-          label: "Reintentar",
-          onClick: onRetry,
-          disabled: isRetrying,
-          icon: isRetrying ? (
-            <Loader2 className="size-4 animate-spin mr-2" />
-          ) : (
-            <RotateCw className="size-4 mr-2" />
-          ),
-        }}
-        secondary={{ label: "Cambiar URL", href: "/new" }}
-      />
-    )
+    // The DB write may not have landed yet. The next status poll fires
+    // `router.refresh()` which re-renders SSR with the persisted reason.
+    return <RetryScrapeCard productId={productId} sourceUrl={sourceUrl} reason={null} />
   }
 
   const { title, detail, progress, activeIndex } = derive(status, meta)
   const elapsedLabel = formatElapsed(elapsedSec)
+  const displayUrl = formatSourceUrl(sourceUrl)
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-10">
@@ -227,6 +204,9 @@ export function ScrapeProgress({ productId, accessToken }: ScrapeProgressProps) 
               </p>
               <h2 className="text-title truncate">{title}</h2>
               <p className="text-body text-fg-2 mt-1">{detail}</p>
+              <p className="text-caption text-fg-3 mt-1 font-mono truncate" title={sourceUrl}>
+                Analizando: {displayUrl}
+              </p>
             </div>
             <span className="shrink-0 inline-flex items-center h-7 px-2.5 rounded-pill border border-border bg-surface-elevated text-caption font-mono text-fg-2 tabular-nums">
               {elapsedLabel}
@@ -269,6 +249,8 @@ export function ScrapeProgress({ productId, accessToken }: ScrapeProgressProps) 
             })}
           </ol>
 
+          <DetectedPanel meta={meta} />
+
           <div className="mt-5 h-1.5 w-full rounded-pill bg-surface-muted overflow-hidden">
             <div
               className="h-full rounded-pill bg-mode-live transition-all duration-700 ease-out"
@@ -297,4 +279,59 @@ function formatElapsed(totalSec: number): string {
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
   return `${m.toString()}:${s.toString().padStart(2, "0")}`
+}
+
+function formatSourceUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const path = parsed.pathname === "/" ? "" : parsed.pathname
+    return `${parsed.host}${path}`
+  } catch {
+    return url
+  }
+}
+
+interface DetectedPanelProps {
+  meta: ScrapeProgressMetadata | null
+}
+
+function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
+  const productName = meta?.productName
+  const imageUrl = meta?.imageUrl
+  const keywordCount = meta?.keywordCount
+  const hasAny = productName !== undefined || imageUrl !== undefined
+
+  return (
+    <div className="mt-5 flex items-center gap-3 rounded-card border border-border bg-surface-elevated p-3 transition-opacity duration-300">
+      <div className="size-14 rounded-card overflow-hidden bg-surface-muted flex items-center justify-center shrink-0 border border-border">
+        {imageUrl !== undefined ? (
+          <img
+            src={imageUrl}
+            alt={productName ?? "Producto detectado"}
+            loading="lazy"
+            className="size-full object-cover"
+          />
+        ) : (
+          <ImageIcon className="size-5 text-fg-3" strokeWidth={1.5} />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-caption font-semibold uppercase tracking-wide text-fg-3">Detectado</p>
+        {productName !== undefined ? (
+          <p className="text-body font-medium text-fg-1 truncate" title={productName}>
+            {productName}
+          </p>
+        ) : (
+          <Skeleton className="h-4 w-2/3 mt-1" />
+        )}
+        {keywordCount !== undefined && keywordCount > 0 ? (
+          <p className="text-caption text-fg-2 mt-0.5">
+            {keywordCount.toString()} keywords listas para buscar anuncios
+          </p>
+        ) : !hasAny ? (
+          <Skeleton className="h-3 w-1/3 mt-1" />
+        ) : null}
+      </div>
+    </div>
+  )
 }

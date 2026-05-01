@@ -33,6 +33,8 @@ import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
+import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
+import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
@@ -293,6 +295,8 @@ export const scrapeProduct = task({
     const attempt = payload.attempt ?? 1
     const idempotencyKey = `scrape_${productId}_${attempt.toString()}`
 
+    logEvent("task.scrape.start", { productId, userId, attempt })
+
     // ---------- Idempotency ----------
     const existing = await withUser(userId, async (db) => {
       return await db
@@ -309,6 +313,7 @@ export const scrapeProduct = task({
             id: creatives.id,
             transcriptText: creatives.transcriptText,
             angle: creatives.angle,
+            source: creatives.source,
           })
           .from(creatives)
           .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
@@ -317,7 +322,7 @@ export const scrapeProduct = task({
         creativeCount: summary.length,
         withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
         withAngle: summary.filter((s) => s.angle !== null).length,
-        source: "none",
+        source: summary[0]?.source ?? "none",
       }
     }
 
@@ -341,6 +346,7 @@ export const scrapeProduct = task({
             id: creatives.id,
             transcriptText: creatives.transcriptText,
             angle: creatives.angle,
+            source: creatives.source,
           })
           .from(creatives)
           .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
@@ -349,232 +355,270 @@ export const scrapeProduct = task({
         creativeCount: summary.length,
         withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
         withAngle: summary.filter((s) => s.angle !== null).length,
-        source: "none",
+        source: summary[0]?.source ?? "none",
       }
     }
 
-    // ---------- Step 1 — scrapeProductInfo (§7) ----------
-    metadata.set("phase", "scraping" satisfies ScrapePhase)
-    logger.info("scrape_started", { productId, competitorUrl })
-    const scrapeResult = await scrapeProductInfo({ url: competitorUrl })
-
-    // §7: scrape NEVER throws — the partial branch is a soft-degrade, not a
-    // failure. We always try to backfill whatever Stage A captured and let the
-    // user complete missing fields manually.
-    const isReady = scrapeResult.status === "READY"
-    const productView = isReady
-      ? {
-          imageUrl: scrapeResult.product.imageUrl,
-          productName: scrapeResult.product.productName,
-          category: scrapeResult.product.category,
-          description: scrapeResult.product.description,
-        }
-      : {
-          imageUrl: scrapeResult.partial.imageUrl,
-          productName: scrapeResult.partial.productName,
-          category: scrapeResult.partial.category,
-          description: scrapeResult.partial.description,
-        }
-    const adKeywords = isReady
-      ? [...scrapeResult.product.keywords.broad, ...scrapeResult.product.keywords.narrow]
-      : []
-
-    if (isReady) {
-      logger.info("scrape_done", {
-        productName: productView.productName,
-        category: productView.category,
-        broadCount: scrapeResult.product.keywords.broad.length,
-        narrowCount: scrapeResult.product.keywords.narrow.length,
-      })
-    } else {
-      logger.warn("scrape_partial", { reason: scrapeResult.reason })
-    }
-
-    // Best-effort backfill of product metadata. Only writes columns the user
-    // hasn't filled in manually.
     try {
-      await withUser(userId, async (db) => {
-        const [row] = await db
-          .select({
-            name: products.name,
-            imageUrl: products.imageUrl,
-            category: products.category,
-          })
-          .from(products)
-          .where(and(eq(products.id, productId), eq(products.userId, userId)))
-          .limit(1)
-        const updates: Partial<typeof products.$inferInsert> = {}
-        if (!row?.name && productView.productName) {
-          const nameCheck = imperativeVerbCheck(productView.productName)
-          if (nameCheck.ok) {
-            updates.name = productView.productName
-          } else {
-            logger.warn("ai_speak_imperative_blocked", {
-              field: "name",
-              value: productView.productName,
-            })
-          }
-        }
-        if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
-        if (!row?.category && productView.category) updates.category = productView.category
-        if (productView.description != null) {
-          const descCheck = imperativeVerbCheck(productView.description)
-          if (descCheck.ok) {
-            updates.description = productView.description
-          } else {
-            logger.warn("ai_speak_imperative_blocked", {
-              field: "description",
-              value: productView.description,
-            })
-          }
-        } else {
-          updates.description = null
-        }
-        updates.brandTokens = deriveBrandTokens(productView.productName)
-        await db
-          .update(products)
-          .set(updates)
-          .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      })
-    } catch (err) {
-      logger.warn("product_backfill_failed", {
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
+      // ---------- Step 1 — scrapeProductInfo (§7) ----------
+      metadata.set("phase", "scraping" satisfies ScrapePhase)
+      logger.info("scrape_started", { productId, competitorUrl })
+      const scrapeResult = await withTiming(
+        "task.scrape.product_info",
+        () => scrapeProductInfo({ url: competitorUrl }),
+        { productId, url: competitorUrl },
+      )
 
-    // Mark partial scrapes early so the manual-fill UI surfaces them. We still
-    // proceed to ad discovery + transcription so the demo path keeps running.
-    if (!isReady) {
-      await withUser(userId, async (db) => {
-        await db
-          .update(products)
-          .set({ status: "SCRAPE_PARTIAL" })
-          .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      })
-    }
+      // §7: scrape NEVER throws — the partial branch is a soft-degrade, not a
+      // failure. We always try to backfill whatever Stage A captured and let the
+      // user complete missing fields manually.
+      const isReady = scrapeResult.status === "READY"
+      const productView = isReady
+        ? {
+            imageUrl: scrapeResult.product.imageUrl,
+            productName: scrapeResult.product.productName,
+            category: scrapeResult.product.category,
+            description: scrapeResult.product.description,
+          }
+        : {
+            imageUrl: scrapeResult.partial.imageUrl,
+            productName: scrapeResult.partial.productName,
+            category: scrapeResult.partial.category,
+            description: scrapeResult.partial.description,
+          }
+      const adKeywords = isReady
+        ? [...scrapeResult.product.keywords.broad, ...scrapeResult.product.keywords.narrow]
+        : []
 
-    if (adKeywords.length === 0) {
-      // Without keyword tiers we can't search Meta Ad Library or Apify. Stop
-      // here with whatever Stage A captured.
-      return {
-        creativeCount: 0,
-        withTranscript: 0,
-        withAngle: 0,
-        source: "none",
+      if (isReady) {
+        logger.info("scrape_done", {
+          productName: productView.productName,
+          category: productView.category,
+          broadCount: scrapeResult.product.keywords.broad.length,
+          narrowCount: scrapeResult.product.keywords.narrow.length,
+        })
+      } else {
+        logger.warn("scrape_partial", { reason: scrapeResult.reason })
       }
-    }
 
-    // ---------- Step 2 — findAds ----------
-    metadata.set("phase", "finding_ads" satisfies ScrapePhase)
-    logger.info("find_ads_started", { keywordCount: adKeywords.length })
-    const { ads, source } = await findAds(adKeywords)
-    metadata.set("ads_total", ads.length)
-    logger.info("find_ads_done", { count: ads.length, source })
+      // Best-effort backfill of product metadata. Only writes columns the user
+      // hasn't filled in manually.
+      try {
+        await withUser(userId, async (db) => {
+          const [row] = await db
+            .select({
+              name: products.name,
+              imageUrl: products.imageUrl,
+              category: products.category,
+            })
+            .from(products)
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
+            .limit(1)
+          const updates: Partial<typeof products.$inferInsert> = {}
+          if (!row?.name && productView.productName) {
+            const nameCheck = imperativeVerbCheck(productView.productName)
+            if (nameCheck.ok) {
+              updates.name = productView.productName
+            } else {
+              logger.warn("ai_speak_imperative_blocked", {
+                field: "name",
+                value: productView.productName,
+              })
+            }
+          }
+          if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
+          if (!row?.category && productView.category) updates.category = productView.category
+          if (productView.description != null) {
+            const descCheck = imperativeVerbCheck(productView.description)
+            if (descCheck.ok) {
+              updates.description = productView.description
+            } else {
+              logger.warn("ai_speak_imperative_blocked", {
+                field: "description",
+                value: productView.description,
+              })
+            }
+          } else {
+            updates.description = null
+          }
+          updates.brandTokens = deriveBrandTokens(productView.productName)
+          await db
+            .update(products)
+            .set(updates)
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        })
+      } catch (err) {
+        logger.warn("product_backfill_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
 
-    if (ads.length === 0) {
+      // Surface Stage A signals to realtime metadata as soon as we have them
+      // — the progress UI uses these to render a "Detected" panel within
+      // seconds of the run starting, even before findAds finishes.
+      if (productView.productName) {
+        metadata.set("productName", productView.productName)
+      }
+      if (productView.imageUrl) {
+        metadata.set("imageUrl", productView.imageUrl)
+      }
+      metadata.set("keywordCount", adKeywords.length)
+
+      // Mark partial scrapes early so the manual-fill UI surfaces them. We still
+      // proceed to ad discovery + transcription so the demo path keeps running.
+      if (!isReady) {
+        const partialReason = normalizeScrapeReason(scrapeResult.reason)
+        await withUser(userId, async (db) => {
+          await db
+            .update(products)
+            .set({ status: "SCRAPE_PARTIAL", scrapeReason: partialReason })
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        })
+      }
+
+      if (adKeywords.length === 0) {
+        // Without keyword tiers we can't search Meta Ad Library or Apify. Stop
+        // here with whatever Stage A captured. Persist the reason so the UI
+        // can explain why ad discovery didn't run.
+        await withUser(userId, async (db) => {
+          await db
+            .update(products)
+            .set({ status: "SCRAPE_PARTIAL", scrapeReason: "no-keywords" })
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        })
+        const summary: ScrapeSummary = {
+          creativeCount: 0,
+          withTranscript: 0,
+          withAngle: 0,
+          source: "none",
+        }
+        logEvent("task.scrape.done", { ...summary, reason: "no-keywords" })
+        return summary
+      }
+
+      // ---------- Step 2 — findAds ----------
+      metadata.set("phase", "finding_ads" satisfies ScrapePhase)
+      logger.info("find_ads_started", { keywordCount: adKeywords.length })
+      const { ads, source } = await withTiming("task.scrape.find_ads", () => findAds(adKeywords), {
+        keywordCount: adKeywords.length,
+      })
+      metadata.set("ads_total", ads.length)
+      logger.info("find_ads_done", { count: ads.length, source })
+
+      if (ads.length === 0) {
+        await withUser(userId, async (db) => {
+          await db
+            .update(products)
+            .set({ status: "SCRAPE_EMPTY", scrapeReason: "no-ads" })
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        })
+        const summary: ScrapeSummary = {
+          creativeCount: 0,
+          withTranscript: 0,
+          withAngle: 0,
+          source,
+        }
+        logEvent("task.scrape.done", { ...summary, reason: "no-ads" })
+        return summary
+      }
+
+      // Insert creative rows.
+      const insertedCreatives = await withUser(userId, async (db) => {
+        const rows = ads.map((ad) => ({
+          productId,
+          userId,
+          source: ad.source,
+          scrapeUrl: ad.scrape_url,
+          selectedBool: false,
+        }))
+        return await db
+          .insert(creatives)
+          .values(rows)
+          .returning({ id: creatives.id, scrapeUrl: creatives.scrapeUrl })
+      })
+
+      // ---------- Step 3 — transcribeAds ----------
+      metadata.set("phase", "transcribing" satisfies ScrapePhase)
+      metadata.set("transcribed", 0)
+      logger.info("transcribe_started", { count: insertedCreatives.length })
+      const transcriptionResults = await runWithConcurrency(
+        insertedCreatives,
+        TRANSCRIBE_CONCURRENCY,
+        async (creative) => {
+          const res = await transcribeOne(creative, userId)
+          if (res.transcribed) {
+            metadata.increment("transcribed", 1)
+          }
+          logger.info("transcribe_progress", {
+            creativeId: creative.id,
+            transcribed: res.transcribed,
+            reason: res.reason,
+          })
+          return res
+        },
+      )
+      const withTranscript = transcriptionResults.filter(
+        (r): r is PromiseFulfilledResult<{ transcribed: boolean }> =>
+          r.status === "fulfilled" && r.value.transcribed,
+      ).length
+
+      // ---------- Step 4 — classifyAngle (§12) ----------
+      metadata.set("phase", "classifying" satisfies ScrapePhase)
+      logger.info("classify_started", { count: insertedCreatives.length })
+      const rows = await withUser(userId, async (db) => {
+        return await db
+          .select({
+            id: creatives.id,
+            transcriptText: creatives.transcriptText,
+            language: creatives.language,
+          })
+          .from(creatives)
+          .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+      })
+
+      const classifyInput = rows.map((r) => ({
+        id: r.id,
+        transcript: r.transcriptText ?? "",
+        language: r.language ?? "es",
+      }))
+      const classification = await classifyAngle({ creatives: classifyInput })
+      metadata.set("classified", classification.angles.length)
+      logger.info("classify_done", { count: classification.angles.length })
+
+      await withUser(userId, async (db) => {
+        await Promise.all(
+          classification.angles.map((entry) =>
+            db
+              .update(creatives)
+              .set({ angle: entry.angle })
+              .where(and(eq(creatives.id, entry.creativeId), eq(creatives.userId, userId))),
+          ),
+        )
+      })
+
+      const withAngle = classification.angles.filter((a) => a.angle !== null).length
+
+      // Final status flip. Clear any prior scrapeReason so retried-then-
+      // succeeded rows don't carry stale failure copy.
       await withUser(userId, async (db) => {
         await db
           .update(products)
-          .set({ status: "SCRAPE_EMPTY" })
+          .set({ status: "READY", scrapeReason: null })
           .where(and(eq(products.id, productId), eq(products.userId, userId)))
       })
-      return {
-        creativeCount: 0,
-        withTranscript: 0,
-        withAngle: 0,
+
+      const summary: ScrapeSummary = {
+        creativeCount: insertedCreatives.length,
+        withTranscript,
+        withAngle,
         source,
       }
-    }
-
-    // Insert creative rows.
-    const insertedCreatives = await withUser(userId, async (db) => {
-      const rows = ads.map((ad) => ({
-        productId,
-        userId,
-        source: ad.source,
-        scrapeUrl: ad.scrape_url,
-        selectedBool: false,
-      }))
-      return await db
-        .insert(creatives)
-        .values(rows)
-        .returning({ id: creatives.id, scrapeUrl: creatives.scrapeUrl })
-    })
-
-    // ---------- Step 3 — transcribeAds ----------
-    metadata.set("phase", "transcribing" satisfies ScrapePhase)
-    metadata.set("transcribed", 0)
-    logger.info("transcribe_started", { count: insertedCreatives.length })
-    const transcriptionResults = await runWithConcurrency(
-      insertedCreatives,
-      TRANSCRIBE_CONCURRENCY,
-      async (creative) => {
-        const res = await transcribeOne(creative, userId)
-        if (res.transcribed) {
-          metadata.increment("transcribed", 1)
-        }
-        logger.info("transcribe_progress", {
-          creativeId: creative.id,
-          transcribed: res.transcribed,
-          reason: res.reason,
-        })
-        return res
-      },
-    )
-    const withTranscript = transcriptionResults.filter(
-      (r): r is PromiseFulfilledResult<{ transcribed: boolean }> =>
-        r.status === "fulfilled" && r.value.transcribed,
-    ).length
-
-    // ---------- Step 4 — classifyAngle (§12) ----------
-    metadata.set("phase", "classifying" satisfies ScrapePhase)
-    logger.info("classify_started", { count: insertedCreatives.length })
-    const rows = await withUser(userId, async (db) => {
-      return await db
-        .select({
-          id: creatives.id,
-          transcriptText: creatives.transcriptText,
-          language: creatives.language,
-        })
-        .from(creatives)
-        .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
-    })
-
-    const classifyInput = rows.map((r) => ({
-      id: r.id,
-      transcript: r.transcriptText ?? "",
-      language: r.language ?? "es",
-    }))
-    const classification = await classifyAngle({ creatives: classifyInput })
-    metadata.set("classified", classification.angles.length)
-    logger.info("classify_done", { count: classification.angles.length })
-
-    await withUser(userId, async (db) => {
-      await Promise.all(
-        classification.angles.map((entry) =>
-          db
-            .update(creatives)
-            .set({ angle: entry.angle })
-            .where(and(eq(creatives.id, entry.creativeId), eq(creatives.userId, userId))),
-        ),
-      )
-    })
-
-    const withAngle = classification.angles.filter((a) => a.angle !== null).length
-
-    // Final status flip.
-    await withUser(userId, async (db) => {
-      await db
-        .update(products)
-        .set({ status: "READY" })
-        .where(and(eq(products.id, productId), eq(products.userId, userId)))
-    })
-
-    return {
-      creativeCount: insertedCreatives.length,
-      withTranscript,
-      withAngle,
-      source,
+      logEvent("task.scrape.done", { ...summary })
+      return summary
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err)
+      await markProductFailed(userId, productId, reason, "task-crashed")
+      throw err
     }
   },
 })

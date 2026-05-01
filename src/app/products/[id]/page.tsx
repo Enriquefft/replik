@@ -37,15 +37,21 @@ export default async function ProductPage({ params }: PageProps) {
       scopes: { read: { tags: [productTag(productId)] } },
       expirationTime: "1h",
     })
-    return <ScrapeProgress productId={productId} accessToken={accessToken} />
+    return (
+      <ScrapeProgress
+        productId={productId}
+        accessToken={accessToken}
+        sourceUrl={productData.sourceUrl}
+      />
+    )
   }
 
   if (productData.status === "SCRAPE_EMPTY") {
     return (
       <RetryScrapeCard
         productId={productId}
-        title="No encontramos creativos"
-        detail="Meta Ad Library y Apify no devolvieron resultados para este producto. Puedes reintentar o probar con otra URL."
+        sourceUrl={productData.sourceUrl}
+        reason={productData.scrapeReason}
       />
     )
   }
@@ -54,8 +60,8 @@ export default async function ProductPage({ params }: PageProps) {
     return (
       <RetryScrapeCard
         productId={productId}
-        title="El análisis falló"
-        detail="No pudimos completar el scraping de este producto. Reintenta o cambia la URL."
+        sourceUrl={productData.sourceUrl}
+        reason={productData.scrapeReason}
       />
     )
   }
@@ -68,16 +74,11 @@ export default async function ProductPage({ params }: PageProps) {
   })
 
   if (creativeRows.length === 0) {
-    const isPartial = productData.status === "SCRAPE_PARTIAL"
     return (
       <RetryScrapeCard
         productId={productId}
-        title={isPartial ? "Análisis incompleto" : "No hay creativos disponibles"}
-        detail={
-          isPartial
-            ? "No pudimos extraer suficientes datos del producto para buscar anuncios. Reintenta o usa otra URL."
-            : "No encontramos creativos para este producto. Reintenta o usa otra URL."
-        }
+        sourceUrl={productData.sourceUrl}
+        reason={productData.scrapeReason}
       />
     )
   }

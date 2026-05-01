@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input.tsx"
 import { SolesToCentsSchema } from "@/lib/pricing.ts"
 import { createProduct } from "@/server/actions/products.ts"
+import { validateUrl } from "@/server/actions/url-probe.ts"
 
 const AddProductSchema = z.object({
   source_url: z.url("Debe ser una URL válida"),
@@ -49,8 +50,13 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
   })
 
   async function onSubmit(values: AddProductFormOutput) {
+    const probe = await validateUrl(values.source_url)
+    if (!probe.ok) {
+      form.setError("source_url", { type: "manual", message: probe.error ?? "URL inválida." })
+      return
+    }
     const result = await createProduct({
-      source_url: values.source_url,
+      source_url: probe.data.finalUrl,
       pricing_cents: values.pricing,
       ...(values.whatsapp_number !== undefined && { whatsapp_number: values.whatsapp_number }),
     })
@@ -61,7 +67,15 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
     router.push(`/products/${result.data.id}`)
   }
 
-  const EXAMPLE_URLS = ["hidrabottle.pe", "gozme.pe", "kuromart.pe", "wonderpe.com"]
+  // Three click-to-fill examples. Pick the URL of a SPECIFIC product page, not
+  // a collection or homepage — Stage A's JSON-LD/og:* extractors only fire on
+  // product pages. If any of these URLs goes stale, swap it for another active
+  // public storefront.
+  const EXAMPLE_URLS: readonly string[] = [
+    "https://www.allbirds.com/products/mens-tree-runners",
+    "https://us.gymshark.com/products/gymshark-arrival-shorts-charcoal-aw21",
+    "https://www.bombas.com/products/originals-ankle-sock-women-4-pack-mixed-pack",
+  ]
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
@@ -107,18 +121,25 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                     <span className="text-caption text-fg-3 font-semibold uppercase tracking-wide">
                       Ejemplos:{" "}
                     </span>
-                    {EXAMPLE_URLS.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => {
-                          form.setValue("source_url", `https://${s}/products/`)
-                        }}
-                        className="inline-flex items-center h-6 px-2 rounded-pill bg-surface-elevated border border-border text-caption text-fg-2 font-mono hover:text-fg-1 transition-colors ml-1 cursor-pointer"
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    {EXAMPLE_URLS.map((url) => {
+                      const host = new URL(url).host.replace(/^www\./, "")
+                      return (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => {
+                            form.setValue("source_url", url, { shouldValidate: true })
+                          }}
+                          className="inline-flex items-center h-6 px-2 rounded-pill bg-surface-elevated border border-border text-caption text-fg-2 font-mono hover:text-fg-1 transition-colors ml-1 cursor-pointer"
+                        >
+                          {host}
+                        </button>
+                      )
+                    })}
+                    <br />
+                    <span className="text-caption text-fg-3">
+                      Tip: pega la URL de un producto individual, no de la colección.
+                    </span>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

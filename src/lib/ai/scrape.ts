@@ -40,6 +40,7 @@ import {
   type ScrapeResult,
 } from "@/lib/ai/schemas.ts"
 import { InterestCategory, Locale } from "@/lib/ai/taxonomies.ts"
+import { logError, logEvent, withTiming } from "@/lib/observability/log.ts"
 
 // ─── Constants (§7) ──────────────────────────────────────────────────────────
 
@@ -687,6 +688,8 @@ export async function scrapeProductInfo(
   if (input.html !== undefined) {
     html = input.html
   } else {
+    const fetchStart = Date.now()
+    logEvent("ai.scrape.fetch.start", { url: input.url })
     try {
       const response = await fetch(input.url, {
         method: "GET",
@@ -694,6 +697,11 @@ export async function scrapeProductInfo(
         headers: FETCH_HEADERS,
       })
       if (!response.ok) {
+        logError("ai.scrape.fetch.error", {
+          url: input.url,
+          ms: Date.now() - fetchStart,
+          status: response.status,
+        })
         return {
           status: "SCRAPE_PARTIAL",
           partial: emptyPartial(),
@@ -701,11 +709,22 @@ export async function scrapeProductInfo(
         }
       }
       html = await response.text()
+      logEvent("ai.scrape.fetch.done", {
+        url: input.url,
+        ms: Date.now() - fetchStart,
+        bytes: html.length,
+      })
     } catch (err) {
+      const reason = err instanceof Error ? err.message : "entry-fetch-failed"
+      logError("ai.scrape.fetch.error", {
+        url: input.url,
+        ms: Date.now() - fetchStart,
+        reason,
+      })
       return {
         status: "SCRAPE_PARTIAL",
         partial: emptyPartial(),
-        reason: err instanceof Error ? err.message : "entry-fetch-failed",
+        reason,
       }
     }
   }
@@ -721,14 +740,19 @@ export async function scrapeProductInfo(
 
   let llm: ProductFinalLLM
   try {
-    llm = await runStageC(
-      {
-        entryUrl: input.url,
-        html: cappedHtml,
-        gaps,
-      },
-      primaryModel,
-      bumpedModel,
+    llm = await withTiming(
+      "ai.scrape.stage_c",
+      () =>
+        runStageC(
+          {
+            entryUrl: input.url,
+            html: cappedHtml,
+            gaps,
+          },
+          primaryModel,
+          bumpedModel,
+        ),
+      { gaps: gaps.length },
     )
   } catch (err) {
     const reason = err instanceof Error ? err.message : "stage-c-failed"

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button.tsx"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form.tsx"
 import { Input } from "@/components/ui/input.tsx"
 import { centsToSoles, SolesToCentsSchema } from "@/lib/pricing.ts"
-import type { TemplateMeta } from "@/lib/shopify/templates/index.ts"
+import type { TemplateId, TemplateMeta } from "@/lib/shopify/templates/index.ts"
 import { publishLanding } from "@/server/actions/landing.ts"
 import { adjustLandingCopy } from "@/server/actions/products.ts"
 
@@ -56,7 +56,9 @@ export function LandingClient({
   initialBundle3PricingCents,
 }: LandingClientProps) {
   const router = useRouter()
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<number>(templates[0]?.id ?? 1)
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<TemplateId>(
+    templates[0]?.id ?? 1,
+  )
   const [overrides, setOverrides] = React.useState<{
     headline?: string
     subheadline?: string
@@ -122,7 +124,7 @@ export function LandingClient({
     setPublishing(true)
     const result = await publishLanding({
       productId,
-      templateId: selectedTemplateId as 1 | 2 | 3,
+      templateId: selectedTemplateId,
       bundle2PricingCents: values.bundle2,
       bundle3PricingCents: values.bundle3,
       overrides,

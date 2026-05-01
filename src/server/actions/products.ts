@@ -3,15 +3,17 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { tasks } from "@trigger.dev/sdk"
 import { generateText } from "ai"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products, users } from "@/db/schema"
+import { logError, withTiming } from "@/lib/observability/log.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { type ProductId, toProductId } from "@/lib/types/ids.ts"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 import type { ActionResult } from "./types.ts"
+import { validateUrl } from "./url-probe.ts"
 
 export type ProductStatus = (typeof products.$inferSelect)["status"]
 
@@ -26,54 +28,93 @@ export async function getProductStatus(
 
   const { userId } = await requireUser()
 
-  return withUser(userId, async (db) => {
-    const rows = await db
-      .select({ status: products.status })
-      .from(products)
-      .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      .limit(1)
-    const row = rows[0]
-    if (!row) return { ok: false, error: "Producto no encontrado." }
-    return { ok: true, data: { status: row.status } }
-  })
+  return withTiming(
+    "action.product.get_status",
+    () =>
+      withUser(userId, async (db) => {
+        const rows = await db
+          .select({ status: products.status })
+          .from(products)
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .limit(1)
+        const row = rows[0]
+        if (!row) return { ok: false, error: "Producto no encontrado." }
+        return { ok: true, data: { status: row.status } }
+      }),
+    { productId },
+  )
 }
 
-export async function retryScrape(rawProductId: unknown): Promise<ActionResult<null>> {
-  const productIdParsed = z.uuid().safeParse(rawProductId)
-  if (!productIdParsed.success) {
-    return { ok: false, error: "ID de producto inválido." }
-  }
-  const productId = toProductId(productIdParsed.data)
+const RetryScrapeInput = z.object({
+  productId: z.uuid("ID de producto inválido."),
+  newUrl: z.url().optional(),
+})
 
+export async function retryScrape(rawInput: unknown): Promise<ActionResult<null>> {
+  const parsed = RetryScrapeInput.safeParse(rawInput)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
+  }
+  const productId = toProductId(parsed.data.productId)
   const { userId } = await requireUser()
 
-  try {
-    const updated = await withUser(userId, async (db) => {
-      const rows = await db
-        .update(products)
-        .set({ status: "SCRAPING" })
-        .where(and(eq(products.id, productId), eq(products.userId, userId)))
-        .returning({ sourceUrl: products.sourceUrl })
-      return rows[0] ?? null
-    })
-    if (!updated) return { ok: false, error: "Producto no encontrado." }
+  return withTiming(
+    "action.product.retry_scrape",
+    async () => {
+      const product = await withUser(userId, async (db) => {
+        const rows = await db
+          .select({ sourceUrl: products.sourceUrl })
+          .from(products)
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .limit(1)
+        return rows[0] ?? null
+      })
+      if (!product) return { ok: false, error: "Producto no encontrado." }
 
-    await tasks.trigger<typeof scrapeProduct>(
-      "scrape-product",
-      {
-        productId,
-        userId,
-        competitorUrl: updated.sourceUrl,
-        attempt: Math.floor(Date.now() / 1000),
-      },
-      { tags: [productTag(productId)] },
-    )
+      let competitorUrl = product.sourceUrl
+      if (parsed.data.newUrl !== undefined && parsed.data.newUrl !== product.sourceUrl) {
+        const probe = await validateUrl(parsed.data.newUrl)
+        if (!probe.ok) {
+          return { ok: false, error: probe.error ?? "URL inválida." }
+        }
+        competitorUrl = probe.data.finalUrl
+      }
 
-    return { ok: true, data: null }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "No se pudo reintentar el análisis."
-    return { ok: false, error: message }
-  }
+      try {
+        // Idempotency invariant (`scrape-product/index.ts:295`):
+        // `scrape_${productId}_${attempt}` keys the dedup row. Every retry
+        // MUST pass a fresh `attempt`, otherwise the run replays the cached
+        // summary instead of re-scraping the (possibly new) URL.
+        await tasks.trigger<typeof scrapeProduct>(
+          "scrape-product",
+          {
+            productId,
+            userId,
+            competitorUrl,
+            attempt: Math.floor(Date.now() / 1000),
+          },
+          { tags: [productTag(productId)] },
+        )
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : "No se pudo reintentar el análisis."
+        logError("action.product.retry_scrape.trigger_failed", { productId, reason })
+        return { ok: false, error: reason }
+      }
+
+      await withUser(userId, async (db) => {
+        await db
+          .update(products)
+          .set({
+            status: "SCRAPING",
+            scrapeReason: null,
+            sourceUrl: competitorUrl,
+          })
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+      })
+      return { ok: true, data: null }
+    },
+    { productId, hasNewUrl: parsed.data.newUrl !== undefined },
+  )
 }
 
 const CreateProductInput = z.object({
@@ -96,49 +137,71 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
   const { userId } = await requireUser()
   const input = parsed.data
 
-  try {
-    return await withUser(userId, async (db) => {
-      if (input.whatsapp_number) {
-        await db
-          .update(users)
-          .set({ whatsappNumber: input.whatsapp_number })
-          .where(eq(users.id, userId))
+  return withTiming(
+    "action.product.create",
+    async () => {
+      const probe = await validateUrl(input.source_url)
+      if (!probe.ok) {
+        return { ok: false, error: probe.error ?? "URL inválida." }
       }
+      const sourceUrl = probe.data.finalUrl
 
-      const inserted = await db
-        .insert(products)
-        .values({
-          userId,
-          sourceUrl: input.source_url,
-          pricingCents: input.pricing_cents,
-          status: "SCRAPING",
+      try {
+        return await withUser(userId, async (db) => {
+          if (input.whatsapp_number) {
+            await db
+              .update(users)
+              .set({ whatsappNumber: input.whatsapp_number })
+              .where(eq(users.id, userId))
+          }
+
+          const inserted = await db
+            .insert(products)
+            .values({
+              userId,
+              sourceUrl,
+              pricingCents: input.pricing_cents,
+              status: "SCRAPING",
+            })
+            .returning({ id: products.id })
+
+          const row = inserted[0]
+          if (!row) {
+            return { ok: false, error: "No se pudo crear el producto." }
+          }
+
+          const productId = toProductId(row.id)
+
+          try {
+            await tasks.trigger<typeof scrapeProduct>(
+              "scrape-product",
+              {
+                productId: row.id,
+                userId,
+                competitorUrl: sourceUrl,
+              },
+              { tags: [productTag(productId)] },
+            )
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : "Error al iniciar el análisis."
+            logError("action.product.create.trigger_failed", { productId, reason })
+            await db
+              .delete(products)
+              .where(and(eq(products.id, row.id), eq(products.userId, userId)))
+            return { ok: false, error: reason }
+          }
+
+          return { ok: true, data: { id: productId } }
         })
-        .returning({ id: products.id })
-
-      const row = inserted[0]
-      if (!row) {
-        return { ok: false, error: "No se pudo crear el producto." }
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err)
+        logError("action.product.create.db_error", { reason })
+        const message = err instanceof Error ? err.message : "Error al crear el producto."
+        return { ok: false, error: message }
       }
-
-      const productId = toProductId(row.id)
-
-      await tasks.trigger<typeof scrapeProduct>(
-        "scrape-product",
-        {
-          productId: row.id,
-          userId,
-          competitorUrl: input.source_url,
-        },
-        { tags: [productTag(productId)] },
-      )
-
-      return { ok: true, data: { id: productId } }
-    })
-  } catch (err) {
-    console.error("[createProduct] db error", err)
-    const message = err instanceof Error ? err.message : "Error al crear el producto."
-    return { ok: false, error: message }
-  }
+    },
+    { source_url: input.source_url },
+  )
 }
 
 export type CreativeWithAssets = typeof creatives.$inferSelect & {
@@ -156,24 +219,29 @@ export async function getCreatives(
 
   const { userId } = await requireUser()
 
-  return withUser(userId, async (db) => {
-    const creativeRows = await db
-      .select()
-      .from(creatives)
-      .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
-
-    const result: CreativeWithAssets[] = await Promise.all(
-      creativeRows.map(async (creative) => {
-        const assetRows = await db
+  return withTiming(
+    "action.product.get_creatives",
+    () =>
+      withUser(userId, async (db) => {
+        const creativeRows = await db
           .select()
-          .from(assets)
-          .where(and(eq(assets.ownerType, "creative"), eq(assets.ownerId, creative.id)))
-        return { ...creative, assets: assetRows }
-      }),
-    )
+          .from(creatives)
+          .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
 
-    return { ok: true, data: result }
-  })
+        const result: CreativeWithAssets[] = await Promise.all(
+          creativeRows.map(async (creative) => {
+            const assetRows = await db
+              .select()
+              .from(assets)
+              .where(and(eq(assets.ownerType, "creative"), eq(assets.ownerId, creative.id)))
+            return { ...creative, assets: assetRows }
+          }),
+        )
+
+        return { ok: true, data: result }
+      }),
+    { productId },
+  )
 }
 
 const SelectCreativesInput = z.object({
@@ -196,39 +264,55 @@ export async function selectCreatives(
   const { userId } = await requireUser()
   const { productId, creativeIds } = parsed.data
 
-  return withUser(userId, async (db) => {
-    for (const creativeId of creativeIds) {
-      await db
-        .update(creatives)
-        .set({ selectedBool: true })
-        .where(
-          and(
-            eq(creatives.id, creativeId),
-            eq(creatives.productId, productId),
-            eq(creatives.userId, userId),
-          ),
-        )
-    }
-
-    let triggered = 0
-    for (const creativeId of creativeIds) {
-      try {
-        await tasks.trigger<typeof translateAndBurnSubsTask>("translateAndBurnSubs", {
-          creativeId,
-          userId,
-        })
-        triggered++
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Error al iniciar la edición de video."
-        return {
-          ok: false,
-          error: `${message} (${triggered.toString()}/${creativeIds.length.toString()} disparados).`,
+  return withTiming(
+    "action.product.select_creatives",
+    () =>
+      withUser(userId, async (db) => {
+        const owned = await db
+          .select({ id: creatives.id })
+          .from(creatives)
+          .where(
+            and(
+              eq(creatives.productId, productId),
+              eq(creatives.userId, userId),
+              inArray(creatives.id, creativeIds),
+            ),
+          )
+        if (owned.length !== creativeIds.length) {
+          return { ok: false, error: "Creativos inválidos." }
         }
-      }
-    }
 
-    return { ok: true, data: { triggered } }
-  })
+        try {
+          await tasks.batchTrigger<typeof translateAndBurnSubsTask>(
+            "translateAndBurnSubs",
+            creativeIds.map((creativeId) => ({ payload: { creativeId, userId } })),
+          )
+        } catch (err) {
+          const reason =
+            err instanceof Error ? err.message : "Error al iniciar la edición de video."
+          logError("action.product.select_creatives.trigger_failed", {
+            productId,
+            count: creativeIds.length,
+            reason,
+          })
+          return { ok: false, error: reason }
+        }
+
+        await db
+          .update(creatives)
+          .set({ selectedBool: true })
+          .where(
+            and(
+              eq(creatives.productId, productId),
+              eq(creatives.userId, userId),
+              inArray(creatives.id, creativeIds),
+            ),
+          )
+
+        return { ok: true, data: { triggered: creativeIds.length } }
+      }),
+    { productId, count: creativeIds.length },
+  )
 }
 
 const AdjustCopyInput = z.object({
@@ -261,56 +345,66 @@ export async function adjustLandingCopy(
   const { userId } = await requireUser()
   const { productId, message } = parsed.data
 
-  return withUser(userId, async (db) => {
-    const productRows = await db
-      .select({ name: products.name, category: products.category })
-      .from(products)
-      .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      .limit(1)
+  return withTiming(
+    "action.product.adjust_copy",
+    () =>
+      withUser(userId, async (db) => {
+        const productRows = await db
+          .select({ name: products.name, category: products.category })
+          .from(products)
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .limit(1)
 
-    const product = productRows[0]
-    if (!product) {
-      return { ok: false, error: "Producto no encontrado." }
-    }
+        const product = productRows[0]
+        if (!product) {
+          return { ok: false, error: "Producto no encontrado." }
+        }
 
-    const systemPrompt = `Eres un copywriter experto en e-commerce para el mercado peruano (LATAM).
+        const systemPrompt = `Eres un copywriter experto en e-commerce para el mercado peruano (LATAM).
 El usuario quiere ajustar el copy de una landing page para el producto: "${product.name ?? "producto"}".
 Categoría: "${product.category ?? "general"}".
 Responde ÚNICAMENTE con JSON válido con las claves "headline" y "subheadline" (strings cortos, máx 100 y 150 caracteres respectivamente).
 No incluyas nada más que el JSON.`
 
-    const { text } = await generateText({
-      model: anthropic("claude-sonnet-4-6"),
-      system: systemPrompt,
-      prompt: message,
-      maxOutputTokens: 300,
-    })
+        const { text } = await withTiming(
+          "ai.adjust_copy",
+          () =>
+            generateText({
+              model: anthropic("claude-sonnet-4-6"),
+              system: systemPrompt,
+              prompt: message,
+              maxOutputTokens: 300,
+            }),
+          { productId },
+        )
 
-    const cleaned = text
-      .trim()
-      .replace(/^```json\n?/, "")
-      .replace(/\n?```$/, "")
+        const cleaned = text
+          .trim()
+          .replace(/^```json\n?/, "")
+          .replace(/\n?```$/, "")
 
-    let json: unknown
-    try {
-      json = JSON.parse(cleaned)
-    } catch {
-      return { ok: false, error: "El copy generado no es JSON válido." }
-    }
+        let json: unknown
+        try {
+          json = JSON.parse(cleaned)
+        } catch {
+          return { ok: false, error: "El copy generado no es JSON válido." }
+        }
 
-    const validated = OverridesSchema.safeParse(json)
-    if (!validated.success) {
-      return { ok: false, error: "El copy generado no cumple el formato." }
-    }
+        const validated = OverridesSchema.safeParse(json)
+        if (!validated.success) {
+          return { ok: false, error: "El copy generado no cumple el formato." }
+        }
 
-    const overrides: CopyOverrides = {}
-    if (validated.data.headline !== undefined) {
-      overrides.headline = validated.data.headline
-    }
-    if (validated.data.subheadline !== undefined) {
-      overrides.subheadline = validated.data.subheadline
-    }
+        const overrides: CopyOverrides = {}
+        if (validated.data.headline !== undefined) {
+          overrides.headline = validated.data.headline
+        }
+        if (validated.data.subheadline !== undefined) {
+          overrides.subheadline = validated.data.subheadline
+        }
 
-    return { ok: true, data: overrides }
-  })
+        return { ok: true, data: overrides }
+      }),
+    { productId, messageLen: message.length },
+  )
 }

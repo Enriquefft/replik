@@ -28,6 +28,7 @@ import {
   type SrtTranslateResult,
   SrtTranslateResultSchema,
 } from "@/lib/ai/schemas.ts"
+import { withTiming } from "@/lib/observability/log.ts"
 
 // ─── Public entry point ──────────────────────────────────────────────────────
 
@@ -59,44 +60,49 @@ export async function translateSrtWithModel(
 
   const validate = makeValidator(sourceCues, input.brandTokens)
 
-  return withRetry<SrtTranslateInput, SrtTranslateResult>(
-    {
-      primary: async () => {
-        const { object } = await generateObject({
-          model,
-          schema: SrtTranslateLLMResultSchema,
-          schemaName: "SrtTranslateBatch",
-          schemaDescription: "All translated cues in the source order, indices unchanged.",
-          temperature: defaultTemperature,
-          system: SYSTEM_PROMPT,
-          prompt: buildUserPrompt({ sourceCues, brandTokens: input.brandTokens }),
-        })
-        return SrtTranslateResultSchema.parse({ cues: object.cues, translated: true })
-      },
-      bumped: async (_ignored, critique) => {
-        const { object } = await generateObject({
-          model,
-          schema: SrtTranslateLLMResultSchema,
-          schemaName: "SrtTranslateBatch",
-          schemaDescription: "All translated cues in the source order, indices unchanged.",
-          temperature: defaultTemperature,
-          system: SYSTEM_PROMPT,
-          prompt: [
-            buildUserPrompt({ sourceCues, brandTokens: input.brandTokens }),
-            "",
-            "<previous_attempt>",
-            "Your previous response failed validation:",
-            critique,
-            "Correct the violation. Do not change cues that already satisfied the rules.",
-            "</previous_attempt>",
-          ].join("\n"),
-        })
-        return SrtTranslateResultSchema.parse({ cues: object.cues, translated: true })
-      },
-      fallback: () => fallback(sourceCues),
-      validate,
-    },
-    input,
+  return withTiming(
+    "ai.translate_srt",
+    () =>
+      withRetry<SrtTranslateInput, SrtTranslateResult>(
+        {
+          primary: async () => {
+            const { object } = await generateObject({
+              model,
+              schema: SrtTranslateLLMResultSchema,
+              schemaName: "SrtTranslateBatch",
+              schemaDescription: "All translated cues in the source order, indices unchanged.",
+              temperature: defaultTemperature,
+              system: SYSTEM_PROMPT,
+              prompt: buildUserPrompt({ sourceCues, brandTokens: input.brandTokens }),
+            })
+            return SrtTranslateResultSchema.parse({ cues: object.cues, translated: true })
+          },
+          bumped: async (_ignored, critique) => {
+            const { object } = await generateObject({
+              model,
+              schema: SrtTranslateLLMResultSchema,
+              schemaName: "SrtTranslateBatch",
+              schemaDescription: "All translated cues in the source order, indices unchanged.",
+              temperature: defaultTemperature,
+              system: SYSTEM_PROMPT,
+              prompt: [
+                buildUserPrompt({ sourceCues, brandTokens: input.brandTokens }),
+                "",
+                "<previous_attempt>",
+                "Your previous response failed validation:",
+                critique,
+                "Correct the violation. Do not change cues that already satisfied the rules.",
+                "</previous_attempt>",
+              ].join("\n"),
+            })
+            return SrtTranslateResultSchema.parse({ cues: object.cues, translated: true })
+          },
+          fallback: () => fallback(sourceCues),
+          validate,
+        },
+        input,
+      ),
+    { cueCount: sourceCues.length },
   )
 }
 

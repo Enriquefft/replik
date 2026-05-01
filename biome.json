@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "!src/**/*.css"],
+    "includes": ["src/**", "scripts/**", "!src/**/*.css"],
     "ignoreUnknown": true
   },
   "formatter": {
@@ -59,7 +59,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/**/__smoke__.ts", "src/**/__smoke__.tsx"],
+      "includes": ["src/**/__smoke__.ts", "src/**/__smoke__.tsx", "scripts/**"],
       "linter": {
         "rules": {
           "suspicious": {

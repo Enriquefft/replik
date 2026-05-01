@@ -68,10 +68,21 @@ export type ProductPartial = z.infer<typeof ProductPartialSchema>
  * Keyword buckets emitted by Stage C (§7).
  * `broad` = 1-2 word generic search terms (3-5 entries).
  * `narrow` = 3-6 word long-tail buyer-intent phrases (3-5 entries).
+ *
+ * Count bounds live in `.refine` rather than `.min/.max` so the generated JSON
+ * Schema omits `minItems`/`maxItems` — Anthropic structured outputs reject
+ * `minItems > 1`. The prompt instructs the model on the 3-5 range; this
+ * refinement enforces it on the parsed result.
  */
+const KeywordBucket = z
+  .array(z.string().min(1))
+  .refine((arr) => arr.length >= 3 && arr.length <= 5, {
+    message: "keyword bucket must contain 3-5 entries",
+  })
+
 export const ProductKeywordsSchema = z.object({
-  broad: z.array(z.string().min(1)).min(3).max(5),
-  narrow: z.array(z.string().min(1)).min(3).max(5),
+  broad: KeywordBucket,
+  narrow: KeywordBucket,
 })
 
 export type ProductKeywords = z.infer<typeof ProductKeywordsSchema>

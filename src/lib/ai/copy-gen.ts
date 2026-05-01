@@ -23,7 +23,6 @@ import "server-only"
 
 import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
-import { logger } from "@trigger.dev/sdk"
 import { generateText, Output } from "ai"
 import { z } from "zod"
 
@@ -37,6 +36,7 @@ import {
   type CopyGenInput,
   CopyGenInputSchema,
 } from "@/lib/ai/schemas.ts"
+import { logEvent, withTiming } from "@/lib/observability/log.ts"
 
 // ─── Framings (§11 Stage 1) ──────────────────────────────────────────────────
 
@@ -308,19 +308,21 @@ async function callGenerator(
           "Corrige los problemas listados arriba.",
         ].join("\n")
 
-  logger.info("ai:run", {
-    site: "copy-gen",
-    framingId: framing.id,
-    runHash: runHash(`${framing.id}|${userPrompt}`),
-  })
+  const hash = runHash(`${framing.id}|${userPrompt}`)
+  logEvent("ai.copy_gen.candidate.start", { framingId: framing.id, runHash: hash })
 
-  const result = await generateText({
-    model,
-    output: Output.object({ schema: CopyContentSchema }),
-    system,
-    prompt: userPrompt,
-    temperature: copyGenTemperature,
-  })
+  const result = await withTiming(
+    "ai.copy_gen.candidate",
+    () =>
+      generateText({
+        model,
+        output: Output.object({ schema: CopyContentSchema }),
+        system,
+        prompt: userPrompt,
+        temperature: copyGenTemperature,
+      }),
+    { framingId: framing.id, runHash: hash },
+  )
   return CopyContentSchema.parse(result.output)
 }
 
@@ -345,13 +347,18 @@ async function callJudge(
           "Devuelve un winnerIndex válido (0..4).",
         ].join("\n")
 
-  const result = await generateText({
-    model,
-    output: Output.object({ schema: JudgePickSchema }),
-    system,
-    prompt: [userPrompt, "", "Candidatos:", "", renderCandidates(candidates)].join("\n"),
-    temperature: 0,
-  })
+  const result = await withTiming(
+    "ai.copy_gen.judge",
+    () =>
+      generateText({
+        model,
+        output: Output.object({ schema: JudgePickSchema }),
+        system,
+        prompt: [userPrompt, "", "Candidatos:", "", renderCandidates(candidates)].join("\n"),
+        temperature: 0,
+      }),
+    { judgeId },
+  )
   return JudgePickSchema.parse(result.output)
 }
 
@@ -372,13 +379,18 @@ async function callRegenerate(
   if (extraCritique !== null) {
     blocks.push("", "<previous_attempt>", extraCritique, "</previous_attempt>")
   }
-  const result = await generateText({
-    model,
-    output: Output.object({ schema: CopyContentSchema }),
-    system: blocks.join("\n"),
-    prompt: userPrompt,
-    temperature: copyGenTemperature,
-  })
+  const result = await withTiming(
+    "ai.copy_gen.regenerate",
+    () =>
+      generateText({
+        model,
+        output: Output.object({ schema: CopyContentSchema }),
+        system: blocks.join("\n"),
+        prompt: userPrompt,
+        temperature: copyGenTemperature,
+      }),
+    { framingId: framing.id },
+  )
   return CopyContentSchema.parse(result.output)
 }
 
@@ -553,80 +565,86 @@ export async function generateCopy(
   deps: GenerateCopyDeps = {},
 ): Promise<CopyContent> {
   const input = CopyGenInputSchema.parse(rawInput)
-  const userPrompt = buildUserPrompt(input)
+  return withTiming(
+    "ai.copy_gen",
+    async () => {
+      const userPrompt = buildUserPrompt(input)
 
-  const realDeps: CopyGenDeps = isInjectedDeps(deps)
-    ? deps
-    : makeProductionDeps({
-        primaryModel: deps.primaryModel ?? anthropic(MODELS.CREATIVE),
-        bumpedModel: deps.bumpedModel ?? anthropic(MODELS.CREATIVE),
-      })
+      const realDeps: CopyGenDeps = isInjectedDeps(deps)
+        ? deps
+        : makeProductionDeps({
+            primaryModel: deps.primaryModel ?? anthropic(MODELS.CREATIVE),
+            bumpedModel: deps.bumpedModel ?? anthropic(MODELS.CREATIVE),
+          })
 
-  // ── Stage 1 — 5 parallel framings ────────────────────────────────────────
-  const candidatesArr = await Promise.all(
-    FRAMINGS.map((framing) => realDeps.generateCandidate({ framing, userPrompt })),
+      // ── Stage 1 — 5 parallel framings ────────────────────────────────────
+      const candidatesArr = await Promise.all(
+        FRAMINGS.map((framing) => realDeps.generateCandidate({ framing, userPrompt })),
+      )
+      if (candidatesArr.length !== 5) {
+        throw new Error(`copy-gen: expected 5 candidates, got ${candidatesArr.length.toString()}`)
+      }
+      const candidates: readonly CopyContent[] = candidatesArr
+
+      // ── Stage 2 — 2 parallel judges ──────────────────────────────────────
+      const [pickA, pickB] = await Promise.all([
+        realDeps.judge({ judgeId: "A", rubric: JUDGE_A_RUBRIC, candidates, userPrompt }),
+        realDeps.judge({ judgeId: "B", rubric: JUDGE_B_RUBRIC, candidates, userPrompt }),
+      ])
+
+      const winnerIndex: CandidateIndex =
+        pickA.winnerIndex === pickB.winnerIndex ? pickA.winnerIndex : ANCHOR_INDEX
+
+      const winnerCandidate = candidates[winnerIndex]
+      if (!winnerCandidate) {
+        throw new Error(`copy-gen: candidate index ${winnerIndex.toString()} missing`)
+      }
+
+      // ── Stage 3 — rule-based post-check (one regenerate cycle) ──────────
+      const initialViolations = runPostCheck(winnerCandidate)
+      if (initialViolations.length === 0) {
+        return winnerCandidate
+      }
+
+      const winningFraming = FRAMINGS[winnerIndex]
+      const critique = buildCritique(initialViolations)
+      let regenerated: CopyContent
+      try {
+        regenerated = await realDeps.regenerate({
+          framing: winningFraming,
+          userPrompt,
+          critique,
+        })
+      } catch {
+        realDeps.onUnresolvedViolations?.(
+          initialViolations.map((v) => `${v.field}: ${v.reason}`),
+          winnerCandidate,
+        )
+        return winnerCandidate
+      }
+
+      const failedFields = new Set(initialViolations.map((v) => v.field))
+      const merged: CopyContent = {
+        primaryText: failedFields.has("primaryText")
+          ? regenerated.primaryText
+          : winnerCandidate.primaryText,
+        headline: failedFields.has("headline") ? regenerated.headline : winnerCandidate.headline,
+        description: failedFields.has("description")
+          ? regenerated.description
+          : winnerCandidate.description,
+      }
+
+      const postRegenViolations = runPostCheck(merged)
+      if (postRegenViolations.length === 0) {
+        return merged
+      }
+
+      realDeps.onUnresolvedViolations?.(
+        postRegenViolations.map((v) => `${v.field}: ${v.reason}`),
+        merged,
+      )
+      return merged
+    },
+    { creativeCount: input.creatives.length },
   )
-  if (candidatesArr.length !== 5) {
-    throw new Error(`copy-gen: expected 5 candidates, got ${candidatesArr.length.toString()}`)
-  }
-  const candidates: readonly CopyContent[] = candidatesArr
-
-  // ── Stage 2 — 2 parallel judges ──────────────────────────────────────────
-  const [pickA, pickB] = await Promise.all([
-    realDeps.judge({ judgeId: "A", rubric: JUDGE_A_RUBRIC, candidates, userPrompt }),
-    realDeps.judge({ judgeId: "B", rubric: JUDGE_B_RUBRIC, candidates, userPrompt }),
-  ])
-
-  const winnerIndex: CandidateIndex =
-    pickA.winnerIndex === pickB.winnerIndex ? pickA.winnerIndex : ANCHOR_INDEX
-
-  const winnerCandidate = candidates[winnerIndex]
-  if (!winnerCandidate) {
-    throw new Error(`copy-gen: candidate index ${winnerIndex.toString()} missing`)
-  }
-
-  // ── Stage 3 — rule-based post-check (one regenerate cycle) ──────────────
-  const initialViolations = runPostCheck(winnerCandidate)
-  if (initialViolations.length === 0) {
-    return winnerCandidate
-  }
-
-  const winningFraming = FRAMINGS[winnerIndex]
-  const critique = buildCritique(initialViolations)
-  let regenerated: CopyContent
-  try {
-    regenerated = await realDeps.regenerate({
-      framing: winningFraming,
-      userPrompt,
-      critique,
-    })
-  } catch {
-    realDeps.onUnresolvedViolations?.(
-      initialViolations.map((v) => `${v.field}: ${v.reason}`),
-      winnerCandidate,
-    )
-    return winnerCandidate
-  }
-
-  const failedFields = new Set(initialViolations.map((v) => v.field))
-  const merged: CopyContent = {
-    primaryText: failedFields.has("primaryText")
-      ? regenerated.primaryText
-      : winnerCandidate.primaryText,
-    headline: failedFields.has("headline") ? regenerated.headline : winnerCandidate.headline,
-    description: failedFields.has("description")
-      ? regenerated.description
-      : winnerCandidate.description,
-  }
-
-  const postRegenViolations = runPostCheck(merged)
-  if (postRegenViolations.length === 0) {
-    return merged
-  }
-
-  realDeps.onUnresolvedViolations?.(
-    postRegenViolations.map((v) => `${v.field}: ${v.reason}`),
-    merged,
-  )
-  return merged
 }
