@@ -30,7 +30,7 @@ export function EditPageClient({ creatives }: EditPageClientProps) {
         return (
           <div
             key={creative.id}
-            className="rounded-card bg-surface border border-border shadow-tight overflow-hidden"
+            className="rounded-card bg-surface glass border border-border shadow-tight overflow-hidden"
           >
             <div className="flex items-start gap-4 p-4">
               {/* Icon */}

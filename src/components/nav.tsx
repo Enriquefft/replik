@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button.tsx"
 import { cn } from "@/lib/utils.ts"
 
 const NAV_LINKS = [
-  { href: "/", label: "Nuevo producto" },
+  { href: "/new", label: "Nuevo producto" },
   { href: "/dashboard", label: "Dashboard" },
 ] as const
 
@@ -30,7 +30,7 @@ export function Nav() {
         {/* Nav links */}
         <nav className="hidden items-center gap-1 sm:flex">
           {NAV_LINKS.map((link) => {
-            const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href)
+            const isActive = pathname.startsWith(link.href)
             return (
               <Button
                 key={link.href}

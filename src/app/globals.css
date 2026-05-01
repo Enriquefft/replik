@@ -140,6 +140,9 @@
   --background-image-grad-red: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   --background-image-grad-blue: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   --background-image-grad-purple: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+
+  /* Saturated hero gradient (web → creative → traffic) for marquee text. */
+  --background-image-grad-hero: linear-gradient(135deg, #30d158 0%, #ff9f0a 50%, #ff453a 100%);
 }
 
 /* ============================================================
@@ -231,4 +234,21 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
+}
+
+/* ============================================================
+   Custom utilities
+   ============================================================ */
+
+/* Glass effect — pairs with bg-surface / bg-surface-elevated tokens.
+   The translucent surfaces are rgba 0.72 / 0.90; the backdrop-filter
+   is what makes them read as glass. SSOT: --blur-glass token. */
+@utility glass {
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+}
+
+@utility glass-strong {
+  backdrop-filter: var(--blur-glass-strong);
+  -webkit-backdrop-filter: var(--blur-glass-strong);
 }

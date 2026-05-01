@@ -14,8 +14,8 @@ export function IphonePreview({ children, gradient, className }: IphonePreviewPr
       <div
         className="relative flex flex-col"
         style={{
-          width: 280,
-          height: 560,
+          width: 340,
+          height: 700,
           borderRadius: 44,
           background: "#1c1c1e",
           boxShadow: "0 0 0 2px #3a3a3c, 0 0 0 4px #1c1c1e, 0 32px 64px rgba(0,0,0,0.35)",

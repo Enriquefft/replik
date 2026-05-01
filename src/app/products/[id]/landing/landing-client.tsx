@@ -120,7 +120,7 @@ export function LandingClient({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
       {/* Left: template picker + chat */}
       <div className="flex flex-col gap-5">
         {/* Template grid */}
@@ -141,7 +141,7 @@ export function LandingClient({
         <ChatPanel messages={messages} onSend={handleChat} pending={chatPending} />
 
         {/* Bundle pricing preview */}
-        <div className="rounded-card bg-surface border border-border shadow-tight p-4">
+        <div className="rounded-card bg-surface glass border border-border shadow-tight p-4">
           <p className="text-callout font-semibold text-fg-1 mb-3">Packs configurados</p>
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -167,7 +167,7 @@ export function LandingClient({
         ) : (
           <Button
             size="lg"
-            className="w-full"
+            className="w-full bg-mode-web text-fg-on-accent hover:bg-mode-web/90"
             onClick={() => void handlePublish()}
             disabled={publishing}
           >

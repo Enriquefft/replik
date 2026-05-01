@@ -51,7 +51,7 @@ export function ChatPanel({ messages, onSend, pending, className }: ChatPanelPro
   return (
     <div
       className={cn(
-        "flex flex-col rounded-card border border-border bg-surface-elevated shadow-tight overflow-hidden",
+        "flex flex-col rounded-card border border-border bg-surface-elevated glass shadow-tight overflow-hidden",
         className,
       )}
     >

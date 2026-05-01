@@ -68,7 +68,7 @@ export function TaskProgress({ runId, step, detail, className }: TaskProgressPro
   return (
     <div
       className={cn(
-        "rounded-card bg-surface-elevated border border-border p-4 shadow-tight",
+        "rounded-card bg-surface-elevated glass border border-border p-4 shadow-tight",
         className,
       )}
     >

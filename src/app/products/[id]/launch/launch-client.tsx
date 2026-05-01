@@ -99,7 +99,7 @@ export function LaunchClient({
   return (
     <div className="flex flex-col gap-5">
       {/* Campaign config form */}
-      <div className="rounded-card bg-surface border border-border shadow-tight p-5">
+      <div className="rounded-card bg-surface glass border border-border shadow-tight p-5">
         <div className="flex items-center gap-2 mb-4">
           <DollarSign className="size-4 text-mode-traffic" strokeWidth={1.8} />
           <h3 className="text-callout font-semibold text-fg-1">Presupuesto diario</h3>
@@ -252,7 +252,7 @@ export function LaunchClient({
       </div>
 
       {/* Product info */}
-      <div className="rounded-card bg-surface border border-border shadow-tight p-4">
+      <div className="rounded-card bg-surface glass border border-border shadow-tight p-4">
         <p className="text-caption text-fg-2 mb-1 uppercase font-semibold tracking-wide">
           Producto
         </p>

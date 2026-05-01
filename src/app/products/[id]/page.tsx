@@ -33,7 +33,7 @@ export default async function ProductPage({ params }: PageProps) {
     return (
       <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col items-center justify-center px-4 py-10">
         <div className="w-full max-w-lg flex flex-col gap-4">
-          <div className="rounded-card bg-surface shadow-card border border-border p-6">
+          <div className="rounded-card bg-surface glass shadow-card border border-border p-6">
             <p className="text-caption font-semibold uppercase tracking-widest text-mode-system-badge-fg mb-2">
               Paso 2 · Buscando creativos
             </p>
@@ -59,7 +59,7 @@ export default async function ProductPage({ params }: PageProps) {
     return (
       <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col items-center justify-center px-4 py-10">
         <div className="w-full max-w-lg">
-          <div className="rounded-card bg-surface shadow-card border border-border p-8 text-center">
+          <div className="rounded-card bg-surface glass shadow-card border border-border p-8 text-center">
             <div className="size-14 rounded-card bg-mode-traffic-badge-bg flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="size-7 text-mode-traffic" strokeWidth={1.5} />
             </div>

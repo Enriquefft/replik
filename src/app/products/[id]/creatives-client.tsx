@@ -70,7 +70,7 @@ export function CreativesClient({ productId, creatives }: CreativesClientProps) 
       </div>
 
       {/* Bottom bar */}
-      <div className="sticky bottom-4 flex items-center justify-between gap-4 rounded-card bg-surface-elevated shadow-card border border-border px-5 py-3">
+      <div className="sticky bottom-4 flex items-center justify-between gap-4 rounded-card bg-surface-elevated glass shadow-card border border-border px-5 py-3">
         <p className="text-callout text-fg-2">
           <span className="font-semibold text-fg-1">{selected.size}</span> seleccionado
           {selected.size !== 1 ? "s" : ""}

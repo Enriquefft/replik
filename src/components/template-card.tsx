@@ -34,21 +34,33 @@ export function TemplateCard({ template, selected, onSelect }: TemplateCardProps
     >
       {/* Preview area */}
       <div
-        className="relative aspect-[9/12] w-full flex items-center justify-center"
+        className="relative aspect-[9/12] w-full overflow-hidden"
         style={{ background: gradient }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
-        <div className="relative text-center px-4">
-          <div className="text-sm font-semibold leading-tight" style={{ color: template.accent }}>
-            {template.name}
-          </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent" />
+
+        {/* Mini wireframe — hints at landing layout */}
+        <div className="absolute inset-0 flex flex-col gap-1.5 p-3">
+          {/* Image placeholder */}
+          <div className="h-[42%] w-full rounded-tight bg-white/55 backdrop-blur-[2px]" />
+
+          {/* Text-line bars */}
+          <div className="mt-1 h-1.5 w-3/4 rounded-pill bg-white/70" />
+          <div className="h-1.5 w-1/2 rounded-pill bg-white/55" />
+          <div className="h-1 w-2/3 rounded-pill bg-white/45" />
+
+          {/* Spacer pushes CTA to bottom */}
+          <div className="flex-1" />
+
+          {/* CTA bar */}
+          <div className="h-3 w-full rounded-tight" style={{ background: template.accent }} />
         </div>
 
         {/* Selected indicator */}
         {selected && (
           <div className="absolute top-2 right-2">
             <CheckCircle2
-              className="size-5 bg-white rounded-full"
+              className="size-5 bg-surface-solid rounded-full"
               style={{ color: template.accent }}
               strokeWidth={2}
             />
