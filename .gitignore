@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.envrc
 
 # vercel
 .vercel
@@ -48,6 +49,10 @@ next-env.d.ts
 /.claude/
 /skills-lock.json
 /demo/
+
+# direnv / nix
+/.direnv/
+/.trigger/
 
 # runtime uploads
 /uploads/
