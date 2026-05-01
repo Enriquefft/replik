@@ -1,10 +1,12 @@
+import { auth } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
-import { AlertCircle } from "lucide-react"
-import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Skeleton } from "@/components/ui/skeleton.tsx"
+import { ScrapeProgress } from "@/components/scrape-progress.tsx"
+import { ErrorCard } from "@/components/ui/error-card.tsx"
 import { requireUser, withUser } from "@/db/client"
 import { creatives, products } from "@/db/schema"
+import { productTag } from "@/lib/trigger-tags.ts"
+import { toProductId } from "@/lib/types/ids.ts"
 import { CreativesClient } from "./creatives-client.tsx"
 
 interface PageProps {
@@ -12,7 +14,8 @@ interface PageProps {
 }
 
 export default async function ProductPage({ params }: PageProps) {
-  const { id } = await params
+  const { id: rawId } = await params
+  const productId = toProductId(rawId)
 
   const { userId } = await requireUser()
 
@@ -20,7 +23,7 @@ export default async function ProductPage({ params }: PageProps) {
     const rows = await db
       .select()
       .from(products)
-      .where(and(eq(products.id, id), eq(products.userId, userId)))
+      .where(and(eq(products.id, productId), eq(products.userId, userId)))
       .limit(1)
     return rows[0] ?? null
   })
@@ -30,62 +33,28 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   if (productData.status === "SCRAPING") {
-    return (
-      <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-lg flex flex-col gap-4">
-          <div className="rounded-card bg-surface glass shadow-card border border-border p-6">
-            <p className="text-caption font-semibold uppercase tracking-widest text-mode-system-badge-fg mb-2">
-              Paso 2 · Buscando creativos
-            </p>
-            <h2 className="text-title">Analizando el producto…</h2>
-            <p className="text-body text-fg-2 mt-2">
-              El agente está scrapeando keywords, buscando en Meta Ad Library y transcribiendo los
-              videos. Esto toma 1–3 minutos.
-            </p>
-          </div>
-
-          {/* Skeleton grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {Array.from({ length: 8 }, (_, i) => `skel-${i}`).map((id) => (
-              <Skeleton key={id} className="aspect-[9/16] rounded-card" />
-            ))}
-          </div>
-        </div>
-      </div>
-    )
+    const accessToken = await auth.createPublicToken({
+      scopes: { read: { tags: [productTag(productId)] } },
+      expirationTime: "1h",
+    })
+    return <ScrapeProgress productId={productId} accessToken={accessToken} />
   }
 
   if (productData.status === "SCRAPE_EMPTY") {
     return (
-      <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-lg">
-          <div className="rounded-card bg-surface glass shadow-card border border-border p-8 text-center">
-            <div className="size-14 rounded-card bg-mode-traffic-badge-bg flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="size-7 text-mode-traffic" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-title mb-2">No encontramos creativos</h2>
-            <p className="text-body text-fg-2 mb-4">
-              Meta Ad Library y Apify no devolvieron resultados para este producto. Intenta con una
-              URL diferente.
-            </p>
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
-            >
-              Intentar con otro producto
-            </Link>
-          </div>
-        </div>
-      </div>
+      <ErrorCard
+        title="No encontramos creativos"
+        detail="Meta Ad Library y Apify no devolvieron resultados para este producto. Intenta con una URL diferente."
+        primary={{ label: "Intentar con otro producto", href: "/" }}
+      />
     )
   }
 
-  // Fetch creatives for READY, LANDING_PUBLISHED, CAMPAIGN_LAUNCHED
   const creativeRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
-      .where(and(eq(creatives.productId, id), eq(creatives.userId, userId)))
+      .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
   })
 
   return (
@@ -100,7 +69,7 @@ export default async function ProductPage({ params }: PageProps) {
             Selecciona los videos que quieres editar con subtítulos en español. Recomendamos 3–5.
           </p>
         </div>
-        <CreativesClient productId={id} creatives={creativeRows} />
+        <CreativesClient productId={productId} creatives={creativeRows} />
       </div>
     </div>
   )

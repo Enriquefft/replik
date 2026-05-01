@@ -7,10 +7,74 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products, users } from "@/db/schema"
+import { productTag } from "@/lib/trigger-tags.ts"
 import { type ProductId, toProductId } from "@/lib/types/ids.ts"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 import type { ActionResult } from "./types.ts"
+
+export type ProductStatus = (typeof products.$inferSelect)["status"]
+
+export async function getProductStatus(
+  rawProductId: unknown,
+): Promise<ActionResult<{ status: ProductStatus }>> {
+  const productIdParsed = z.uuid().safeParse(rawProductId)
+  if (!productIdParsed.success) {
+    return { ok: false, error: "ID de producto inválido." }
+  }
+  const productId = toProductId(productIdParsed.data)
+
+  const { userId } = await requireUser()
+
+  return withUser(userId, async (db) => {
+    const rows = await db
+      .select({ status: products.status })
+      .from(products)
+      .where(and(eq(products.id, productId), eq(products.userId, userId)))
+      .limit(1)
+    const row = rows[0]
+    if (!row) return { ok: false, error: "Producto no encontrado." }
+    return { ok: true, data: { status: row.status } }
+  })
+}
+
+export async function retryScrape(rawProductId: unknown): Promise<ActionResult<null>> {
+  const productIdParsed = z.uuid().safeParse(rawProductId)
+  if (!productIdParsed.success) {
+    return { ok: false, error: "ID de producto inválido." }
+  }
+  const productId = toProductId(productIdParsed.data)
+
+  const { userId } = await requireUser()
+
+  try {
+    const updated = await withUser(userId, async (db) => {
+      const rows = await db
+        .update(products)
+        .set({ status: "SCRAPING" })
+        .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        .returning({ sourceUrl: products.sourceUrl })
+      return rows[0] ?? null
+    })
+    if (!updated) return { ok: false, error: "Producto no encontrado." }
+
+    await tasks.trigger<typeof scrapeProduct>(
+      "scrape-product",
+      {
+        productId,
+        userId,
+        competitorUrl: updated.sourceUrl,
+        attempt: Math.floor(Date.now() / 1000),
+      },
+      { tags: [productTag(productId)] },
+    )
+
+    return { ok: true, data: null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "No se pudo reintentar el análisis."
+    return { ok: false, error: message }
+  }
+}
 
 const CreateProductInput = z.object({
   source_url: z.url("URL inválida"),
@@ -62,16 +126,15 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
 
       const productId = toProductId(row.id)
 
-      // Fire-and-forget: don't block the redirect on Trigger.dev latency/timeouts
-      tasks
-        .trigger<typeof scrapeProduct>("scrape-product", {
+      await tasks.trigger<typeof scrapeProduct>(
+        "scrape-product",
+        {
           productId: row.id,
           userId,
           competitorUrl: input.source_url,
-        })
-        .catch((err: unknown) => {
-          console.error("[createProduct] trigger failed", err)
-        })
+        },
+        { tags: [productTag(productId)] },
+      )
 
       return { ok: true, data: { id: productId } }
     })

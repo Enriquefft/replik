@@ -21,7 +21,7 @@ import "server-only"
  * last-known summary.
  */
 
-import { logger, task } from "@trigger.dev/sdk"
+import { logger, metadata, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { UTApi } from "uploadthing/server"
 
@@ -33,6 +33,7 @@ import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
+import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
 const MAX_ADS = 20
@@ -353,6 +354,7 @@ export const scrapeProduct = task({
     }
 
     // ---------- Step 1 — scrapeProductInfo (§7) ----------
+    metadata.set("phase", "scraping" satisfies ScrapePhase)
     logger.info("scrape_started", { productId, competitorUrl })
     const scrapeResult = await scrapeProductInfo({ url: competitorUrl })
 
@@ -463,8 +465,10 @@ export const scrapeProduct = task({
     }
 
     // ---------- Step 2 — findAds ----------
+    metadata.set("phase", "finding_ads" satisfies ScrapePhase)
     logger.info("find_ads_started", { keywordCount: adKeywords.length })
     const { ads, source } = await findAds(adKeywords)
+    metadata.set("ads_total", ads.length)
     logger.info("find_ads_done", { count: ads.length, source })
 
     if (ads.length === 0) {
@@ -498,12 +502,17 @@ export const scrapeProduct = task({
     })
 
     // ---------- Step 3 — transcribeAds ----------
+    metadata.set("phase", "transcribing" satisfies ScrapePhase)
+    metadata.set("transcribed", 0)
     logger.info("transcribe_started", { count: insertedCreatives.length })
     const transcriptionResults = await runWithConcurrency(
       insertedCreatives,
       TRANSCRIBE_CONCURRENCY,
       async (creative) => {
         const res = await transcribeOne(creative, userId)
+        if (res.transcribed) {
+          metadata.increment("transcribed", 1)
+        }
         logger.info("transcribe_progress", {
           creativeId: creative.id,
           transcribed: res.transcribed,
@@ -518,6 +527,7 @@ export const scrapeProduct = task({
     ).length
 
     // ---------- Step 4 — classifyAngle (§12) ----------
+    metadata.set("phase", "classifying" satisfies ScrapePhase)
     logger.info("classify_started", { count: insertedCreatives.length })
     const rows = await withUser(userId, async (db) => {
       return await db
@@ -536,6 +546,7 @@ export const scrapeProduct = task({
       language: r.language ?? "es",
     }))
     const classification = await classifyAngle({ creatives: classifyInput })
+    metadata.set("classified", classification.angles.length)
     logger.info("classify_done", { count: classification.angles.length })
 
     await withUser(userId, async (db) => {

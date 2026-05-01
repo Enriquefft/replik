@@ -3,6 +3,7 @@
 import type { RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react"
+import { isRunFailed } from "@/lib/trigger-status.ts"
 import { cn } from "@/lib/utils.ts"
 
 interface TaskProgressProps {
@@ -94,7 +95,7 @@ export function TaskProgress({ runId, step, detail, className }: TaskProgressPro
         />
       </div>
 
-      {status === "FAILED" || status === "CRASHED" || status === "SYSTEM_FAILURE" ? (
+      {isRunFailed(status) ? (
         <p className="mt-2 text-caption text-mode-traffic">
           {run?.output ? String(run.output) : "Algo salió mal. Intenta de nuevo."}
         </p>
