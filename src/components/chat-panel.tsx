@@ -23,16 +23,13 @@ export function ChatPanel({ messages, onSend, pending, className }: ChatPanelPro
   const [input, setInput] = React.useState("")
   const listRef = React.useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when a new message is appended.
-  // messages.length is a primitive derived from the prop; Biome's exhaustive-deps
-  // rule does not flag primitive expressions — only array/object references.
-  const messageCount = messages.length
+  // Auto-scroll to bottom when messages change. No deps: runs after every render, scrolls automatically when new messages arrive.
   React.useEffect(() => {
     const el = listRef.current
     if (el) {
       el.scrollTop = el.scrollHeight
     }
-  }, [messageCount])
+  })
 
   async function handleSend() {
     const text = input.trim()

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { RealtimeRun, RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
 import { Check, Image as ImageIcon, Loader2 } from "lucide-react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
@@ -303,13 +304,13 @@ function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
 
   return (
     <div className="mt-5 flex items-center gap-3 rounded-card border border-border bg-surface-elevated p-3 transition-opacity duration-300">
-      <div className="size-14 rounded-card overflow-hidden bg-surface-muted flex items-center justify-center shrink-0 border border-border">
+      <div className="size-14 rounded-card overflow-hidden bg-surface-muted flex items-center justify-center shrink-0 border border-border relative">
         {imageUrl !== undefined ? (
-          <img
+          <Image
             src={imageUrl}
             alt={productName ?? "Producto detectado"}
-            loading="lazy"
-            className="size-full object-cover"
+            fill
+            className="object-cover"
           />
         ) : (
           <ImageIcon className="size-5 text-fg-3" strokeWidth={1.5} />
