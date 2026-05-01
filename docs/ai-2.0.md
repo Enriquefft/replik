@@ -504,28 +504,28 @@ Only LLM cost that scales with engagement.
 ## 6. Phased Implementation
 
 ### Phase 1 — Platform layer + demo unblockers
-- [ ] `src/lib/ai/{models,taxonomies,schemas,guards,retry}.ts`
-- [ ] `src/lib/ai/fixtures/*.json` — 30 labeled inputs per call site (used as eval baseline + best-of-N judge calibration)
-- [ ] Image extraction (Stage A deterministic + Stage C Sonnet 4.6 gap-fill)
-- [ ] Category enum SSOT + downstream consumers (`asInterestCategory`, scrape, copy gen)
-- [ ] Sales angle enum SSOT + UI/Meta naming/copy gen consumers
-- [ ] `adjustCopy` rewrite (single Opus 4.7 call, discriminated union, `generateObject`, error branching)
-- [ ] Translation fallback to source SRT on any failure
-- [ ] Whisper consolidation (delete inline path at `scrapeProduct/index.ts:247`; canonical `transcribe.ts` with `mode: "text" | "srt"`)
+- [x] `src/lib/ai/{models,taxonomies,schemas,guards,retry}.ts`
+- [x] `src/lib/ai/fixtures/*.json` — 30 labeled inputs per call site (used as eval baseline + best-of-N judge calibration)
+- [x] Image extraction (Stage A deterministic + Stage C Sonnet 4.6 gap-fill)
+- [x] Category enum SSOT + downstream consumers (`asInterestCategory`, scrape, copy gen)
+- [x] Sales angle enum SSOT + UI/Meta naming/copy gen consumers
+- [x] `adjustCopy` rewrite (single Opus 4.7 call, discriminated union, `generateObject`, error branching)
+- [x] Translation fallback to source SRT on any failure
+- [x] Whisper consolidation (delete inline path at `scrapeProduct/index.ts:247`; canonical `transcribe.ts` with `mode: "text" | "srt"`)
 
 ### Phase 2 — Quality stack (best-of-N, vision, self-consistency, caching)
-- [ ] Anti-AI-speak prompt block + few-shots + regex post-check
-- [ ] Meta-policy regex post-check
-- [ ] Pass product description/pricing/bundles to copy generator
-- [ ] CopyContent schema with `.max(125/40/30)` SSOT in lib/ai
-- [ ] Best-of-5 Opus 4.7 + Opus judge on copy gen (5 framings: hook/benefit/social-proof/problem-solution/aspiration)
-- [ ] Self-consistency on sales-angle classify (5× Sonnet 4.6 parallel + majority vote)
-- [ ] Vision input on template picker (Sonnet 4.6, hero image as image content block)
+- [x] Anti-AI-speak prompt block + few-shots + regex post-check
+- [x] Meta-policy regex post-check
+- [x] Pass product description/pricing/bundles to copy generator
+- [x] CopyContent schema with `.max(125/40/30)` SSOT in lib/ai
+- [x] Best-of-5 Opus 4.7 + Opus judge on copy gen (5 framings: hook/benefit/social-proof/problem-solution/aspiration)
+- [x] Self-consistency on sales-angle classify (5× Sonnet 4.6 parallel + majority vote)
+- [x] Vision input on template picker (Sonnet 4.6, hero image as image content block)
 - [ ] ffmpeg via Trigger.dev build extension; gpt-4o-transcribe for scrape pass; whisper-1 retained for SRT pass
 - [ ] Whisper language hint (`language: "es"` or product locale), hallucination filter (drop `no_speech_prob > 0.6`, strip boilerplate)
 - [ ] Template picker prompt-template alignment + try/catch fallback to template 1
-- [ ] Brand-token preservation in translate.ts + Zod `.refine()` post-check
-- [ ] All call sites: `temperature: 0` (creative gen only at 0.6 with diversity rule)
+- [x] Brand-token preservation in translate.ts + Zod `.refine()` post-check
+- [x] All call sites: `temperature: 0` (creative gen only at 0.6 with diversity rule)
 - [ ] Measure real prompt sizes against Phase 1 fixtures; enable `cache_control: { type: "ephemeral", ttl: "5m" }` on every system block clearing 2048 Sonnet / 4096 Opus threshold (latency win)
 
 ### Phase 3 — Hardening
