@@ -94,6 +94,7 @@ export const products = pgTable("products", {
   bundle3PricingCents: integer("bundle_3_pricing_cents"),
   status: productStatusEnum("status").notNull().default("SCRAPING"),
   description: text("description"),
+  brandTokens: jsonb("brand_tokens").$type<string[]>().notNull().default([]),
   shopifyProductId: text("shopify_product_id"),
   shopifyPageHandle: text("shopify_page_handle"),
   shopifyTemplateId: integer("shopify_template_id"),

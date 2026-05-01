@@ -263,6 +263,18 @@ async function runWithConcurrency<T, R>(
   return out
 }
 
+/**
+ * Derive brand tokens from a product name. Splits on whitespace and keeps
+ * tokens of length ≥ 3 that contain at least one uppercase letter (typical
+ * brand-name pattern). Returns a uniqued list. Returns [] for null/empty name
+ * or when no tokens qualify.
+ */
+function deriveBrandTokens(name: string | null): string[] {
+  if (name === null || name === "") return []
+  const tokens = name.split(/\s+/).filter((t) => t.length >= 3 && /[A-Z]/.test(t))
+  return [...new Set(tokens)]
+}
+
 interface ScrapePayload {
   productId: string
   userId: string
@@ -392,8 +404,8 @@ export const scrapeProduct = task({
         if (!row?.name && productView.productName) updates.name = productView.productName
         if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
         if (!row?.category && productView.category) updates.category = productView.category
-        // Always write description from scrape (null means scrape didn't produce one).
         updates.description = productView.description ?? null
+        updates.brandTokens = deriveBrandTokens(productView.productName)
         await db
           .update(products)
           .set(updates)

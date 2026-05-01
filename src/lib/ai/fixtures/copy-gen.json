@@ -19,7 +19,8 @@
           "shopifyPageHandle": "producto-1",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -100,7 +101,8 @@
           "shopifyPageHandle": "producto-2",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -181,7 +183,8 @@
           "shopifyPageHandle": "producto-3",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -262,7 +265,8 @@
           "shopifyPageHandle": "producto-4",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -343,7 +347,8 @@
           "shopifyPageHandle": "producto-5",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -424,7 +429,8 @@
           "shopifyPageHandle": "producto-6",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -505,7 +511,8 @@
           "shopifyPageHandle": "producto-7",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -586,7 +593,8 @@
           "shopifyPageHandle": "producto-8",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -667,7 +675,8 @@
           "shopifyPageHandle": "producto-9",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -748,7 +757,8 @@
           "shopifyPageHandle": "producto-10",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -829,7 +839,8 @@
           "shopifyPageHandle": "producto-11",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -910,7 +921,8 @@
           "shopifyPageHandle": "producto-12",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -991,7 +1003,8 @@
           "shopifyPageHandle": "producto-13",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1072,7 +1085,8 @@
           "shopifyPageHandle": "producto-14",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1153,7 +1167,8 @@
           "shopifyPageHandle": "producto-15",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1234,7 +1249,8 @@
           "shopifyPageHandle": "producto-16",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1315,7 +1331,8 @@
           "shopifyPageHandle": "producto-17",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1396,7 +1413,8 @@
           "shopifyPageHandle": "producto-18",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1477,7 +1495,8 @@
           "shopifyPageHandle": "producto-100",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1552,7 +1571,8 @@
           "shopifyPageHandle": "producto-101",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1627,7 +1647,8 @@
           "shopifyPageHandle": "producto-102",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1702,7 +1723,8 @@
           "shopifyPageHandle": "producto-103",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1777,7 +1799,8 @@
           "shopifyPageHandle": "producto-104",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1852,7 +1875,8 @@
           "shopifyPageHandle": "producto-105",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1927,7 +1951,8 @@
           "shopifyPageHandle": "producto-200",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -1996,7 +2021,8 @@
           "shopifyPageHandle": "producto-201",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -2065,7 +2091,8 @@
           "shopifyPageHandle": "producto-202",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -2134,7 +2161,8 @@
           "shopifyPageHandle": "producto-203",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -2203,7 +2231,8 @@
           "shopifyPageHandle": "producto-204",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {
@@ -2272,7 +2301,8 @@
           "shopifyPageHandle": "producto-205",
           "shopifyTemplateId": 1,
           "description": null,
-          "createdAt": "2026-04-30T00:00:00.000Z"
+          "createdAt": "2026-04-30T00:00:00.000Z",
+          "brandTokens": []
         },
         "creatives": [
           {

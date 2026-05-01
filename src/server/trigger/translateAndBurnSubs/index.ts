@@ -1,7 +1,7 @@
 import { logger, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { withUser } from "@/db/client"
-import { assets, creatives, idempotencyKeys } from "@/db/schema"
+import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { cuesToSrt, translateSrt } from "@/lib/ai/srt-translate.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import { burnSubs, uploadEditedVideo, uploadSrt } from "@/lib/video"
@@ -74,6 +74,7 @@ export const translateAndBurnSubsTask = task({
       const rows = await db
         .select({
           id: creatives.id,
+          productId: creatives.productId,
           transcriptText: creatives.transcriptText,
           language: creatives.language,
           selectedBool: creatives.selectedBool,
@@ -90,6 +91,17 @@ export const translateAndBurnSubsTask = task({
     if (creative.transcriptText === null) {
       throw new Error(`creative transcript missing: ${creativeId}`)
     }
+
+    // 2b. Load product for brand tokens (§10 brand-token preservation).
+    const product = await withUser(userId, async (db) => {
+      const rows = await db
+        .select({ brandTokens: products.brandTokens })
+        .from(products)
+        .where(and(eq(products.id, creative.productId), eq(products.userId, userId)))
+        .limit(1)
+      return rows[0]
+    })
+    if (!product) throw new Error(`product not found for creative: ${creativeId}`)
 
     // 3. Resolve original video asset.
     const originalAsset = await withUser(userId, async (db) => {
@@ -153,12 +165,9 @@ export const translateAndBurnSubsTask = task({
         from: language,
         to: "es-PE",
       })
-      // Brand-token list lives on `products` once that column lands; until
-      // then we pass an empty list so the per-cue preservation check is a
-      // no-op (§10 brand check is per-cue, not global).
       const result = await translateSrt({
         sourceSrt,
-        brandTokens: [],
+        brandTokens: product.brandTokens,
         targetLocale: "es-PE",
       })
       finalSrt = cuesToSrt(result.cues)
