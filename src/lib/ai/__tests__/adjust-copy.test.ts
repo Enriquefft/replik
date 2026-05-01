@@ -142,6 +142,7 @@ describe("ADJUST_COPY_SYSTEM_PROMPT — discriminator + ban-list tokens (§13)",
 
 describe("buildAdjustCopyUserPrompt", () => {
   const sample: AdjustCopyInput = {
+    userId: "user-prompt-builder",
     current: {
       primaryText: "Texto principal",
       headline: "Titular corto",
@@ -205,6 +206,7 @@ describe("adjustCopy — fixture happy paths (mocked LLM)", () => {
       const result = await adjustCopy(row.input, {
         primaryModel: modelReturning(row.expected),
         bumpedModel: modelReturning(row.expected),
+        rateLimiters: passingLimiters(),
       })
       expect(result.ok).toBe(true)
       if (result.ok) {
@@ -218,6 +220,7 @@ describe("adjustCopy — fixture happy paths (mocked LLM)", () => {
 
 describe("adjustCopy — input validation", () => {
   const baseInput: AdjustCopyInput = {
+    userId: "user-validation",
     current: { primaryText: "p", headline: "h", description: "d" },
     message: "ok",
     context: { productId: "p1", creatives: [] },
@@ -226,7 +229,10 @@ describe("adjustCopy — input validation", () => {
   test("rejects empty message → ok:false with descriptive error", async () => {
     const result = await adjustCopy(
       { ...baseInput, message: "" },
-      { primaryModel: modelReturning({ kind: "clarify", message: "?" }) },
+      {
+        primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+        rateLimiters: passingLimiters(),
+      },
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -237,7 +243,10 @@ describe("adjustCopy — input validation", () => {
   test("rejects missing productId → ok:false", async () => {
     const result = await adjustCopy(
       { ...baseInput, context: { productId: "", creatives: [] } },
-      { primaryModel: modelReturning({ kind: "clarify", message: "?" }) },
+      {
+        primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+        rateLimiters: passingLimiters(),
+      },
     )
     expect(result.ok).toBe(false)
   })
@@ -245,9 +254,26 @@ describe("adjustCopy — input validation", () => {
   test("rejects oversized current.headline → ok:false", async () => {
     const result = await adjustCopy(
       { ...baseInput, current: { ...baseInput.current, headline: "x".repeat(50) } },
-      { primaryModel: modelReturning({ kind: "clarify", message: "?" }) },
+      {
+        primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+        rateLimiters: passingLimiters(),
+      },
     )
     expect(result.ok).toBe(false)
+  })
+
+  test("rejects empty userId → ok:false", async () => {
+    const result = await adjustCopy(
+      { ...baseInput, userId: "" },
+      {
+        primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+        rateLimiters: passingLimiters(),
+      },
+    )
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toContain("userId")
+    }
   })
 })
 
@@ -255,6 +281,7 @@ describe("adjustCopy — input validation", () => {
 
 describe("adjustCopy — retry + fallback", () => {
   const validInput: AdjustCopyInput = {
+    userId: "user-retry",
     current: { primaryText: "p", headline: "h", description: "d" },
     message: "ajusta el headline",
     context: { productId: "p1", creatives: [] },
@@ -264,6 +291,7 @@ describe("adjustCopy — retry + fallback", () => {
     const result = await adjustCopy(validInput, {
       primaryModel: throwingModel(),
       bumpedModel: throwingModel(),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -283,6 +311,7 @@ describe("adjustCopy — retry + fallback", () => {
     const result = await adjustCopy(validInput, {
       primaryModel: modelReturning(dirty),
       bumpedModel: modelReturning(clean),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(true)
     if (result.ok && result.action.kind === "rewrite_hero") {
@@ -298,6 +327,7 @@ describe("adjustCopy — retry + fallback", () => {
     const result = await adjustCopy(validInput, {
       primaryModel: modelReturning(dirty),
       bumpedModel: modelReturning(dirty),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(false)
   })
@@ -310,6 +340,7 @@ describe("adjustCopy — retry + fallback", () => {
     const result = await adjustCopy(validInput, {
       primaryModel: modelReturning(tooLong),
       bumpedModel: modelReturning(tooLong),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(false)
   })
@@ -318,6 +349,7 @@ describe("adjustCopy — retry + fallback", () => {
     const action: AdjustCopyAction = { kind: "clarify", message: "milagroso?" }
     const result = await adjustCopy(validInput, {
       primaryModel: modelReturning(action),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.action.kind).toBe("clarify")
@@ -330,6 +362,7 @@ describe("adjustCopy — retry + fallback", () => {
     }
     const result = await adjustCopy(validInput, {
       primaryModel: modelReturning(action),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(true)
   })
@@ -338,6 +371,7 @@ describe("adjustCopy — retry + fallback", () => {
     const action: AdjustCopyAction = { kind: "regenerate_angle", angle: "urgencia" }
     const result = await adjustCopy(validInput, {
       primaryModel: modelReturning(action),
+      rateLimiters: passingLimiters(),
     })
     expect(result.ok).toBe(true)
     if (result.ok && result.action.kind === "regenerate_angle") {
@@ -345,3 +379,93 @@ describe("adjustCopy — retry + fallback", () => {
     }
   })
 })
+
+// ─── Rate limiting (§13) ─────────────────────────────────────────────────────
+
+describe("adjustCopy — Upstash rate limit (§13)", () => {
+  const validInput: AdjustCopyInput = {
+    userId: "user-ratelimit",
+    current: { primaryText: "p", headline: "h", description: "d" },
+    message: "ajusta el headline",
+    context: { productId: "p1", creatives: [] },
+  }
+
+  test("perSec denies → ok:false with error 'rate_limited'", async () => {
+    const calls: string[] = []
+    const limiters = {
+      perSec: makeLimiter(false, calls),
+      perMin: makeLimiter(true, calls),
+    }
+    const result = await adjustCopy(validInput, {
+      primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+      rateLimiters: limiters,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe("rate_limited")
+    }
+    expect(calls).toContain("user-ratelimit")
+  })
+
+  test("perMin denies → ok:false with error 'rate_limited'", async () => {
+    const limiters = {
+      perSec: makeLimiter(true, []),
+      perMin: makeLimiter(false, []),
+    }
+    const result = await adjustCopy(validInput, {
+      primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+      rateLimiters: limiters,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe("rate_limited")
+    }
+  })
+
+  test("both windows pass → LLM is reached and ok:true", async () => {
+    const result = await adjustCopy(validInput, {
+      primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+      rateLimiters: passingLimiters(),
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  test("both limiters are keyed by userId from input", async () => {
+    const callsSec: string[] = []
+    const callsMin: string[] = []
+    const limiters = {
+      perSec: makeLimiter(true, callsSec),
+      perMin: makeLimiter(true, callsMin),
+    }
+    await adjustCopy(
+      { ...validInput, userId: "user-keyed-by-id" },
+      {
+        primaryModel: modelReturning({ kind: "clarify", message: "?" }),
+        rateLimiters: limiters,
+      },
+    )
+    expect(callsSec).toEqual(["user-keyed-by-id"])
+    expect(callsMin).toEqual(["user-keyed-by-id"])
+  })
+})
+
+// ─── Limiter helpers ─────────────────────────────────────────────────────────
+
+function makeLimiter(
+  success: boolean,
+  calls: string[],
+): { limit: (id: string) => Promise<{ success: boolean }> } {
+  return {
+    limit: async (id: string) => {
+      calls.push(id)
+      return { success }
+    },
+  }
+}
+
+function passingLimiters() {
+  return {
+    perSec: makeLimiter(true, []),
+    perMin: makeLimiter(true, []),
+  }
+}

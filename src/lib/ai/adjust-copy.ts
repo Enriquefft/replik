@@ -26,6 +26,8 @@ import "server-only"
 import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { logger } from "@trigger.dev/sdk"
+import { Ratelimit } from "@upstash/ratelimit"
+import { Redis } from "@upstash/redis"
 import { generateObject } from "ai"
 
 import { aiSpeak, metaPolicy } from "@/lib/ai/guards.ts"
@@ -197,23 +199,75 @@ function validateAction(action: AdjustCopyAction): { ok: true } | { ok: false; c
   return { ok: false, critique: checked.reason }
 }
 
+// ─── Rate limiting (§13) ─────────────────────────────────────────────────────
+
+/**
+ * Structural type for the per-window limiter — narrow on purpose so tests can
+ * inject a mock that returns `{ success: false }` without spinning up Redis.
+ * Matches the public surface of `@upstash/ratelimit`'s `Ratelimit#limit`.
+ */
+export interface RateLimitGate {
+  limit(identifier: string): Promise<{ success: boolean }>
+}
+
+export interface AdjustCopyRateLimiters {
+  perSec: RateLimitGate
+  perMin: RateLimitGate
+}
+
+let cachedLimiters: AdjustCopyRateLimiters | null = null
+
+/**
+ * Build the two sliding-window limiters per §13: 1 req/sec and 30 req/min,
+ * keyed by `userId`. Fail-closed if the Upstash REST credentials are missing
+ * — §13 mandates distributed state and forbids in-memory fallback (lambda
+ * instances would each carry their own counter).
+ */
+function getLimiters(): AdjustCopyRateLimiters {
+  if (cachedLimiters) return cachedLimiters
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) {
+    throw new Error(
+      "adjustCopy: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required (§13 mandates distributed rate limiting; no in-memory fallback)",
+    )
+  }
+  const redis = new Redis({ url, token })
+  cachedLimiters = {
+    perSec: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(1, "1 s"),
+      analytics: false,
+      prefix: "ratelimit:adjust-copy:sec",
+    }),
+    perMin: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(30, "60 s"),
+      analytics: false,
+      prefix: "ratelimit:adjust-copy:min",
+    }),
+  }
+  return cachedLimiters
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Optional model overrides for tests — same shape as in `angle-classify.ts`.
- * Production callers pass nothing; the defaults wire Opus 4.7 for both
- * primary and bumped tries (§13 specifies Opus across the chat route).
+ * Optional model + limiter overrides for tests. Production callers pass
+ * nothing; the defaults wire Opus 4.7 for both primary and bumped tries
+ * (§13 specifies Opus) and read Upstash credentials from `process.env`.
  */
 export interface AdjustCopyDeps {
   primaryModel?: LanguageModelV3
   bumpedModel?: LanguageModelV3
+  rateLimiters?: AdjustCopyRateLimiters
 }
 
 /**
  * Run the §13 adjustCopy chat. Never throws — failures collapse into
  * `{ ok: false, error }` so the client can branch on `result.ok` before
  * rendering. Spec §13: post-check + Opus + one critique retry, no
- * `streamObject`.
+ * `streamObject`. Per-user rate limit via Upstash sliding windows.
  */
 export async function adjustCopy(
   rawInput: AdjustCopyInput,
@@ -226,6 +280,15 @@ export async function adjustCopy(
     return { ok: false, error: reason }
   }
   const input = parsedInput.data
+
+  const limiters = deps.rateLimiters ?? getLimiters()
+  const [secCheck, minCheck] = await Promise.all([
+    limiters.perSec.limit(input.userId),
+    limiters.perMin.limit(input.userId),
+  ])
+  if (!secCheck.success || !minCheck.success) {
+    return { ok: false, error: "rate_limited" }
+  }
 
   const primaryModel = deps.primaryModel ?? anthropic(MODELS.CREATIVE)
   const bumpedModel = deps.bumpedModel ?? anthropic(MODELS.CREATIVE)

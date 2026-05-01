@@ -31,6 +31,8 @@
     "@tanstack/react-query-devtools": "^5.100.6",
     "@trigger.dev/react-hooks": "^4.4.4",
     "@trigger.dev/sdk": "^4.4.4",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "ai": "^6.0.170",
     "apify-client": "^2.23.1",
     "class-variance-authority": "^0.7.1",

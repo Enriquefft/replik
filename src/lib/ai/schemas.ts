@@ -324,8 +324,12 @@ export type AdjustCopyCreativeContext = z.infer<typeof AdjustCopyCreativeContext
  * Caller input for `adjustCopy` (§13). The user message is bounded so a
  * single tenant cannot blow the model context budget; spec §13 doesn't pin
  * an exact ceiling but 2000 chars maps to <500 tokens.
+ *
+ * `userId` is the per-tenant rate-limit key — §13 caps each user at
+ * 1 req/sec and 30 req/min via Upstash sliding windows.
  */
 export const AdjustCopyInputSchema = z.object({
+  userId: z.string().min(1),
   current: CopyContentSchema,
   message: z.string().min(1).max(2000),
   context: z.object({

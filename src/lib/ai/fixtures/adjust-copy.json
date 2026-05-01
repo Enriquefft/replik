@@ -13,12 +13,20 @@
         "message": "Quiero el primaryText con un gancho más fuerte sobre la oferta de hoy",
         "context": {
           "productId": "p-001",
-          "creatives": [{ "id": "c-001", "angle": "precio" }]
-        }
+          "creatives": [
+            {
+              "id": "c-001",
+              "angle": "precio"
+            }
+          ]
+        },
+        "userId": "user-fixture-01"
       },
       "expected": {
         "kind": "rewrite_hero",
-        "hero": { "primaryText": "Organizador modular: hoy a 49 soles, mañana sube a 79." }
+        "hero": {
+          "primaryText": "Organizador modular: hoy a 49 soles, mañana sube a 79."
+        }
       }
     },
     {
@@ -31,12 +39,20 @@
         "message": "Cambia el headline para que mencione resultado en minutos",
         "context": {
           "productId": "p-002",
-          "creatives": [{ "id": "c-002", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-002",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-02"
       },
       "expected": {
         "kind": "rewrite_hero",
-        "hero": { "headline": "Alisa en 5 minutos, sin frizz" }
+        "hero": {
+          "headline": "Alisa en 5 minutos, sin frizz"
+        }
       }
     },
     {
@@ -49,12 +65,20 @@
         "message": "Pon una description que mencione el ahorro de espacio",
         "context": {
           "productId": "p-003",
-          "creatives": [{ "id": "c-003", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-003",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-03"
       },
       "expected": {
         "kind": "rewrite_hero",
-        "hero": { "description": "Cabe bajo la cama" }
+        "hero": {
+          "description": "Cabe bajo la cama"
+        }
       }
     },
     {
@@ -67,8 +91,14 @@
         "message": "Reescribe el hero entero, quiero que sea más cálido",
         "context": {
           "productId": "p-004",
-          "creatives": [{ "id": "c-004", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-004",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-04"
       },
       "expected": {
         "kind": "rewrite_hero",
@@ -89,12 +119,20 @@
         "message": "Ajusta el primaryText, está demasiado plano",
         "context": {
           "productId": "p-005",
-          "creatives": [{ "id": "c-005", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-005",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-05"
       },
       "expected": {
         "kind": "rewrite_hero",
-        "hero": { "primaryText": "Pica cebolla en 5 segundos, sin lágrimas." }
+        "hero": {
+          "primaryText": "Pica cebolla en 5 segundos, sin lágrimas."
+        }
       }
     },
     {
@@ -107,12 +145,20 @@
         "message": "Reemplaza el headline por algo más urgente",
         "context": {
           "productId": "p-006",
-          "creatives": [{ "id": "c-006", "angle": "urgencia" }]
-        }
+          "creatives": [
+            {
+              "id": "c-006",
+              "angle": "urgencia"
+            }
+          ]
+        },
+        "userId": "user-fixture-06"
       },
       "expected": {
         "kind": "rewrite_hero",
-        "hero": { "headline": "Tu sofá limpio en 1 pasada" }
+        "hero": {
+          "headline": "Tu sofá limpio en 1 pasada"
+        }
       }
     },
     {
@@ -125,12 +171,20 @@
         "message": "El description quedó mejor antes, déjalo decir 'Batería 24 horas'",
         "context": {
           "productId": "p-007",
-          "creatives": [{ "id": "c-007", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-007",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-07"
       },
       "expected": {
         "kind": "adjust_copy",
-        "overrides": { "description": "Batería 24 horas" }
+        "overrides": {
+          "description": "Batería 24 horas"
+        }
       }
     },
     {
@@ -143,12 +197,20 @@
         "message": "Suaviza el headline, suena demasiado coloquial",
         "context": {
           "productId": "p-008",
-          "creatives": [{ "id": "c-008", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-008",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-08"
       },
       "expected": {
         "kind": "adjust_copy",
-        "overrides": { "headline": "Tu sala más acogedora" }
+        "overrides": {
+          "headline": "Tu sala más acogedora"
+        }
       }
     },
     {
@@ -161,12 +223,20 @@
         "message": "Redondea el primaryText, es muy técnico",
         "context": {
           "productId": "p-009",
-          "creatives": [{ "id": "c-009", "angle": "comparacion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-009",
+              "angle": "comparacion"
+            }
+          ]
+        },
+        "userId": "user-fixture-09"
       },
       "expected": {
         "kind": "adjust_copy",
-        "overrides": { "primaryText": "Tu agua sigue fría hasta el día siguiente." }
+        "overrides": {
+          "primaryText": "Tu agua sigue fría hasta el día siguiente."
+        }
       }
     },
     {
@@ -179,12 +249,20 @@
         "message": "Reemplaza description, no me gusta 'a máquina'",
         "context": {
           "productId": "p-010",
-          "creatives": [{ "id": "c-010", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-010",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-10"
       },
       "expected": {
         "kind": "adjust_copy",
-        "overrides": { "description": "Se lava fácil" }
+        "overrides": {
+          "description": "Se lava fácil"
+        }
       }
     },
     {
@@ -197,8 +275,14 @@
         "message": "Cambia headline y description, quiero algo más relajado",
         "context": {
           "productId": "p-011",
-          "creatives": [{ "id": "c-011", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-011",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-11"
       },
       "expected": {
         "kind": "adjust_copy",
@@ -218,12 +302,20 @@
         "message": "Hazme el primaryText más conciso",
         "context": {
           "productId": "p-012",
-          "creatives": [{ "id": "c-012", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-012",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-12"
       },
       "expected": {
         "kind": "adjust_copy",
-        "overrides": { "primaryText": "Aspira el auto y la casa, sin enchufar." }
+        "overrides": {
+          "primaryText": "Aspira el auto y la casa, sin enchufar."
+        }
       }
     },
     {
@@ -236,10 +328,19 @@
         "message": "El ángulo no me convence, pruébalo otra vez con uno distinto",
         "context": {
           "productId": "p-013",
-          "creatives": [{ "id": "c-013", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-013",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-13"
       },
-      "expected": { "kind": "regenerate_angle", "angle": "urgencia" }
+      "expected": {
+        "kind": "regenerate_angle",
+        "angle": "urgencia"
+      }
     },
     {
       "input": {
@@ -251,10 +352,19 @@
         "message": "Regenera el sales angle, este no le habla al precio",
         "context": {
           "productId": "p-014",
-          "creatives": [{ "id": "c-014", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-014",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-14"
       },
-      "expected": { "kind": "regenerate_angle", "angle": "precio" }
+      "expected": {
+        "kind": "regenerate_angle",
+        "angle": "precio"
+      }
     },
     {
       "input": {
@@ -266,10 +376,19 @@
         "message": "Reroll del angle, prueba uno más emocional",
         "context": {
           "productId": "p-015",
-          "creatives": [{ "id": "c-015", "angle": "comparacion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-015",
+              "angle": "comparacion"
+            }
+          ]
+        },
+        "userId": "user-fixture-15"
       },
-      "expected": { "kind": "regenerate_angle", "angle": "aspiracional" }
+      "expected": {
+        "kind": "regenerate_angle",
+        "angle": "aspiracional"
+      }
     },
     {
       "input": {
@@ -281,10 +400,19 @@
         "message": "El angle quedó frío. Vuélvelo a clasificar.",
         "context": {
           "productId": "p-016",
-          "creatives": [{ "id": "c-016", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-016",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-16"
       },
-      "expected": { "kind": "regenerate_angle", "angle": "aspiracional" }
+      "expected": {
+        "kind": "regenerate_angle",
+        "angle": "aspiracional"
+      }
     },
     {
       "input": {
@@ -296,10 +424,19 @@
         "message": "Pásalo a un angle de testimonio real",
         "context": {
           "productId": "p-017",
-          "creatives": [{ "id": "c-017", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-017",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-17"
       },
-      "expected": { "kind": "regenerate_angle", "angle": "testimonio" }
+      "expected": {
+        "kind": "regenerate_angle",
+        "angle": "testimonio"
+      }
     },
     {
       "input": {
@@ -311,10 +448,19 @@
         "message": "Quiero que el angle hable del problema del cliente",
         "context": {
           "productId": "p-018",
-          "creatives": [{ "id": "c-018", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-018",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-18"
       },
-      "expected": { "kind": "regenerate_angle", "angle": "dolor" }
+      "expected": {
+        "kind": "regenerate_angle",
+        "angle": "dolor"
+      }
     },
     {
       "input": {
@@ -326,8 +472,14 @@
         "message": "ajústalo",
         "context": {
           "productId": "p-019",
-          "creatives": [{ "id": "c-019", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-019",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-19"
       },
       "expected": {
         "kind": "clarify",
@@ -344,10 +496,19 @@
         "message": "mejóralo",
         "context": {
           "productId": "p-020",
-          "creatives": [{ "id": "c-020", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-020",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-20"
       },
-      "expected": { "kind": "clarify", "message": "¿Mejorar primaryText, headline o description?" }
+      "expected": {
+        "kind": "clarify",
+        "message": "¿Mejorar primaryText, headline o description?"
+      }
     },
     {
       "input": {
@@ -359,10 +520,19 @@
         "message": "no me gusta",
         "context": {
           "productId": "p-021",
-          "creatives": [{ "id": "c-021", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-021",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-21"
       },
-      "expected": { "kind": "clarify", "message": "¿Qué parte específica del copy no te convence?" }
+      "expected": {
+        "kind": "clarify",
+        "message": "¿Qué parte específica del copy no te convence?"
+      }
     },
     {
       "input": {
@@ -374,8 +544,14 @@
         "message": "ponlo más vendedor",
         "context": {
           "productId": "p-022",
-          "creatives": [{ "id": "c-022", "angle": "dolor" }]
-        }
+          "creatives": [
+            {
+              "id": "c-022",
+              "angle": "dolor"
+            }
+          ]
+        },
+        "userId": "user-fixture-22"
       },
       "expected": {
         "kind": "clarify",
@@ -392,10 +568,19 @@
         "message": "cámbialo",
         "context": {
           "productId": "p-023",
-          "creatives": [{ "id": "c-023", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-023",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-23"
       },
-      "expected": { "kind": "clarify", "message": "¿Qué campo cambio y con qué tono?" }
+      "expected": {
+        "kind": "clarify",
+        "message": "¿Qué campo cambio y con qué tono?"
+      }
     },
     {
       "input": {
@@ -407,8 +592,14 @@
         "message": "hazlo bonito",
         "context": {
           "productId": "p-024",
-          "creatives": [{ "id": "c-024", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-024",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-24"
       },
       "expected": {
         "kind": "clarify",
@@ -425,8 +616,14 @@
         "message": "pon que cura el acné en 3 días",
         "context": {
           "productId": "p-025",
-          "creatives": [{ "id": "c-025", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-025",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-25"
       },
       "expected": {
         "kind": "reject",
@@ -443,8 +640,14 @@
         "message": "di que adelgaza 5 kg en una semana",
         "context": {
           "productId": "p-026",
-          "creatives": [{ "id": "c-026", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-026",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-26"
       },
       "expected": {
         "kind": "reject",
@@ -461,8 +664,14 @@
         "message": "pon que es milagroso y previene el cáncer",
         "context": {
           "productId": "p-027",
-          "creatives": [{ "id": "c-027", "angle": "aspiracional" }]
-        }
+          "creatives": [
+            {
+              "id": "c-027",
+              "angle": "aspiracional"
+            }
+          ]
+        },
+        "userId": "user-fixture-27"
       },
       "expected": {
         "kind": "reject",
@@ -479,8 +688,14 @@
         "message": "ponle un antes y después",
         "context": {
           "productId": "p-028",
-          "creatives": [{ "id": "c-028", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-028",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-28"
       },
       "expected": {
         "kind": "reject",
@@ -497,8 +712,14 @@
         "message": "garantiza que el cabello deja de caerse en 7 días",
         "context": {
           "productId": "p-029",
-          "creatives": [{ "id": "c-029", "angle": "demostracion" }]
-        }
+          "creatives": [
+            {
+              "id": "c-029",
+              "angle": "demostracion"
+            }
+          ]
+        },
+        "userId": "user-fixture-29"
       },
       "expected": {
         "kind": "reject",
@@ -515,8 +736,14 @@
         "message": "di '¿sufres de hinchazón?' al inicio del primaryText",
         "context": {
           "productId": "p-030",
-          "creatives": [{ "id": "c-030", "angle": "dolor" }]
-        }
+          "creatives": [
+            {
+              "id": "c-030",
+              "angle": "dolor"
+            }
+          ]
+        },
+        "userId": "user-fixture-30"
       },
       "expected": {
         "kind": "reject",
