@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { requireUser, withUser } from "@/db/client"
 import { creatives, products } from "@/db/schema"
+import { resolveBundlePricing } from "@/lib/pricing.ts"
 import { LaunchClient } from "./launch-client.tsx"
 
 interface PageProps {
@@ -56,14 +57,24 @@ export default async function LaunchPage({ params }: PageProps) {
           </p>
         </div>
 
-        <LaunchClient
-          productId={id}
-          productName={productData.name ?? "Producto"}
-          pricingCents={productData.pricingCents ?? 0}
-          bundle2PricingCents={productData.bundle2PricingCents ?? 0}
-          bundle3PricingCents={productData.bundle3PricingCents ?? 0}
-          selectedCreatives={selectedCreatives}
-        />
+        {(() => {
+          const pricingCents = productData.pricingCents ?? 0
+          const { bundle2Cents, bundle3Cents } = resolveBundlePricing(
+            pricingCents,
+            productData.bundle2PricingCents,
+            productData.bundle3PricingCents,
+          )
+          return (
+            <LaunchClient
+              productId={id}
+              productName={productData.name ?? "Producto"}
+              pricingCents={pricingCents}
+              bundle2PricingCents={bundle2Cents}
+              bundle3PricingCents={bundle3Cents}
+              selectedCreatives={selectedCreatives}
+            />
+          )
+        })()}
       </div>
     </div>
   )

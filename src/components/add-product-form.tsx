@@ -27,8 +27,6 @@ const priceField = z
 const AddProductSchema = z.object({
   source_url: z.url("Debe ser una URL válida"),
   pricing_cents: priceField,
-  bundle_2_pricing_cents: priceField,
-  bundle_3_pricing_cents: priceField,
   whatsapp_number: z.string().min(7, "Número inválido").optional(),
 })
 
@@ -47,8 +45,6 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
     defaultValues: {
       source_url: "",
       pricing_cents: NaN,
-      bundle_2_pricing_cents: NaN,
-      bundle_3_pricing_cents: NaN,
       ...(initialWhatsapp !== null && initialWhatsapp !== undefined
         ? { whatsapp_number: initialWhatsapp }
         : {}),
@@ -129,80 +125,34 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
             />
 
             {/* Pricing */}
-            <div>
-              <p className="text-callout font-semibold text-fg-1 mb-3 flex items-center gap-1.5">
-                <Package className="size-3.5 text-fg-2" strokeWidth={1.8} />
-                Precios (en centavos)
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <FormField
-                  control={form.control}
-                  name="pricing_cents"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>1 unidad</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="7900"
-                          {...field}
-                          value={Number.isNaN(field.value) ? "" : field.value}
-                          onChange={(e) => {
-                            field.onChange(e.target.valueAsNumber)
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bundle_2_pricing_cents"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pack × 2</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="12900"
-                          {...field}
-                          value={Number.isNaN(field.value) ? "" : field.value}
-                          onChange={(e) => {
-                            field.onChange(e.target.valueAsNumber)
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bundle_3_pricing_cents"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pack × 3</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="16900"
-                          {...field}
-                          value={Number.isNaN(field.value) ? "" : field.value}
-                          onChange={(e) => {
-                            field.onChange(e.target.valueAsNumber)
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+            <FormField
+              control={form.control}
+              name="pricing_cents"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Package className="size-3.5 text-fg-2" strokeWidth={1.8} />
+                    Precio por unidad (en centavos)
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="7900"
+                      {...field}
+                      value={Number.isNaN(field.value) ? "" : field.value}
+                      onChange={(e) => {
+                        field.onChange(e.target.valueAsNumber)
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Los precios de Pack × 2 y Pack × 3 los configuras al publicar la landing.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* WhatsApp — only if not set */}
             {needsWhatsapp && (

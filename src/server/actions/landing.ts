@@ -12,6 +12,8 @@ import type { ActionResult } from "./types.ts"
 const PublishLandingInput = z.object({
   productId: z.uuid(),
   templateId: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  bundle2PricingCents: z.number().int().positive(),
+  bundle3PricingCents: z.number().int().positive(),
   overrides: z
     .object({
       headline: z.string().max(120).optional(),
@@ -35,17 +37,22 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
       error: parsed.error.issues[0]?.message ?? "Datos inválidos.",
     }
   }
-  const { productId, templateId, overrides } = parsed.data
+  const { productId, templateId, bundle2PricingCents, bundle3PricingCents, overrides } = parsed.data
 
   const { userId } = await requireUser()
 
-  // Verify product belongs to user before doing anything else.
+  // Verify product belongs to user, then persist bundle prices set in the
+  // landing UI so the trigger task and downstream surfaces (launch page, copy
+  // gen) read consistent values from the DB.
   const owned = await withUser(userId, async (db) => {
     const rows = await db
-      .select({ id: products.id })
-      .from(products)
+      .update(products)
+      .set({
+        bundle2PricingCents,
+        bundle3PricingCents,
+      })
       .where(and(eq(products.id, productId), eq(products.userId, userId)))
-      .limit(1)
+      .returning({ id: products.id })
     return rows[0]
   })
   if (!owned) {

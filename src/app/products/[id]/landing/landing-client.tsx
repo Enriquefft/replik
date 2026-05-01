@@ -11,6 +11,7 @@ import { IphonePreview } from "@/components/iphone-preview.tsx"
 import { TaskProgress } from "@/components/task-progress.tsx"
 import { TemplateCard } from "@/components/template-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
+import { Input } from "@/components/ui/input.tsx"
 import type { TemplateMeta } from "@/lib/shopify/templates/index.ts"
 import { publishLanding } from "@/server/actions/landing.ts"
 import { adjustLandingCopy } from "@/server/actions/products.ts"
@@ -20,8 +21,8 @@ interface LandingClientProps {
   templates: readonly TemplateMeta[]
   productName: string
   pricingCents: number
-  bundle2PricingCents: number
-  bundle3PricingCents: number
+  initialBundle2PricingCents: number
+  initialBundle3PricingCents: number
 }
 
 function formatPrice(cents: number): string {
@@ -33,8 +34,8 @@ export function LandingClient({
   templates,
   productName,
   pricingCents,
-  bundle2PricingCents,
-  bundle3PricingCents,
+  initialBundle2PricingCents,
+  initialBundle3PricingCents,
 }: LandingClientProps) {
   const router = useRouter()
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<number>(templates[0]?.id ?? 1)
@@ -42,6 +43,12 @@ export function LandingClient({
     headline?: string
     subheadline?: string
   }>({})
+  const [bundle2PricingCents, setBundle2PricingCents] = React.useState<number>(
+    initialBundle2PricingCents,
+  )
+  const [bundle3PricingCents, setBundle3PricingCents] = React.useState<number>(
+    initialBundle3PricingCents,
+  )
   const [messages, setMessages] = React.useState<ChatMessage[]>([
     {
       id: "init-0",
@@ -90,10 +97,20 @@ export function LandingClient({
   }
 
   async function handlePublish() {
+    if (!Number.isFinite(bundle2PricingCents) || bundle2PricingCents <= 0) {
+      toast.error("Ingresa un precio válido para el Pack × 2.")
+      return
+    }
+    if (!Number.isFinite(bundle3PricingCents) || bundle3PricingCents <= 0) {
+      toast.error("Ingresa un precio válido para el Pack × 3.")
+      return
+    }
     setPublishing(true)
     const result = await publishLanding({
       productId,
       templateId: selectedTemplateId as 1 | 2 | 3,
+      bundle2PricingCents,
+      bundle3PricingCents,
       overrides,
     })
     setPublishing(false)
@@ -140,20 +157,43 @@ export function LandingClient({
         {/* Chat panel */}
         <ChatPanel messages={messages} onSend={handleChat} pending={chatPending} />
 
-        {/* Bundle pricing preview */}
+        {/* Bundle pricing — editable */}
         <div className="rounded-card bg-surface glass border border-border shadow-tight p-4">
-          <p className="text-callout font-semibold text-fg-1 mb-3">Packs configurados</p>
+          <p className="text-callout font-semibold text-fg-1 mb-1">Configura los packs</p>
+          <p className="text-caption text-fg-2 mb-3">
+            Sugerimos × 1.8 y × 2.5 sobre el precio unitario. Ajusta a tu margen.
+          </p>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "1 unidad", price: pricingCents },
-              { label: "Pack × 2", price: bundle2PricingCents },
-              { label: "Pack × 3", price: bundle3PricingCents },
-            ].map((pack) => (
-              <div key={pack.label} className="rounded-control bg-surface-muted p-3 text-center">
-                <p className="text-caption text-fg-2 mb-1">{pack.label}</p>
-                <p className="text-headline font-semibold text-fg-1">{formatPrice(pack.price)}</p>
-              </div>
-            ))}
+            <div className="rounded-control bg-surface-muted p-3 text-center">
+              <p className="text-caption text-fg-2 mb-1">1 unidad</p>
+              <p className="text-headline font-semibold text-fg-1">{formatPrice(pricingCents)}</p>
+            </div>
+            <div className="rounded-control bg-surface-muted p-3">
+              <p className="text-caption text-fg-2 mb-1 text-center">Pack × 2 (centavos)</p>
+              <Input
+                type="number"
+                min={1}
+                step={100}
+                value={Number.isNaN(bundle2PricingCents) ? "" : bundle2PricingCents}
+                onChange={(e) => {
+                  setBundle2PricingCents(e.target.valueAsNumber)
+                }}
+                className="text-center"
+              />
+            </div>
+            <div className="rounded-control bg-surface-muted p-3">
+              <p className="text-caption text-fg-2 mb-1 text-center">Pack × 3 (centavos)</p>
+              <Input
+                type="number"
+                min={1}
+                step={100}
+                value={Number.isNaN(bundle3PricingCents) ? "" : bundle3PricingCents}
+                onChange={(e) => {
+                  setBundle3PricingCents(e.target.valueAsNumber)
+                }}
+                className="text-center"
+              />
+            </div>
           </div>
         </div>
 

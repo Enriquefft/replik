@@ -79,8 +79,6 @@ export async function retryScrape(rawProductId: unknown): Promise<ActionResult<n
 const CreateProductInput = z.object({
   source_url: z.url("URL inválida"),
   pricing_cents: z.number().int().positive(),
-  bundle_2_pricing_cents: z.number().int().positive(),
-  bundle_3_pricing_cents: z.number().int().positive(),
   whatsapp_number: z.string().min(7).optional(),
 })
 
@@ -113,8 +111,6 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
           userId,
           sourceUrl: input.source_url,
           pricingCents: input.pricing_cents,
-          bundle2PricingCents: input.bundle_2_pricing_cents,
-          bundle3PricingCents: input.bundle_3_pricing_cents,
           status: "SCRAPING",
         })
         .returning({ id: products.id })

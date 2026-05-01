@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { requireUser, withUser } from "@/db/client"
 import { products } from "@/db/schema"
+import { resolveBundlePricing } from "@/lib/pricing.ts"
 import { TEMPLATES } from "@/lib/shopify/templates/index.ts"
 import { LandingClient } from "./landing-client.tsx"
 
@@ -26,6 +27,13 @@ export default async function LandingPage({ params }: PageProps) {
     notFound()
   }
 
+  const pricingCents = productData.pricingCents ?? 0
+  const { bundle2Cents, bundle3Cents } = resolveBundlePricing(
+    pricingCents,
+    productData.bundle2PricingCents,
+    productData.bundle3PricingCents,
+  )
+
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-8">
       <div className="mx-auto max-w-7xl">
@@ -44,9 +52,9 @@ export default async function LandingPage({ params }: PageProps) {
           productId={id}
           templates={TEMPLATES}
           productName={productData.name ?? ""}
-          pricingCents={productData.pricingCents ?? 0}
-          bundle2PricingCents={productData.bundle2PricingCents ?? 0}
-          bundle3PricingCents={productData.bundle3PricingCents ?? 0}
+          pricingCents={pricingCents}
+          initialBundle2PricingCents={bundle2Cents}
+          initialBundle3PricingCents={bundle3Cents}
         />
       </div>
     </div>
