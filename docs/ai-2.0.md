@@ -450,7 +450,7 @@ Fixture-tested. Rules are SSOT — same regex used by anti-AI-speak prompt instr
 - 30 SRT translation pairs (source → expected es-PE).
 - 30 template-pick fixtures (product → expected templateId).
 
-Snapshot tests run in CI. LLM calls mocked via Vercel AI SDK's `MockLanguageModelV2`. New evals added on regression discovery.
+Snapshot tests run in CI (`bun test --bail` in `.github/workflows/ci.yml`). LLM calls mocked via Vercel AI SDK's `MockLanguageModelV3` (ai@^6 ships V3; spec earlier referenced V2 against the older v5 API). New evals added on regression discovery.
 
 ### 4.5 Locale parameter (avoid breaking change)
 
@@ -532,7 +532,7 @@ Only LLM cost that scales with engagement.
 - [ ] Same-origin allowlist + dedup + byte/link/fetch budget on `fetchUrl`
 - [ ] `<UNTRUSTED>` wrapper on all external content
 - [ ] Output-side imperative-verb screen on extracted name/description
-- [ ] Snapshot test CI gate per call site (LLM mocked via `MockLanguageModelV2`)
+- [x] Snapshot test CI gate per call site (LLM mocked via `MockLanguageModelV3` — ai@^6; landed alongside Phase 2)
 - [ ] Rate limiter on `adjustCopy` (Upstash, not in-memory — fails across Vercel lambda instances)
 - [ ] UI badge on creative card showing `translated: false` when translate fallback fired
 
