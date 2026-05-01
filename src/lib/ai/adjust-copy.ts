@@ -25,6 +25,7 @@ import "server-only"
 
 import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
+import { logger } from "@trigger.dev/sdk"
 import { generateObject } from "ai"
 
 import { aiSpeak, metaPolicy } from "@/lib/ai/guards.ts"
@@ -115,7 +116,7 @@ async function callLLM(params: CallParams): Promise<AdjustCopyAction> {
         ].join("\n")
 
   // Log run hash for variance tracking per §2 — Anthropic exposes no seed.
-  void runHash(JSON.stringify(params.input))
+  logger.info("ai:run", { site: "adjust-copy", runHash: runHash(JSON.stringify(params.input)) })
 
   const result = await generateObject({
     model: params.model,

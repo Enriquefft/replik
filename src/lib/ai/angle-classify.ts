@@ -10,6 +10,7 @@ import "server-only"
 
 import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
+import { logger } from "@trigger.dev/sdk"
 import { generateObject } from "ai"
 import { z } from "zod"
 
@@ -64,7 +65,7 @@ async function callOnce(
   model: LanguageModelV3,
 ): Promise<SalesAngleClassification> {
   // Log run hash for variance tracking per §2 — Anthropic exposes no seed.
-  void runHash(JSON.stringify(creatives))
+  logger.info("ai:run", { site: "angle-classify", runHash: runHash(JSON.stringify(creatives)) })
 
   const prompt = JSON.stringify(
     creatives.map((c) => ({

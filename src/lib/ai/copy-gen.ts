@@ -23,6 +23,7 @@ import "server-only"
 
 import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
+import { logger } from "@trigger.dev/sdk"
 import { generateText, Output } from "ai"
 import { z } from "zod"
 
@@ -307,7 +308,11 @@ async function callGenerator(
           "Corrige los problemas listados arriba.",
         ].join("\n")
 
-  void runHash(`${framing.id}|${userPrompt}`)
+  logger.info("ai:run", {
+    site: "copy-gen",
+    framingId: framing.id,
+    runHash: runHash(`${framing.id}|${userPrompt}`),
+  })
 
   const result = await generateText({
     model,
