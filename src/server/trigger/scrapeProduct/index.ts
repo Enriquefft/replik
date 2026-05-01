@@ -352,11 +352,13 @@ export const scrapeProduct = task({
           imageUrl: scrapeResult.product.imageUrl,
           productName: scrapeResult.product.productName,
           category: scrapeResult.product.category,
+          description: scrapeResult.product.description,
         }
       : {
           imageUrl: scrapeResult.partial.imageUrl,
           productName: scrapeResult.partial.productName,
           category: scrapeResult.partial.category,
+          description: scrapeResult.partial.description,
         }
     const adKeywords = isReady
       ? [...scrapeResult.product.keywords.broad, ...scrapeResult.product.keywords.narrow]
@@ -390,12 +392,12 @@ export const scrapeProduct = task({
         if (!row?.name && productView.productName) updates.name = productView.productName
         if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
         if (!row?.category && productView.category) updates.category = productView.category
-        if (Object.keys(updates).length > 0) {
-          await db
-            .update(products)
-            .set(updates)
-            .where(and(eq(products.id, productId), eq(products.userId, userId)))
-        }
+        // Always write description from scrape (null means scrape didn't produce one).
+        updates.description = productView.description ?? null
+        await db
+          .update(products)
+          .set(updates)
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
       })
     } catch (err) {
       logger.warn("product_backfill_failed", {
