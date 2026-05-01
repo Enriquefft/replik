@@ -181,7 +181,7 @@ const OverridesSchema = z.object({
   subheadline: z.string().max(150).optional(),
 })
 
-export async function adjustCopy(
+export async function adjustLandingCopy(
   rawProductId: unknown,
   rawMessage: unknown,
 ): Promise<ActionResult<CopyOverrides>> {

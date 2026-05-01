@@ -13,7 +13,7 @@ import { TemplateCard } from "@/components/template-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import type { TemplateMeta } from "@/lib/shopify/templates/index.ts"
 import { publishLanding } from "@/server/actions/landing.ts"
-import { adjustCopy } from "@/server/actions/products.ts"
+import { adjustLandingCopy } from "@/server/actions/products.ts"
 
 interface LandingClientProps {
   productId: string
@@ -64,7 +64,7 @@ export function LandingClient({
     setChatPending(true)
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, from: "user", text }])
 
-    const result = await adjustCopy(productId, text)
+    const result = await adjustLandingCopy(productId, text)
 
     if (result.ok && (result.data.headline ?? result.data.subheadline)) {
       setOverrides((prev) => ({ ...prev, ...result.data }))
