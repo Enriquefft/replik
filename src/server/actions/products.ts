@@ -34,46 +34,52 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
   const { userId } = await requireUser()
   const input = parsed.data
 
-  return withUser(userId, async (db) => {
-    if (input.whatsapp_number) {
-      await db
-        .update(users)
-        .set({ whatsappNumber: input.whatsapp_number })
-        .where(eq(users.id, userId))
-    }
+  try {
+    return await withUser(userId, async (db) => {
+      if (input.whatsapp_number) {
+        await db
+          .update(users)
+          .set({ whatsappNumber: input.whatsapp_number })
+          .where(eq(users.id, userId))
+      }
 
-    const inserted = await db
-      .insert(products)
-      .values({
-        userId,
-        sourceUrl: input.source_url,
-        pricingCents: input.pricing_cents,
-        bundle2PricingCents: input.bundle_2_pricing_cents,
-        bundle3PricingCents: input.bundle_3_pricing_cents,
-        status: "SCRAPING",
-      })
-      .returning({ id: products.id })
+      const inserted = await db
+        .insert(products)
+        .values({
+          userId,
+          sourceUrl: input.source_url,
+          pricingCents: input.pricing_cents,
+          bundle2PricingCents: input.bundle_2_pricing_cents,
+          bundle3PricingCents: input.bundle_3_pricing_cents,
+          status: "SCRAPING",
+        })
+        .returning({ id: products.id })
 
-    const row = inserted[0]
-    if (!row) {
-      return { ok: false, error: "No se pudo crear el producto." }
-    }
+      const row = inserted[0]
+      if (!row) {
+        return { ok: false, error: "No se pudo crear el producto." }
+      }
 
-    const productId = toProductId(row.id)
+      const productId = toProductId(row.id)
 
-    try {
-      await tasks.trigger<typeof scrapeProduct>("scrape-product", {
-        productId: row.id,
-        userId,
-        competitorUrl: input.source_url,
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al iniciar el análisis."
-      return { ok: false, error: message }
-    }
+      // Fire-and-forget: don't block the redirect on Trigger.dev latency/timeouts
+      tasks
+        .trigger<typeof scrapeProduct>("scrape-product", {
+          productId: row.id,
+          userId,
+          competitorUrl: input.source_url,
+        })
+        .catch((err: unknown) => {
+          console.error("[createProduct] trigger failed", err)
+        })
 
-    return { ok: true, data: { id: productId } }
-  })
+      return { ok: true, data: { id: productId } }
+    })
+  } catch (err) {
+    console.error("[createProduct] db error", err)
+    const message = err instanceof Error ? err.message : "Error al crear el producto."
+    return { ok: false, error: message }
+  }
 }
 
 export type CreativeWithAssets = typeof creatives.$inferSelect & {
