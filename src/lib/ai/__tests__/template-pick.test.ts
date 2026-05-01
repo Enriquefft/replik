@@ -300,3 +300,36 @@ describe("pickTemplate — error fallback", () => {
     expect(result).toBe(1)
   })
 })
+
+// ─── §1.4 Bumped-tier model escalation ───────────────────────────────────────
+
+describe("bumped-tier model escalation (§1.4)", () => {
+  const escalationInput: TemplatePickInput = {
+    name: "Gadget de Cocina",
+    category: "kitchen",
+    description: "Un gadget práctico.",
+    priceText: "S/ 79.90",
+    heroImageUrl: "https://example.com/gadget.jpg",
+  }
+
+  test("primary succeeds — only model is called, bumpedModel is not called", async () => {
+    const model = buildMockModel(2)
+    const bumpedModel = buildMockModel(3)
+    await pickTemplate(escalationInput, model, bumpedModel)
+    expect(model.doGenerateCalls.length).toBe(1)
+    expect(bumpedModel.doGenerateCalls.length).toBe(0)
+  })
+
+  test("primary fails validation — model called once, bumpedModel called once, returns bumped result", async () => {
+    // Return invalid JSON so schema validation fails → triggers bumped tier.
+    const invalidModel = new MockLanguageModelV3({
+      supportedUrls: { "image/*": [/.*/] },
+      doGenerate: async () => buildGenerateResult(JSON.stringify({ templateId: 99 })),
+    })
+    const bumpedModel = buildMockModel(2)
+    const result = await pickTemplate(escalationInput, invalidModel, bumpedModel)
+    expect(invalidModel.doGenerateCalls.length).toBe(1)
+    expect(bumpedModel.doGenerateCalls.length).toBe(1)
+    expect(result).toBe(2)
+  })
+})

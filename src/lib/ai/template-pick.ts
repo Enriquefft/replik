@@ -94,58 +94,61 @@ export function buildTemplatePickPrompt(input: TemplatePickInput): string {
 
 // ─── LLM call ─────────────────────────────────────────────────────────────────
 
+/**
+ * Shared message builder for both primary and critique calls.
+ * Returns the initial user turn containing the hero image + text prompt.
+ */
+function buildUserMessage(input: TemplatePickInput): {
+  role: "user"
+  content: [{ type: "image"; image: URL }, { type: "text"; text: string }]
+} {
+  return {
+    role: "user",
+    content: [
+      { type: "image", image: new URL(input.heroImageUrl) },
+      { type: "text", text: buildTemplatePickPrompt(input) },
+    ],
+  }
+}
+
+/**
+ * Parse the raw JSON output from the LLM into a `TemplatePickResult`-shaped
+ * object. We use `Output.json()` rather than `Output.object({ schema })`
+ * so that schema validation is deferred to `validateResult` — this keeps
+ * the bumped-tier retry path reachable when the primary call returns valid
+ * JSON but an invalid `templateId` value.
+ */
+function parseRawOutput(raw: unknown): TemplatePickResult {
+  // Cast without assertion — validateResult will catch bad shapes.
+  return raw as TemplatePickResult
+}
+
 async function callLLM(
   input: TemplatePickInput,
   model: LanguageModel,
 ): Promise<TemplatePickResult> {
   const result = await generateText({
     model,
-    output: Output.object({ schema: TemplatePickResultSchema }),
+    output: Output.json(),
     temperature: defaultTemperature,
     system: TEMPLATE_PICK_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            image: new URL(input.heroImageUrl),
-          },
-          {
-            type: "text",
-            text: buildTemplatePickPrompt(input),
-          },
-        ],
-      },
-    ],
+    messages: [buildUserMessage(input)],
   })
-  return result.output
+  return parseRawOutput(result.output)
 }
 
 async function callLLMWithCritique(
   input: TemplatePickInput,
   critique: string,
-  model: LanguageModel,
+  bumpedModel: LanguageModel,
 ): Promise<TemplatePickResult> {
   const result = await generateText({
-    model,
-    output: Output.object({ schema: TemplatePickResultSchema }),
+    model: bumpedModel,
+    output: Output.json(),
     temperature: defaultTemperature,
     system: TEMPLATE_PICK_SYSTEM_PROMPT,
     messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            image: new URL(input.heroImageUrl),
-          },
-          {
-            type: "text",
-            text: buildTemplatePickPrompt(input),
-          },
-        ],
-      },
+      buildUserMessage(input),
       {
         role: "assistant",
         content: [
@@ -166,7 +169,7 @@ async function callLLMWithCritique(
       },
     ],
   })
-  return result.output
+  return parseRawOutput(result.output)
 }
 
 // ─── Validate ─────────────────────────────────────────────────────────────────
@@ -192,17 +195,19 @@ function validateResult(
  *
  * Uses Sonnet 4.6 with a vision input (hero image URL) and product metadata.
  * Wraps free-text fields in `<UNTRUSTED>` tags per §5.
- * Retries once with critique on schema mismatch per §6.
+ * Retries once with critique on schema mismatch per §6 using `bumpedModel`
+ * (Opus by default) to escalate to a stronger model on the bumped tier per §1.4.
  * Returns `1` (Clean Classic) on any unrecoverable error — never throws.
  */
 export async function pickTemplate(
   input: TemplatePickInput,
   model: LanguageModel = anthropic(MODELS.CLASSIFIER),
+  bumpedModel: LanguageModel = anthropic(MODELS.CREATIVE),
 ): Promise<TemplateId> {
   const result = await withRetry(
     {
       primary: (inp) => callLLM(inp, model),
-      bumped: (inp, critique) => callLLMWithCritique(inp, critique, model),
+      bumped: (inp, critique) => callLLMWithCritique(inp, critique, bumpedModel),
       fallback: () => ({ templateId: 1 as const }),
       validate: validateResult,
     },
