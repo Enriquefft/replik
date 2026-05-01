@@ -24,6 +24,7 @@ import { z } from "zod"
 import { withUser } from "@/db/client"
 import { ads, assets, campaigns, creatives, idempotencyKeys, products } from "@/db/schema"
 import { generateCopy } from "@/lib/ai/copy-gen.ts"
+import { InterestCategory } from "@/lib/ai/taxonomies.ts"
 import {
   adCreate,
   adsetCreate,
@@ -33,7 +34,7 @@ import {
   type MetaCreds,
   videoUploadResumable,
 } from "@/lib/meta"
-import { type InterestCategory, interestsFor } from "@/lib/meta/interests"
+import { interestsFor } from "@/lib/meta/interests"
 import { getIntegration, requireIntegration } from "@/server/integrations"
 
 const Payload = z.object({
@@ -48,19 +49,10 @@ export interface LaunchResult {
   adCount: number
 }
 
-const KNOWN_INTEREST_CATEGORIES: ReadonlySet<InterestCategory> = new Set([
-  "home_garden",
-  "beauty",
-  "fitness",
-  "kitchen",
-  "pets",
-] as const)
-
 function asInterestCategory(category: string | null): InterestCategory | null {
   if (!category) return null
-  return KNOWN_INTEREST_CATEGORIES.has(category as InterestCategory)
-    ? (category as InterestCategory)
-    : null
+  const parsed = InterestCategory.safeParse(category)
+  return parsed.success ? parsed.data : null
 }
 
 interface FriendlyError {
