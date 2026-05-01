@@ -1,0 +1,1 @@
+ALTER TABLE "creatives" ADD COLUMN "translated" boolean;

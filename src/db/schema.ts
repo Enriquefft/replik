@@ -113,6 +113,7 @@ export const creatives = pgTable("creatives", {
   transcriptText: text("transcript_text"),
   language: text("language"),
   selectedBool: boolean("selected_bool").notNull().default(false),
+  translated: boolean("translated"),
   scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
 })
 

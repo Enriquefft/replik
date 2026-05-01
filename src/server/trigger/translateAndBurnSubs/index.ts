@@ -214,6 +214,15 @@ export const translateAndBurnSubsTask = task({
       })
     })
 
+    // 10. Persist `translated` flag onto the creatives row so the UI can
+    // surface a badge when the fallback fired (§10 / §6 Phase 3 item 5).
+    await withUser(userId, async (db) => {
+      await db
+        .update(creatives)
+        .set({ translated })
+        .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
+    })
+
     return {
       editedUrl: videoUpload.url,
       srtUrl: srtUpload.url,
@@ -232,21 +241,26 @@ async function loadPersistedAssets(
       .select({ kind: assets.kind, url: assets.url })
       .from(assets)
       .where(and(eq(assets.ownerType, "creative"), eq(assets.ownerId, creativeId)))
-    const language = await db
-      .select({ language: creatives.language })
+    const creativeRow = await db
+      .select({ language: creatives.language, translated: creatives.translated })
       .from(creatives)
       .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
       .limit(1)
-    return { rows, language: language[0]?.language ?? null }
+    return { rows, creativeRow: creativeRow[0] ?? null }
   })
   const edited = result.rows.find((r) => r.kind === "edited_video")
   const srt = result.rows.find((r) => r.kind === "srt")
   if (!edited || !srt) return null
-  const lang = result.language ?? "unknown"
+  const lang = result.creativeRow?.language ?? "unknown"
+  // Read the persisted flag directly — inferring from language was wrong because
+  // it returned `true` for any non-es source even when the fallback fired.
+  // Null means the previous run pre-dates the column; fall back to language heuristic
+  // only for those legacy rows.
+  const translated = result.creativeRow?.translated ?? lang !== "es"
   return {
     editedUrl: edited.url,
     srtUrl: srt.url,
     language: lang,
-    translated: lang !== "es",
+    translated,
   }
 }

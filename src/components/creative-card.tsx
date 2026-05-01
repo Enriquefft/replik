@@ -1,6 +1,7 @@
 "use client"
 
 import { Play } from "lucide-react"
+import { Badge } from "@/components/ui/badge.tsx"
 import type { Creative } from "@/db/schema"
 import { cn } from "@/lib/utils.ts"
 
@@ -107,7 +108,7 @@ export function CreativeCard({ creative, selected, onToggle, index = 0 }: Creati
         ) : (
           <p className="text-caption text-fg-3 italic">Sin transcripción</p>
         )}
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {creative.angle ? (
             <span
               className={cn(
@@ -122,6 +123,9 @@ export function CreativeCard({ creative, selected, onToggle, index = 0 }: Creati
             <span className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-medium bg-surface-muted text-fg-3">
               sin clasificar
             </span>
+          )}
+          {creative.translated === false && (
+            <Badge variant="secondary">Subtítulos sin traducir</Badge>
           )}
         </div>
       </div>

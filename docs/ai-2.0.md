@@ -534,7 +534,7 @@ Only LLM cost that scales with engagement.
 - [ ] Output-side imperative-verb screen on extracted name/description
 - [x] Snapshot test CI gate per call site (LLM mocked via `MockLanguageModelV3` — ai@^6; landed alongside Phase 2)
 - [ ] Rate limiter on `adjustCopy` (Upstash, not in-memory — fails across Vercel lambda instances)
-- [ ] UI badge on creative card showing `translated: false` when translate fallback fired
+- [x] UI badge on creative card showing `translated: false` when translate fallback fired
 
 ### Phase 4 — Optional / future
 - [ ] Anthropic Message Batches API — only if we add offline bulk-replay (live demo path stays synchronous)
