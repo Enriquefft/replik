@@ -28,6 +28,7 @@ import { UTApi } from "uploadthing/server"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { classifyAngle } from "@/lib/ai/angle-classify.ts"
+import { imperativeVerbCheck } from "@/lib/ai/guards.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
@@ -401,10 +402,32 @@ export const scrapeProduct = task({
           .where(and(eq(products.id, productId), eq(products.userId, userId)))
           .limit(1)
         const updates: Partial<typeof products.$inferInsert> = {}
-        if (!row?.name && productView.productName) updates.name = productView.productName
+        if (!row?.name && productView.productName) {
+          const nameCheck = imperativeVerbCheck(productView.productName)
+          if (nameCheck.ok) {
+            updates.name = productView.productName
+          } else {
+            logger.warn("ai_speak_imperative_blocked", {
+              field: "name",
+              value: productView.productName,
+            })
+          }
+        }
         if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
         if (!row?.category && productView.category) updates.category = productView.category
-        updates.description = productView.description ?? null
+        if (productView.description != null) {
+          const descCheck = imperativeVerbCheck(productView.description)
+          if (descCheck.ok) {
+            updates.description = productView.description
+          } else {
+            logger.warn("ai_speak_imperative_blocked", {
+              field: "description",
+              value: productView.description,
+            })
+          }
+        } else {
+          updates.description = null
+        }
         updates.brandTokens = deriveBrandTokens(productView.productName)
         await db
           .update(products)

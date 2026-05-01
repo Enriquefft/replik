@@ -29,6 +29,15 @@ const META_POLICY_PERSONAL_ATTR = /¿(sufres|tienes|eres|estás)\b/i
 /** Before/after framing or weight-loss quantity claims. */
 const META_POLICY_BEFORE_AFTER = /(antes\s+y\s+después|baja\s+\d+\s*kg)/i
 
+// ─── Imperative-verb screen (§5 Stage D) ─────────────────────────────────────
+
+/**
+ * Imperative verbs that signal AI-generated marketing copy when they appear at
+ * the start of a product name or description (§5). Trim leading whitespace
+ * before matching.
+ */
+const IMPERATIVE_VERB = /^(compra|descubre|prueba|consigue|ordena|haz|llama|visita|aprovecha)/i
+
 // ─── Guard result type ────────────────────────────────────────────────────────
 
 type GuardOk = { ok: true }
@@ -109,4 +118,20 @@ export function lengthCheck(content: CopyContent): GuardResult {
     ? `LENGTH_VIOLATION: ${firstIssue.path.join(".")} — ${firstIssue.message}`
     : "LENGTH_VIOLATION: unknown field"
   return { ok: false, reason }
+}
+
+/**
+ * Screen a Stage D persist candidate (productName / description) for
+ * imperative-verb AI-speak (§5).
+ *
+ * Trims leading whitespace before matching. Mid-sentence imperatives do NOT
+ * trigger — start-of-string only. On hit, the caller should DROP the field
+ * and continue (not fail the scrape).
+ * Pure function — no I/O.
+ */
+export function imperativeVerbCheck(text: string): GuardResult {
+  if (IMPERATIVE_VERB.test(text.trimStart())) {
+    return { ok: false, reason: "IMPERATIVE_VERB" }
+  }
+  return { ok: true }
 }

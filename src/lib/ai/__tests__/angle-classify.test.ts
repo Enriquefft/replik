@@ -8,7 +8,11 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import type { LanguageModelV3, LanguageModelV3GenerateResult } from "@ai-sdk/provider"
+import type {
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3GenerateResult,
+} from "@ai-sdk/provider"
 import { MockLanguageModelV3 } from "ai/test"
 import { z } from "zod"
 
@@ -456,5 +460,54 @@ describe("classifyAngle — output contract", () => {
 
     const angle = result.angles[0]?.angle
     expect(angle).toBeNull()
+  })
+})
+
+// ─── UNTRUSTED wrapping (§3 prompt-injection hardening) ───────────────────────
+
+describe("classifyAngle — UNTRUSTED wrapping", () => {
+  test("prompt sent to LLM contains <UNTRUSTED> around transcript", async () => {
+    const id = "c1"
+    const transcript = "este es un transcript suficientemente largo para clasificar"
+    let capturedPrompt: LanguageModelV3CallOptions["prompt"] | undefined
+
+    const modelFactory: () => LanguageModelV3 = () =>
+      new MockLanguageModelV3({
+        doGenerate: async (options: LanguageModelV3CallOptions) => {
+          capturedPrompt = options.prompt
+          return makeGenerateResult(makeClassification([{ creativeId: id, angle: "precio" }]))
+        },
+      })
+
+    await classifyAngle({ creatives: [{ id, transcript, language: "es" }] }, modelFactory)
+
+    expect(capturedPrompt).toBeDefined()
+    const promptText = JSON.stringify(capturedPrompt)
+    expect(promptText).toContain("<UNTRUSTED>")
+    expect(promptText).toContain("</UNTRUSTED>")
+    expect(promptText).toContain(transcript)
+  })
+
+  test("UNTRUSTED tags wrap transcript value, not other fields", async () => {
+    const id = "c1"
+    const transcript = "producto increible con resultados visibles"
+    let capturedPrompt: LanguageModelV3CallOptions["prompt"] | undefined
+
+    const modelFactory: () => LanguageModelV3 = () =>
+      new MockLanguageModelV3({
+        doGenerate: async (options: LanguageModelV3CallOptions) => {
+          capturedPrompt = options.prompt
+          return makeGenerateResult(makeClassification([{ creativeId: id, angle: "demostracion" }]))
+        },
+      })
+
+    await classifyAngle({ creatives: [{ id, transcript, language: "es" }] }, modelFactory)
+
+    expect(capturedPrompt).toBeDefined()
+    const promptText = JSON.stringify(capturedPrompt)
+    // The transcript is wrapped
+    expect(promptText).toContain(`<UNTRUSTED>${transcript}</UNTRUSTED>`)
+    // The creativeId is NOT wrapped
+    expect(promptText).not.toContain(`<UNTRUSTED>${id}</UNTRUSTED>`)
   })
 })
