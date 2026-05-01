@@ -121,7 +121,34 @@ description: «Sin pilas ni recargas»
 [dolor]
 primaryText: «Olvida el cabello encrespado en las mañanas. Cinco minutos y listo, sin alisado de salón.»
 headline: «Cabello listo en 5 minutos»
-description: «Sin pasar por salón»`
+description: «Sin pasar por salón»
+
+[testimonio]
+primaryText: «Cambia lo que pensabas de los desodorantes naturales. Mis clientes repiten desde el primer mes.»
+headline: «El que mis clientes repiten»
+description: «Sin químicos, sin olor»
+
+[urgencia]
+primaryText: «Quedan 12 unidades al precio de lanzamiento. Después sube y ya no hay vuelta atrás.»
+headline: «Precio de lanzamiento: hoy»
+description: «Solo 12 unidades»
+
+[aspiracional]
+primaryText: «Vive el desayuno que siempre quisiste tener. Una licuadora silenciosa y lista en segundos.»
+headline: «Desayuno sin ruido ni lío»
+description: «Lista en segundos»
+
+[comparacion]
+primaryText: «Prueba la diferencia: mismo resultado que el salón, sin cita, sin espera, sin gastar el triple.»
+headline: «Resultado salón, precio real»
+description: «Sin cita ni espera»
+
+[regalo]
+primaryText: «Lleva el kit completo y sorprende sin gastar de más. Todo junto, empacado para regalar ya.»
+headline: «Kit listo para regalar»
+description: «Todo incluido, precio justo»
+
+Regla adicional: evita la acumulación de tres o más adjetivos seguidos (p. ej. «suave, ligero y resistente»); elige el rasgo más relevante y descarta los demás.`
 
 // ─── Internal schemas ────────────────────────────────────────────────────────
 

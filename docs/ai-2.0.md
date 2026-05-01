@@ -25,7 +25,7 @@ Per-product acquisition cost lands ~$0.35–0.40 (vs ~$0.17 today); recurring ch
 - **Cut** evaluator-optimizer → replaced with **best-of-5 parallel + Opus judge**. Diversity beats refinement on subjective creative tasks; judge must be ≥ candidate tier or it picks the wrong winner (the v3 Haiku judge over Sonnet candidates was mismatched). 5 candidates instead of 3 because diversity scales with N and credits cover it.
 - **Cut** 3-hop chat router → replaced with **single Opus call + discriminated-union schema + `generateObject`** (not `streamObject`; partial-parse on discriminated unions is unreliable per Vercel AI SDK — see §3.7).
 - **Re-added** vision input on template picker (was cut in v3 for latency-on-cost-axis reasoning). +1–2s latency on a single non-blocking router call is acceptable when image strongly informs template fit (clean classic vs split-color vs gift card).
-- **Self-consistency on sales-angle classification**: 3 parallel Sonnet 4.6 classifications + majority vote. Cheap insurance because the angle drives downstream copy-gen prompt hooks; misclassification cascades.
+- **Self-consistency on sales-angle classification**: 5 parallel Sonnet 4.6 classifications + majority vote. Cheap insurance because the angle drives downstream copy-gen prompt hooks; misclassification cascades.
 - **Prompt caching**: still enable in Phase 2. Latency win independent of cost (cache reads ~50% faster than cache misses on the same prompt). Copy-gen system block at design size organically clears the 2048 Sonnet/2048 Opus threshold.
 - **Folded** `src/lib/ai/{models,taxonomies,schemas,guards,retry}.ts` into Phase 1.
 
@@ -132,7 +132,7 @@ Two LLM tries max, then graceful fallback. No agentic retry loops. The validator
 Under credits, caching is a latency-and-determinism investment, not a cost one. Anthropic thresholds: Sonnet 4.6 = 2048 tokens, Opus 4.7 = 4096 tokens, per platform.claude.com prompt-caching docs.
 
 - **Copy-gen system block** (anti-AI-speak rules + Meta-policy block + 3–5 few-shots) measures ~2500–3000 tokens at design size — clears Sonnet threshold; close to Opus threshold. Best-of-5 reuses the same prefix 5× per product, so cache write 1× + reads 4× delivers a meaningful latency reduction across the parallel calls (cache reads typically resolve faster than full-prefix processing).
-- **Sales-angle self-consistency**: 3 parallel calls per product against the same system block. Same caching opportunity.
+- **Sales-angle self-consistency**: 5 parallel calls per product against the same system block. Same caching opportunity.
 
 Phase 2 measures real prompt sizes against Phase 1 fixtures and enables `cache_control: { type: "ephemeral", ttl: "5m" }` on every system block clearing threshold. Expected latency win on the demo path: ~200–400ms per cached read.
 
@@ -296,11 +296,22 @@ Stage 1 — Parallel best-of-5 generators (Opus 4.7, fired concurrently):
     4. Problem→solution-led
     5. Outcome/aspiration-led
 
-Stage 2 — Opus 4.7 judge picks winner:
-  Single Opus call, all 5 candidates side-by-side
-  Rubric (Output.object): { winnerIndex: 0|1|2|3|4, score: 1-5, issues: string[] }
-  Criteria: clarity, hook-strength, brand-fit, ai-speak-free, length-compliant, policy-compliant
-  Why Opus judge (not Haiku/Sonnet): judge must be ≥ candidate tier or the comparator is the bottleneck.
+Stage 2 — 2 parallel Opus 4.7 judges pick winner:
+  Two Opus calls fired concurrently, each sees all 5 candidates side-by-side.
+  Judge A rubric: clarity-priority — reward single-read comprehension, penalise adornment.
+  Judge B rubric: hook-priority — reward attention-grabbing opener (curiosity / tangible benefit /
+    social proof), penalise flat or generic starts.
+  Schema (Output.object): { winnerIndex: 0|1|2|3|4 }
+    (score and issues[] are intentionally absent — soft-rubric reasoning stays inside the
+    judge call; hard rules are enforced deterministically in Stage 3 so the judges focus
+    on copy quality, not policy compliance.)
+  Tie-break: if both judges agree → ship that index.
+             if judges disagree → ship index 0 (Hook-led framing) as deterministic anchor.
+  Rationale: split rubric focus (clarity vs hook) surfaces different dimensions of copy
+    quality from a single parallel wave; deterministic anchor on disagreement keeps the
+    pipeline reproducible without a third LLM round-trip.
+  Why Opus judges (not Haiku/Sonnet): judge must be ≥ candidate tier or the comparator is
+    the bottleneck.
 
 Stage 3 — Rule-based post-check (deterministic, no LLM):
   • Length enforcement via Zod .max() — overshoot triggers per-row regenerate
@@ -333,9 +344,9 @@ SalesAngle enum (SSOT in src/lib/ai/taxonomies.ts):
 
 Per product:
   • Skip LLM entirely for transcripts where trim().length < 15 → angle: null
-  • Self-consistency: 3 parallel Sonnet 4.6 classifications (temperature: 0.3)
+  • Self-consistency: 5 parallel Sonnet 4.6 classifications (temperature: 0.3)
   • Output.object<{ angles: { creativeId, angle: SalesAngle | null }[] }> per call
-  • Final angle per creative: majority vote across 3 calls; tie or all-different → null
+  • Final angle per creative: majority vote across 5 calls; tie or all-different → null
   • On any call failure → fall back to remaining successful calls; all fail → null (NOT magic string)
 
 Consumers updated to use enum:
@@ -344,7 +355,7 @@ Consumers updated to use enum:
   • copy generator receives enum, has prompt-side per-angle hooks
 ```
 
-**Why self-consistency:** angle drives downstream copy-gen prompt hook ("hook for `precio` should lead with savings; hook for `urgencia` should lead with scarcity") — a single misclassification cascades into wrong-tone copy. 3-call majority vote cuts misclassification rate substantially at parallel wall-clock cost (1×).
+**Why self-consistency:** angle drives downstream copy-gen prompt hook ("hook for `precio` should lead with savings; hook for `urgencia` should lead with scarcity") — a single misclassification cascades into wrong-tone copy. 5-call majority vote cuts misclassification rate substantially at parallel wall-clock cost (1×); the extra robustness over 3 calls costs ~$0.004/product in Sonnet input tokens — negligible at MVP scale.
 
 **Why Sonnet 4.6 not Haiku:** classifier sits on a critical cascade path. Sonnet's ≥5pp accuracy lift over Haiku on closed-enum classification cuts off the tail-error path that contaminates copy gen.
 
@@ -462,7 +473,7 @@ N=5 selected creatives, ~50% non-Spanish (translate amortizes at half rate), Whi
 | Whisper scrape pass (20 ads) | gpt-4o-transcribe | ~$0.090 |
 | Whisper SRT pass (5 picked) | whisper-1 | ~$0.0225 |
 | SRT translate, amortized 50% | Opus 4.7 | ~$0.069 |
-| Sales angle (3× self-consistency) | Sonnet 4.6 | ~$0.032 |
+| Sales angle (5× self-consistency) | Sonnet 4.6 | ~$0.032 |
 | Copy gen (best-of-5 + Opus judge) | Opus 4.7 | ~$0.133 |
 | Regenerate buffer (15% rows) | Opus 4.7 | ~$0.004 |
 | **Total per acquired client** | | **~$0.36** |
@@ -508,7 +519,7 @@ Only LLM cost that scales with engagement.
 - [ ] Pass product description/pricing/bundles to copy generator
 - [ ] CopyContent schema with `.max(125/40/30)` SSOT in lib/ai
 - [ ] Best-of-5 Opus 4.7 + Opus judge on copy gen (5 framings: hook/benefit/social-proof/problem-solution/aspiration)
-- [ ] Self-consistency on sales-angle classify (3× Sonnet 4.6 parallel + majority vote)
+- [ ] Self-consistency on sales-angle classify (5× Sonnet 4.6 parallel + majority vote)
 - [ ] Vision input on template picker (Sonnet 4.6, hero image as image content block)
 - [ ] ffmpeg via Trigger.dev build extension; gpt-4o-transcribe for scrape pass; whisper-1 retained for SRT pass
 - [ ] Whisper language hint (`language: "es"` or product locale), hallucination filter (drop `no_speech_prob > 0.6`, strip boilerplate)
@@ -549,7 +560,7 @@ Only LLM cost that scales with engagement.
 
 1. **Best-of-5 Opus judge calibration.** Opus judge picking among 5 Opus candidates needs human calibration to verify rubric weights match human preference. Action: Phase 2 task — 50 labeled quintets, hand-rate winner, compare against judge pick.
 2. **8-value SalesAngle coverage.** Phase 1 fixture set may surface a needed 9th category or merge candidates. Action: ship Phase 1 enum but treat as v0; iterate on fixture data.
-3. **Self-consistency vote-count tuning.** 3 calls is a starting point; if tie/disagree rate exceeds ~10% on Phase 1 fixtures, bump to 5. Action: measure on first 30-fixture run.
+3. **Self-consistency vote-count tuning.** Shipped at N=5 (bumped from the original N=3 starting point). Monitor tie/disagree rate on Phase 1 fixtures; if consistently below ~5%, N=3 is viable. Action: measure on first 30-fixture run.
 
 ---
 
@@ -578,7 +589,7 @@ Only LLM cost that scales with engagement.
 | Whisper SRT pass | one-off (×5 picked) | Deterministic chain, segment-capable model | whisper-1 | ~$0.0225 |
 | SRT translate | one-off (×5, ~50% mix) | Single-batch chain + retry + fallback | Opus 4.7 | ~$0.069 amortized |
 | Ad copy gen | one-off | **Best-of-5 parallel + Opus judge + targeted regenerate** | 5× Opus 4.7 + Opus judge | ~$0.133 |
-| Sales angle | one-off | Routing (closed enum) + 3× self-consistency majority vote | 3× Sonnet 4.6 | ~$0.032 |
+| Sales angle | one-off | Routing (closed enum) + 5× self-consistency majority vote | 5× Sonnet 4.6 | ~$0.032 |
 | Landing chat | **recurring** | Discriminated-union + generateObject | Opus 4.7 | ~$0.012/turn |
 
 Five Anthropic patterns referenced; three adopted (routing, parallelization, self-consistency). Rest are workflows. Aligns with Anthropic's "simplest solution first" guidance — every complexity bump (vision, best-of-5, self-consistency) is tied to a specific quality risk, not added speculatively.
