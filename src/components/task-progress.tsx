@@ -2,7 +2,7 @@
 
 import type { RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
-import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react"
+import { CheckCircle2, Clock, Loader2, type LucideIcon, XCircle } from "lucide-react"
 import { isRunFailed } from "@/lib/trigger-status.ts"
 import { cn } from "@/lib/utils.ts"
 
@@ -13,30 +13,56 @@ interface TaskProgressProps {
   className?: string
 }
 
-function getStatusConfig(status: RunStatus | undefined) {
-  if (!status) {
-    return { icon: Loader2, label: "Iniciando…", spin: true, color: "text-fg-2" }
-  }
-  switch (status) {
-    case "QUEUED":
-    case "PENDING_VERSION":
-    case "DEQUEUED":
-    case "DELAYED":
-      return { icon: Clock, label: "En cola…", spin: false, color: "text-fg-2" }
-    case "EXECUTING":
-    case "WAITING":
-      return { icon: Loader2, label: "Procesando…", spin: true, color: "text-mode-live" }
-    case "COMPLETED":
-      return { icon: CheckCircle2, label: "Completado", spin: false, color: "text-mode-web" }
-    case "FAILED":
-    case "CRASHED":
-    case "SYSTEM_FAILURE":
-    case "TIMED_OUT":
-    case "EXPIRED":
-      return { icon: XCircle, label: "Error", spin: false, color: "text-mode-traffic" }
-    case "CANCELED":
-      return { icon: XCircle, label: "Cancelado", spin: false, color: "text-fg-3" }
-  }
+interface StatusConfig {
+  icon: LucideIcon
+  label: string
+  spin: boolean
+  color: string
+}
+
+const QUEUED_CONFIG: StatusConfig = {
+  icon: Clock,
+  label: "En cola…",
+  spin: false,
+  color: "text-fg-2",
+}
+const RUNNING_CONFIG: StatusConfig = {
+  icon: Loader2,
+  label: "Procesando…",
+  spin: true,
+  color: "text-mode-live",
+}
+const ERROR_CONFIG: StatusConfig = {
+  icon: XCircle,
+  label: "Error",
+  spin: false,
+  color: "text-mode-traffic",
+}
+const PENDING_CONFIG: StatusConfig = {
+  icon: Loader2,
+  label: "Iniciando…",
+  spin: true,
+  color: "text-fg-2",
+}
+
+const STATUS_CONFIG: Record<RunStatus, StatusConfig> = {
+  QUEUED: QUEUED_CONFIG,
+  PENDING_VERSION: QUEUED_CONFIG,
+  DEQUEUED: QUEUED_CONFIG,
+  DELAYED: QUEUED_CONFIG,
+  EXECUTING: RUNNING_CONFIG,
+  WAITING: RUNNING_CONFIG,
+  COMPLETED: { icon: CheckCircle2, label: "Completado", spin: false, color: "text-mode-web" },
+  FAILED: ERROR_CONFIG,
+  CRASHED: ERROR_CONFIG,
+  SYSTEM_FAILURE: ERROR_CONFIG,
+  TIMED_OUT: ERROR_CONFIG,
+  EXPIRED: ERROR_CONFIG,
+  CANCELED: { icon: XCircle, label: "Cancelado", spin: false, color: "text-fg-3" },
+}
+
+function getStatusConfig(status: RunStatus | undefined): StatusConfig {
+  return status ? STATUS_CONFIG[status] : PENDING_CONFIG
 }
 
 function getProgress(status: RunStatus | undefined): number {
