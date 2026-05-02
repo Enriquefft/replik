@@ -3,10 +3,9 @@ import "server-only"
 /**
  * Lane L3a — Apify wrapper · Facebook Ads Library scraper.
  *
- * Fallback path for when `meta.adLibrarySearch` returns nothing or throws.
- * We drive the public actor `apify/facebook-ads-library-scraper` (the
- * actively maintained version) synchronously via `actor.call()` and pull
- * the dataset items.
+ * Primary today: Meta Ad Library API is unconfigured by policy, so this
+ * actor (`apify/facebook-ads-scraper`) carries the L3 search lane.
+ * Drives synchronously via `actor.call()` and pulls dataset items.
  *
  * Caller contract: pass keywords; we build PE Ad Library URLs, run the
  * actor, filter to items that have a video, and normalise to the small
@@ -14,8 +13,9 @@ import "server-only"
  */
 
 import { ApifyClient } from "apify-client"
+import { z } from "zod"
 
-const ACTOR_ID = "apify/facebook-ads-library-scraper"
+const ACTOR_ID = "apify/facebook-ads-scraper"
 const DEFAULT_COUNTRY = "PE"
 const RUN_TIMEOUT_SECS = 300
 const RESULT_CAP = 20
@@ -27,7 +27,31 @@ export interface RawCreative {
   ad_text?: string
 }
 
-type ApifyAdItem = Record<string, unknown>
+const NonEmpty = z.string().min(1)
+
+const VideoSchema = z.object({
+  videoHdUrl: NonEmpty.optional(),
+  videoSdUrl: NonEmpty.optional(),
+})
+
+const BodySchema = z.object({
+  text: NonEmpty.optional(),
+  markup: NonEmpty.optional(),
+})
+
+const SnapshotSchema = z.object({
+  pageName: NonEmpty.optional(),
+  videos: z.array(VideoSchema).optional(),
+  body: BodySchema.optional(),
+})
+
+const ApifyAdItemSchema = z
+  .object({
+    adArchiveID: NonEmpty.optional(),
+    pageName: NonEmpty.optional(),
+    snapshot: SnapshotSchema.optional(),
+  })
+  .passthrough()
 
 let cachedClient: ApifyClient | undefined
 
@@ -39,47 +63,6 @@ function getClient(): ApifyClient {
   }
   cachedClient = new ApifyClient({ token })
   return cachedClient
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined
-}
-
-function videoFromArray(value: unknown): string | undefined {
-  if (!Array.isArray(value)) return undefined
-  for (const entry of value) {
-    if (entry && typeof entry === "object") {
-      const e = entry as Record<string, unknown>
-      const url = asString(e.video_hd_url) ?? asString(e.video_sd_url) ?? asString(e.url)
-      if (url) return url
-    }
-  }
-  return undefined
-}
-
-function pickVideoUrl(item: ApifyAdItem): string | undefined {
-  const direct = asString(item.video_url) ?? asString(item.videoUrl)
-  if (direct) return direct
-  const fromArr = videoFromArray(item.videos)
-  if (fromArr) return fromArr
-  const snapshot = item.snapshot
-  if (snapshot && typeof snapshot === "object") {
-    const snapVideos = (snapshot as Record<string, unknown>).videos
-    const fromSnap = videoFromArray(snapVideos)
-    if (fromSnap) return fromSnap
-  }
-  return undefined
-}
-
-function pickAdText(item: ApifyAdItem): string | undefined {
-  const direct = asString(item.body) ?? asString(item.text)
-  if (direct) return direct
-  const bodies = item.ad_creative_bodies
-  if (Array.isArray(bodies)) {
-    const first = bodies.find((b): b is string => typeof b === "string" && b.length > 0)
-    if (first) return first
-  }
-  return undefined
 }
 
 function buildSearchUrl(keyword: string): string {
@@ -94,15 +77,20 @@ function buildSearchUrl(keyword: string): string {
   return `https://www.facebook.com/ads/library/?${params.toString()}`
 }
 
-function normalise(item: ApifyAdItem): RawCreative | null {
-  const adId = asString(item.ad_archive_id) ?? asString(item.adArchiveId)
+export function normalise(raw: unknown): RawCreative | null {
+  const parsed = ApifyAdItemSchema.safeParse(raw)
+  if (!parsed.success) return null
+  const item = parsed.data
+  const adId = item.adArchiveID
   if (!adId) return null
-  const videoUrl = pickVideoUrl(item)
+  const firstVideo = item.snapshot?.videos?.find((v) => v.videoHdUrl ?? v.videoSdUrl)
+  const videoUrl = firstVideo?.videoHdUrl ?? firstVideo?.videoSdUrl
   if (!videoUrl) return null
   const out: RawCreative = { ad_id: adId, video_url: videoUrl }
-  const pageName = asString(item.page_name) ?? asString(item.pageName)
+  const pageName = item.pageName ?? item.snapshot?.pageName
   if (pageName) out.page_name = pageName
-  const adText = pickAdText(item)
+  const body = item.snapshot?.body
+  const adText = body?.text ?? body?.markup
   if (adText) out.ad_text = adText
   return out
 }
@@ -120,10 +108,8 @@ export async function searchFBAdsByKeywords(keywords: string[]): Promise<RawCrea
 
   const run = await client.actor(ACTOR_ID).call(
     {
-      urls,
-      count: RESULT_CAP,
-      scrapeAdDetails: false,
-      proxy: { useApifyProxy: true },
+      startUrls: urls,
+      resultsLimit: RESULT_CAP,
     },
     { waitSecs: RUN_TIMEOUT_SECS },
   )

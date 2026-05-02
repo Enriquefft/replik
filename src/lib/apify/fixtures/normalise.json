@@ -1,0 +1,103 @@
+[
+  {
+    "name": "happy_path_hd",
+    "input": {
+      "adArchiveID": "1234567890",
+      "pageName": "Brand Top",
+      "snapshot": {
+        "pageName": "Brand Snap",
+        "videos": [
+          {
+            "videoHdUrl": "https://video-iad.fbcdn.net/hd.mp4",
+            "videoSdUrl": "https://video-iad.fbcdn.net/sd.mp4"
+          }
+        ],
+        "body": { "text": "¡Compra ahora 50% off!" }
+      }
+    },
+    "expected": {
+      "ad_id": "1234567890",
+      "page_name": "Brand Top",
+      "video_url": "https://video-iad.fbcdn.net/hd.mp4",
+      "ad_text": "¡Compra ahora 50% off!"
+    }
+  },
+  {
+    "name": "sd_fallback_when_hd_missing",
+    "input": {
+      "adArchiveID": "2222",
+      "snapshot": {
+        "pageName": "Brand Snap",
+        "videos": [{ "videoSdUrl": "https://cdn/sd.mp4" }]
+      }
+    },
+    "expected": {
+      "ad_id": "2222",
+      "page_name": "Brand Snap",
+      "video_url": "https://cdn/sd.mp4"
+    }
+  },
+  {
+    "name": "markup_fallback_when_text_missing",
+    "input": {
+      "adArchiveID": "3333",
+      "snapshot": {
+        "videos": [{ "videoHdUrl": "https://cdn/hd.mp4" }],
+        "body": { "markup": "<b>Promo</b>" }
+      }
+    },
+    "expected": {
+      "ad_id": "3333",
+      "video_url": "https://cdn/hd.mp4",
+      "ad_text": "<b>Promo</b>"
+    }
+  },
+  {
+    "name": "skips_first_video_without_url",
+    "input": {
+      "adArchiveID": "4444",
+      "snapshot": {
+        "videos": [{}, { "videoHdUrl": "https://cdn/second.mp4" }]
+      }
+    },
+    "expected": {
+      "ad_id": "4444",
+      "video_url": "https://cdn/second.mp4"
+    }
+  },
+  {
+    "name": "reject_no_ad_id",
+    "input": {
+      "snapshot": {
+        "videos": [{ "videoHdUrl": "https://cdn/hd.mp4" }]
+      }
+    },
+    "expected": null
+  },
+  {
+    "name": "reject_no_video",
+    "input": {
+      "adArchiveID": "5555",
+      "snapshot": { "videos": [] }
+    },
+    "expected": null
+  },
+  {
+    "name": "reject_no_snapshot",
+    "input": { "adArchiveID": "6666" },
+    "expected": null
+  },
+  {
+    "name": "reject_empty_ad_id",
+    "input": {
+      "adArchiveID": "",
+      "snapshot": { "videos": [{ "videoHdUrl": "https://cdn/hd.mp4" }] }
+    },
+    "expected": null
+  },
+  {
+    "name": "reject_non_object",
+    "input": "not-an-object",
+    "expected": null
+  }
+]
