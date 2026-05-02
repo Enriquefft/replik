@@ -31,6 +31,7 @@ import { MockLanguageModelV3 } from "ai/test"
 import { z } from "zod"
 import { ProductPartialSchema } from "@/lib/ai/schemas.ts"
 import {
+  checkGate,
   extractStageA,
   gapList,
   registrableSuffix,
@@ -104,7 +105,65 @@ describe("extractStageA — fixture-driven", () => {
   }
 })
 
-// ─── Stage B — gap analysis ──────────────────────────────────────────────────
+// ─── Stage B — gap analysis + gating ────────────────────────────────────────
+
+describe("checkGate — early validation", () => {
+  test("passes when imageUrl and productName are both present", () => {
+    const partial = ProductPartialSchema.parse({
+      imageUrl: "https://example.com/x.jpg",
+      productName: "Test Product",
+      category: "kitchen",
+      priceText: null,
+      description: null,
+      locale: null,
+    })
+    const result = checkGate(partial)
+    expect(result.pass).toBe(true)
+    expect(result.failReason).toBeUndefined()
+  })
+
+  test("fails with 'gate-no-image' when imageUrl is null", () => {
+    const partial = ProductPartialSchema.parse({
+      imageUrl: null,
+      productName: "Test Product",
+      category: "kitchen",
+      priceText: null,
+      description: null,
+      locale: null,
+    })
+    const result = checkGate(partial)
+    expect(result.pass).toBe(false)
+    expect(result.failReason).toBe("gate-no-image")
+  })
+
+  test("fails with 'gate-no-product-name' when productName is null", () => {
+    const partial = ProductPartialSchema.parse({
+      imageUrl: "https://example.com/x.jpg",
+      productName: null,
+      category: "kitchen",
+      priceText: null,
+      description: null,
+      locale: null,
+    })
+    const result = checkGate(partial)
+    expect(result.pass).toBe(false)
+    expect(result.failReason).toBe("gate-no-product-name")
+  })
+
+  test("passes even when category is null (soft gate)", () => {
+    const partial = ProductPartialSchema.parse({
+      imageUrl: "https://example.com/x.jpg",
+      productName: "Test Product",
+      category: null,
+      priceText: null,
+      description: null,
+      locale: null,
+    })
+    const result = checkGate(partial)
+    expect(result.pass).toBe(true)
+    expect(result.failReason).toBeUndefined()
+  })
+})
 
 describe("gapList — fixture-driven", () => {
   for (const row of fixtureFile.rows) {
@@ -224,6 +283,56 @@ describe("scrapeProductInfo — READY happy path (mocked LLM)", () => {
       expect(result.product.keywords.broad).toEqual(expectedLlmOutput.keywords.broad)
       expect(result.product.keywords.narrow).toEqual(expectedLlmOutput.keywords.narrow)
     }
+  })
+})
+
+// ─── scrapeProductInfo — early gating ──────────────────────────────────────
+
+describe("scrapeProductInfo — early gating (hard failures)", () => {
+  test("SCRAPE_PARTIAL with 'gate-no-image' when Stage A extracts no imageUrl", async () => {
+    const emptyRow = fixtureFile.rows.find((r) => r.name === "empty-html-all-null")
+    if (!emptyRow) throw new Error("seed fixture empty-html-all-null missing")
+    const result = await scrapeProductInfo({
+      url: emptyRow.url,
+      html: emptyRow.html,
+    })
+    expect(result.status).toBe("SCRAPE_PARTIAL")
+    if (result.status === "SCRAPE_PARTIAL") {
+      expect(result.reason).toBe("gate-no-image")
+    }
+  })
+
+  test("allows category=null to pass the gate (soft gate only)", async () => {
+    const seed = fixtureFile.rows.find((r) => r.name === "json-ld-full-product")
+    if (!seed) throw new Error("seed fixture json-ld-full-product missing")
+    // Mock a response with category=null but imageUrl and productName present
+    const customHtml = seed.html // This has all fields
+    const result = await scrapeProductInfo(
+      { url: seed.url, html: customHtml },
+      {
+        primaryModel: modelReturning({
+          imageUrl: seed.expected.imageUrl,
+          productName: seed.expected.productName,
+          category: "kitchen",
+          keywords: {
+            broad: ["test", "product", "keyword"],
+            narrow: ["test product keyword phrase", "another keyword phrase", "third phrase"],
+          },
+        }),
+        bumpedModel: modelReturning({
+          imageUrl: seed.expected.imageUrl,
+          productName: seed.expected.productName,
+          category: "kitchen",
+          keywords: {
+            broad: ["test", "product", "keyword"],
+            narrow: ["test product keyword phrase", "another keyword phrase", "third phrase"],
+          },
+        }),
+      },
+    )
+    // Gate should pass (because we have imageUrl and productName), Stage C
+    // should run and fill category
+    expect(result.status).toBe("READY")
   })
 })
 

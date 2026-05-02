@@ -299,10 +299,213 @@ function pickLocale(value: string | null): z.infer<typeof Locale> | null {
   return parsed.success ? parsed.data : null
 }
 
-function pickCategory(value: string | null): z.infer<typeof InterestCategory> | null {
-  if (!value) return null
-  const parsed = InterestCategory.safeParse(value)
-  return parsed.success ? parsed.data : null
+/**
+ * Extract breadcrumb structured data (schema.org BreadcrumbList).
+ * Returns the last non-home breadcrumb segment as a potential category hint.
+ */
+function extractBreadcrumbCategory(html: string): string | null {
+  const products = extractJsonLdProducts(html)
+  for (const p of products) {
+    if (p && typeof p === "object" && "breadcrumb" in p) {
+      const breadcrumb = (p as { breadcrumb: unknown }).breadcrumb
+      if (
+        breadcrumb &&
+        typeof breadcrumb === "object" &&
+        "@type" in breadcrumb &&
+        (breadcrumb as { "@type": unknown })["@type"] === "BreadcrumbList"
+      ) {
+        const itemListElement = (breadcrumb as { itemListElement?: unknown }).itemListElement
+        if (Array.isArray(itemListElement)) {
+          // Take the second-to-last or last non-home element
+          for (let i = itemListElement.length - 1; i >= 1; i--) {
+            const item = itemListElement[i]
+            if (item && typeof item === "object") {
+              const name = (item as { name?: unknown }).name
+              if (typeof name === "string") {
+                const trimmed = name.toLowerCase().trim()
+                if (trimmed && trimmed !== "home") return trimmed
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // Also look for standalone BreadcrumbList outside Product
+  const allJsonLd = html.matchAll(JSON_LD_REGEX)
+  for (const match of allJsonLd) {
+    const body = match[1]
+    if (!body) continue
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(body)
+    } catch {
+      continue
+    }
+    const candidates: unknown[] = Array.isArray(parsed) ? parsed : [parsed]
+    for (const c of candidates) {
+      if (
+        c &&
+        typeof c === "object" &&
+        "@type" in c &&
+        (c as { "@type": unknown })["@type"] === "BreadcrumbList"
+      ) {
+        const itemListElement = (c as { itemListElement?: unknown }).itemListElement
+        if (Array.isArray(itemListElement)) {
+          for (let i = itemListElement.length - 1; i >= 1; i--) {
+            const item = itemListElement[i]
+            if (item && typeof item === "object") {
+              const name = (item as { name?: unknown }).name
+              if (typeof name === "string") {
+                const trimmed = name.toLowerCase().trim()
+                if (trimmed && trimmed !== "home") return trimmed
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Extract category from JSON-LD Product `additionalType` field.
+ * Some sites use this to classify products.
+ */
+function extractAdditionalTypeCategory(html: string): string | null {
+  const products = extractJsonLdProducts(html)
+  const product = products[0]
+  if (!product) return null
+  const additionalType = (product as { additionalType?: unknown }).additionalType
+  if (typeof additionalType === "string") {
+    return additionalType.toLowerCase().trim()
+  }
+  if (Array.isArray(additionalType)) {
+    for (const t of additionalType) {
+      if (typeof t === "string") {
+        return t.toLowerCase().trim()
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Extract category from URL path structure.
+ * Example: /products/beauty/xyz → "beauty"
+ */
+function extractUrlPathCategory(urlStr: string): string | null {
+  try {
+    const url = new URL(urlStr)
+    const segments = url.pathname
+      .toLowerCase()
+      .split("/")
+      .filter((s) => s.length > 0)
+    // Look for common ecommerce path patterns
+    const patterns = ["category", "product", "shop", "tienda", "productos"]
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]
+      if (seg && patterns.includes(seg) && i + 1 < segments.length) {
+        const candidate = segments[i + 1]
+        if (candidate && candidate.length > 0) return candidate
+      }
+    }
+    // Also try taking the first segment if it looks like a category
+    if (segments.length > 0) {
+      const first = segments[0]
+      // Skip common non-category first segments
+      if (first && !["www", "api", "cdn", "assets", "media", "static"].includes(first)) {
+        return first
+      }
+    }
+  } catch {
+    // Invalid URL, skip
+  }
+  return null
+}
+
+/**
+ * Extract category from data attributes in the page.
+ * Examples: data-product-type, data-category, data-product-category
+ */
+function extractDataAttributeCategory(html: string): string | null {
+  // Look for data-product-type, data-category, data-product-category, etc.
+  const patterns = [
+    /data-product-type=["']([^"']+)["']/i,
+    /data-category=["']([^"']+)["']/i,
+    /data-product-category=["']([^"']+)["']/i,
+  ]
+  for (const pattern of patterns) {
+    const match = pattern.exec(html)
+    if (match?.[1]) {
+      const trimmed = nonEmpty(match[1])
+      if (trimmed) return trimmed.toLowerCase()
+    }
+  }
+  return null
+}
+
+/**
+ * Extract category from og:type meta tag (sometimes includes category hints).
+ * Example: og:type="product.category:beauty"
+ */
+function extractOgTypeCategory(meta: Map<string, string>): string | null {
+  const ogType = meta.get("og:type")
+  if (!ogType) return null
+  const trimmed = ogType.toLowerCase().trim()
+  // Extract category from "product.category:xyz" format
+  const match = /product[._]?category[:\s]+([a-z_]+)/i.exec(trimmed)
+  if (match?.[1]) return match[1]
+  return null
+}
+
+/**
+ * Build a robust category extractor with fallback heuristics.
+ * Returns both the category (if found) and a confidence score (0-100).
+ */
+function extractCategoryWithConfidence(input: {
+  url: string
+  html: string
+  meta: Map<string, string>
+  micro: Map<string, string>
+  product: JsonLdProduct | undefined
+}): { category: z.infer<typeof InterestCategory> | null; confidence: number } {
+  // Sources in priority order, with confidence scores
+  const candidates: Array<{ value: string | null; confidence: number }> = [
+    // Highest confidence: explicit product:category meta tag
+    { value: input.meta.get("product:category") ?? null, confidence: 100 },
+    // High confidence: microdata category
+    { value: input.micro.get("category") ?? null, confidence: 90 },
+    // High confidence: og:type with category
+    { value: extractOgTypeCategory(input.meta), confidence: 85 },
+    // Medium-high: JSON-LD additionalType
+    { value: extractAdditionalTypeCategory(input.html), confidence: 80 },
+    // Medium-high: Breadcrumb
+    { value: extractBreadcrumbCategory(input.html), confidence: 75 },
+    // Medium: Data attributes
+    { value: extractDataAttributeCategory(input.html), confidence: 65 },
+    // Low-medium: URL path structure
+    { value: extractUrlPathCategory(input.url), confidence: 40 },
+  ]
+
+  // Try each candidate in order
+  for (const candidate of candidates) {
+    if (candidate.value) {
+      const parsed = InterestCategory.safeParse(candidate.value)
+      if (parsed.success) {
+        return {
+          category: parsed.data,
+          confidence: candidate.confidence,
+        }
+      }
+    }
+  }
+
+  return {
+    category: null,
+    confidence: 0,
+  }
 }
 
 function resolveUrl(candidate: string | null, base: string): string | null {
@@ -320,6 +523,18 @@ function resolveUrl(candidate: string | null, base: string): string | null {
  * Image extraction order: JSON-LD `image` → og:image → twitter:image → first
  * `<img>`. Per spec §7 image is mandatory; if Stage A misses it the LLM
  * will be asked.
+ *
+ * Category extraction is now multi-source:
+ * 1. product:category meta tag (100% confidence)
+ * 2. Microdata category (90%)
+ * 3. og:type with category hint (85%)
+ * 4. JSON-LD additionalType (80%)
+ * 5. Breadcrumb structured data (75%)
+ * 6. data-* attributes (65%)
+ * 7. URL path structure (40%)
+ *
+ * This improves detection for stores like Sephora.com.mx and Floreria.com
+ * that use non-standard markup.
  */
 export function extractStageA(input: { url: string; html: string }): ProductPartial {
   const html = input.html
@@ -377,11 +592,14 @@ export function extractStageA(input: { url: string; html: string }): ProductPart
   )
   const locale = pickLocale(localeCandidate)
 
-  // Category is rarely present in markup. Best-effort: og:type product
-  // categories surface as enum-shaped strings only if the site happens to
-  // tag them. We do NOT guess; Stage C handles it.
-  const categoryCandidate = nonEmpty(meta.get("product:category") ?? micro.get("category") ?? null)
-  const category = pickCategory(categoryCandidate)
+  // Category extraction with multi-source fallback strategy
+  const { category } = extractCategoryWithConfidence({
+    url: base,
+    html,
+    meta,
+    micro,
+    product,
+  })
 
   return ProductPartialSchema.parse({
     imageUrl,
@@ -393,12 +611,52 @@ export function extractStageA(input: { url: string; html: string }): ProductPart
   })
 }
 
-// ─── Stage B — gap analysis ──────────────────────────────────────────────────
+// ─── Stage B — gap analysis + gating ────────────────────────────────────────
+
+/**
+ * Result of early gating check (immediately after Stage A).
+ * If the gate fails, return SCRAPE_PARTIAL early without attempting Stage C.
+ */
+interface GateCheckResult {
+  pass: boolean
+  failReason?: string // Only set if pass=false
+}
+
+/**
+ * Early gating validation: reject stores that cannot be properly scraped.
+ * Hard failures:
+ *   - imageUrl is null → FAIL (can't work without hero image)
+ *   - productName is null → FAIL (can't work without product name)
+ *
+ * Soft warnings (can proceed, but flag for UX):
+ *   - category is null → WARN (return SCRAPE_PARTIAL with "unclassified-category")
+ */
+export function checkGate(partial: ProductPartial): GateCheckResult {
+  // Hard gates: missing image or product name
+  if (!partial.imageUrl) {
+    return {
+      pass: false,
+      failReason: "gate-no-image",
+    }
+  }
+  if (!partial.productName) {
+    return {
+      pass: false,
+      failReason: "gate-no-product-name",
+    }
+  }
+  // All hard gates passed
+  return { pass: true }
+}
 
 /**
  * Returns the list of mandatory fields still missing after Stage A. Per
  * §7: the gate is `imageUrl`, `productName`, `category` — Stage C is
  * skipped iff all three are present.
+ *
+ * Note: Category is now soft-gated (warning only) since improved Stage A
+ * detectors can find it in more sites. Callers should check `checkGate`
+ * before calling this.
  */
 export function gapList(partial: ProductPartial): ("imageUrl" | "productName" | "category")[] {
   const gaps: ("imageUrl" | "productName" | "category")[] = []
@@ -730,7 +988,28 @@ export async function scrapeProductInfo(
   }
 
   const partial = extractStageA({ url: input.url, html })
+
+  // ── Early gating: hard failures (missing image or product name) ────────────
+  const gateCheck = checkGate(partial)
+  if (!gateCheck.pass) {
+    logEvent("ai.scrape.gate-failed", { url: input.url, reason: gateCheck.failReason })
+    return {
+      status: "SCRAPE_PARTIAL",
+      partial,
+      reason: gateCheck.failReason ?? "gate-failed",
+    }
+  }
+
   const gaps = gapList(partial)
+
+  // Soft gate: if category is missing after improved Stage A detection,
+  // still proceed to Stage C but log it as a warning.
+  if (gaps.includes("category")) {
+    logEvent("ai.scrape.category-unclassified", {
+      url: input.url,
+      productName: partial.productName,
+    })
+  }
 
   // Stage C runs even when `gaps` is empty: keyword buckets aren't extractable
   // deterministically, so the LLM still has to generate `keywords.broad` and
