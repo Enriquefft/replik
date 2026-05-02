@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import type { RealtimeRun } from "@trigger.dev/core/v3"
+import type { RealtimeRun, RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
 import { Check, Image as ImageIcon, Loader2 } from "lucide-react"
 import Image from "next/image"
@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { Skeleton } from "@/components/ui/skeleton.tsx"
-import { isRunFailed, isRunStatus, type RunStatus } from "@/lib/trigger-status.ts"
+import { isRunFailed } from "@/lib/trigger-status.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import type { ProductId } from "@/lib/types/ids.ts"
 import { cn } from "@/lib/utils.ts"
@@ -148,7 +148,7 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
 
   const run = useMemo(() => pickLatestRun(runs), [runs])
   const meta = useMemo(() => parseMetadata(run?.metadata), [run?.metadata])
-  const status = isRunStatus(run?.status) ? run.status : undefined
+  const status = run?.status
 
   const failed = isRunFailed(status)
 
