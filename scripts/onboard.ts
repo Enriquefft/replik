@@ -37,7 +37,7 @@ import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 
 const POLL_INTERVAL_MS = 5_000
-const POLL_TIMEOUT_MS = 15 * 60 * 1000
+const POLL_TIMEOUT_MS = 45 * 60 * 1000
 
 interface ParsedArgs {
   positional: string[]

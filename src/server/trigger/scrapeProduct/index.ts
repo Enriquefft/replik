@@ -288,7 +288,7 @@ interface ScrapePayload {
 
 export const scrapeProduct = task({
   id: TASK_ID,
-  maxDuration: 600,
+  maxDuration: 1800,
   machine: { preset: "medium-1x" },
   run: async (payload: ScrapePayload): Promise<ScrapeSummary> => {
     const { productId, userId, competitorUrl } = payload

@@ -82,10 +82,24 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
   const startedAt = Date.now()
 
   const duration = await ffprobeDuration(parsed.audio)
+  if (duration <= 0) {
+    logEvent("ai.transcribe.summary", {
+      mode: parsed.mode,
+      chunks: 0,
+      durationSeconds: 0,
+      ms: Date.now() - startedAt,
+      language,
+    })
+    return TranscribeResultSchema.parse({
+      transcriptText: "",
+      srt: parsed.mode === "srt" ? "" : null,
+      language,
+    })
+  }
   const chunks =
     duration > CHUNK_THRESHOLD_SECONDS
       ? await chunkBySilence(parsed.audio, duration)
-      : [{ audio: parsed.audio, offsetSeconds: 0 }]
+      : [{ audio: await sliceAudio(parsed.audio, 0, duration), offsetSeconds: 0 }]
 
   const segments: TranscribedSegment[] = []
   let detectedLanguage = language
@@ -199,7 +213,7 @@ interface SrtResult {
 async function transcribeText(audio: Buffer, language: string): Promise<TextResult> {
   // gpt-4o-transcribe does not return verbose_json — it returns plain JSON
   // with `text`. Language detection is implicit; we echo the input locale.
-  const file = bufferToFile(audio, "audio.opus", "audio/ogg")
+  const file = bufferToFile(audio, "audio.ogg", "audio/ogg")
   const response = await client().audio.transcriptions.create({
     file,
     model: MODELS.WHISPER_TEXT,
@@ -210,7 +224,7 @@ async function transcribeText(audio: Buffer, language: string): Promise<TextResu
 }
 
 async function transcribeSrt(audio: Buffer, language: string): Promise<SrtResult> {
-  const file = bufferToFile(audio, "audio.opus", "audio/ogg")
+  const file = bufferToFile(audio, "audio.ogg", "audio/ogg")
   const verbose = await client().audio.transcriptions.create({
     file,
     model: MODELS.WHISPER_SRT,
