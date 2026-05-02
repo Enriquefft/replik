@@ -1,9 +1,8 @@
 "use client"
 
-import type { RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import { CheckCircle2, Clock, Loader2, type LucideIcon, XCircle } from "lucide-react"
-import { isRunFailed } from "@/lib/trigger-status.ts"
+import { isRunFailed, isRunStatus, type RunStatus } from "@/lib/trigger-status.ts"
 import { cn } from "@/lib/utils.ts"
 
 interface TaskProgressProps {
@@ -87,7 +86,7 @@ function getProgress(status: RunStatus | undefined): number {
 export function TaskProgress({ runId, step, detail, className }: TaskProgressProps) {
   const { run } = useRealtimeRun(runId)
 
-  const status = run?.status
+  const status = isRunStatus(run?.status) ? run.status : undefined
   const config = getStatusConfig(status)
   const progress = getProgress(status)
   const Icon = config.icon
