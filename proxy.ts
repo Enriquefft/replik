@@ -2,11 +2,13 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 /**
  * Public routes — readable without auth.
+ * - `/` is the marketing landing page.
  * - `/api/orders` is the public COD form endpoint posted from Shopify-hosted
  *   landings (CORS-whitelisted to *.myshopify.com).
  * - Sign-in / sign-up routes obviously must be public.
  */
 const isPublicRoute = createRouteMatcher([
+  "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/orders(.*)",
