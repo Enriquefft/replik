@@ -45,9 +45,36 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
   return withTiming(
     "action.landing.publish",
     async (): Promise<ActionResult<{ runId: string }>> => {
-      // Verify product belongs to user, then persist bundle prices set in the
-      // landing UI so the trigger task and downstream surfaces (launch page, copy
-      // gen) read consistent values from the DB.
+      // 1. Verify product belongs to user and has valid status for publishing.
+      // SCRAPE_EMPTY products cannot be published. Must be READY or SCRAPE_PARTIAL
+      // (with at least basic metadata).
+      const productCheck = await withUser(userId, async (db) => {
+        const rows = await db
+          .select({ id: products.id, status: products.status })
+          .from(products)
+          .where(and(eq(products.id, productId), eq(products.userId, userId)))
+          .limit(1)
+        return rows[0]
+      })
+      if (!productCheck) {
+        return { ok: false, error: "Producto no encontrado." }
+      }
+      if (productCheck.status === "SCRAPE_EMPTY") {
+        return {
+          ok: false,
+          error: "No se puede publicar un producto sin datos. Reintenta el análisis.",
+        }
+      }
+      const validStatuses = ["READY", "SCRAPE_PARTIAL", "LANDING_PUBLISHED", "CAMPAIGN_LAUNCHED"]
+      if (!validStatuses.includes(productCheck.status)) {
+        return {
+          ok: false,
+          error: "El producto aún se está analizando. Espera a que termine.",
+        }
+      }
+
+      // 2. Persist bundle prices set in the landing UI so the trigger task and
+      // downstream surfaces (launch page, copy gen) read consistent values from the DB.
       const owned = await withUser(userId, async (db) => {
         const rows = await db
           .update(products)
@@ -63,7 +90,7 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
         return { ok: false, error: "Producto no encontrado." }
       }
 
-      // Gate on Shopify integration. We do not need Meta to publish a landing —
+      // 3. Gate on Shopify integration. We do not need Meta to publish a landing —
       // pixel_id is injected when present, otherwise empty string at render time.
       try {
         await requireIntegration(userId, "shopify")
@@ -74,6 +101,7 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
         throw err
       }
 
+      // 4. Prepare overrides payload.
       const overridesPayload =
         overrides === undefined
           ? undefined
@@ -86,6 +114,7 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
               }),
             }
 
+      // 5. Trigger publishLanding task.
       const handle = await tasks.trigger<typeof publishLandingTask>("publishLanding", {
         productId,
         userId,

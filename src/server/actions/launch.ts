@@ -69,15 +69,19 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
         }
       }
 
-      // 2. Product belongs to caller + ≥1 selected creative w/ edited_video.
+      // 2. Product belongs to caller, has LANDING_PUBLISHED status, and has ≥1 selected creative w/ edited_video.
       const ready = await withUser(userId, async (db) => {
         const productRows = await db
-          .select({ id: products.id })
+          .select({ id: products.id, status: products.status })
           .from(products)
           .where(and(eq(products.id, productId), eq(products.userId, userId)))
           .limit(1)
         if (productRows.length === 0) {
-          return { ownsProduct: false, hasCreative: false }
+          return { ownsProduct: false, validStatus: false, hasCreative: false }
+        }
+        const product = productRows[0]
+        if (!product || product.status !== "LANDING_PUBLISHED") {
+          return { ownsProduct: true, validStatus: false, hasCreative: false }
         }
         const creativeRows = await db
           .select({ id: creatives.id })
@@ -98,10 +102,17 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
             ),
           )
           .limit(1)
-        return { ownsProduct: true, hasCreative: creativeRows.length > 0 }
+        return { ownsProduct: true, validStatus: true, hasCreative: creativeRows.length > 0 }
       })
       if (!ready.ownsProduct) {
         return { ok: false, needs: "meta", error: "Producto no encontrado." }
+      }
+      if (!ready.validStatus) {
+        return {
+          ok: false,
+          needs: "meta",
+          error: "Publica la landing antes de lanzar la campaña.",
+        }
       }
       if (!ready.hasCreative) {
         return {
