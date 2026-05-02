@@ -6,7 +6,7 @@ import { products } from "@/db/schema.ts"
 
 type Fields = Record<string, unknown>
 
-function emit(level: "info" | "warn" | "error", event: string, fields?: Fields): void {
+function emit(level: "info" | "error", event: string, fields?: Fields): void {
   const payload = { event, level, ts: new Date().toISOString(), ...(fields ?? {}) }
   process.stdout.write(`${JSON.stringify(payload)}\n`)
   logger[level](event, fields)
@@ -14,10 +14,6 @@ function emit(level: "info" | "warn" | "error", event: string, fields?: Fields):
 
 export function logEvent(event: string, fields?: Fields): void {
   emit("info", event, fields)
-}
-
-export function logWarn(event: string, fields?: Fields): void {
-  emit("warn", event, fields)
 }
 
 export function logError(event: string, fields?: Fields): void {

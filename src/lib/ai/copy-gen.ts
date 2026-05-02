@@ -82,8 +82,6 @@ export const FRAMINGS = [
   },
 ] as const
 
-export type FramingId = (typeof FRAMINGS)[number]["id"]
-
 // ─── System prompt blocks ────────────────────────────────────────────────────
 
 const SYSTEM_VOICE_RULES = `Eres un copywriter publicitario experto en Meta Ads para LATAM-PE.

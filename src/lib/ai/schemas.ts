@@ -16,11 +16,6 @@ export const CopyContentSchema = z.object({
 
 export type CopyContent = z.infer<typeof CopyContentSchema>
 
-/** Five framing variants generated in parallel per §11 Stage 1. */
-export const CopyContentBatchSchema = z.array(CopyContentSchema).length(5)
-
-export type CopyContentBatch = z.infer<typeof CopyContentBatchSchema>
-
 /**
  * Per-creative input for copy gen (§11). Carries id, classified angle,
  * raw transcript (capped at the call site), and the source language.
@@ -85,8 +80,6 @@ export const ProductKeywordsSchema = z.object({
   narrow: KeywordBucket,
 })
 
-export type ProductKeywords = z.infer<typeof ProductKeywordsSchema>
-
 /**
  * Stage C LLM output (§7). Only the three mandatory fields plus keywords —
  * priceText, description, and locale ride through from Stage A.
@@ -138,8 +131,6 @@ export const ScrapeReadyResultSchema = z.object({
   product: ProductFinalSchema,
 })
 
-export type ScrapeReadyResult = z.infer<typeof ScrapeReadyResultSchema>
-
 /**
  * Graceful-degrade end of the §7 pipeline (Stage D fallback). The trigger
  * task persists `partial` fields and flips `products.status = SCRAPE_PARTIAL`
@@ -150,8 +141,6 @@ export const ScrapePartialResultSchema = z.object({
   partial: ProductPartialSchema,
   reason: z.string().min(1),
 })
-
-export type ScrapePartialResult = z.infer<typeof ScrapePartialResultSchema>
 
 /**
  * Discriminated result of the §7 scrape pipeline. The `status` discriminator
@@ -187,8 +176,6 @@ export const TemplatePickResultSchema = z.object({
   templateId: TemplateId,
 })
 
-export type TemplatePickResult = z.infer<typeof TemplatePickResultSchema>
-
 // ─── Whisper / transcription ─────────────────────────────────────────────────
 
 /**
@@ -216,10 +203,6 @@ export const CueSchema = z.object({
 
 export type Cue = z.infer<typeof CueSchema>
 
-/** Cue after translation. Same shape as Cue — spec §10 adds no extra fields. */
-export const TranslatedCueSchema = CueSchema
-export type TranslatedCue = Cue
-
 /**
  * Result of a single-batch SRT translation call (§10).
  *
@@ -234,7 +217,7 @@ export type TranslatedCue = Cue
  */
 export const SrtTranslateResultSchema = z
   .object({
-    cues: z.array(TranslatedCueSchema),
+    cues: z.array(CueSchema),
     translated: z.boolean(),
   })
   .refine(
@@ -258,10 +241,8 @@ export type SrtTranslateResult = z.infer<typeof SrtTranslateResultSchema>
  * from emitting a stray `translated: false` and tripping a real success.
  */
 export const SrtTranslateLLMResultSchema = z.object({
-  cues: z.array(TranslatedCueSchema),
+  cues: z.array(CueSchema),
 })
-
-export type SrtTranslateLLMResult = z.infer<typeof SrtTranslateLLMResultSchema>
 
 /**
  * Hard layout limits per §10. Exported so the call-site validator and the
