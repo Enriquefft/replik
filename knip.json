@@ -19,7 +19,6 @@
     "shadcn",
     "@trigger.dev/core"
   ],
-  "ignoreBinaries": ["trigger"],
   "ignoreExportsUsedInFile": true,
-  "ignoreFiles": ["src/__tests__/**", "src/**/__smoke__.*"]
+  "ignoreFiles": ["src/**/__tests__/**", "src/**/__smoke__.*"]
 }

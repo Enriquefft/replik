@@ -3,12 +3,21 @@
 import { Play } from "lucide-react"
 import { Badge } from "@/components/ui/badge.tsx"
 import type { Creative } from "@/db/schema"
+import type { SalesAngle } from "@/lib/ai/taxonomies.ts"
 import { cn } from "@/lib/utils.ts"
 
-const ANGLE_COLORS: Record<string, { bg: string; text: string }> = {
-  pain: { bg: "bg-mode-traffic-badge-bg", text: "text-mode-traffic-badge-fg" },
-  lifestyle: { bg: "bg-mode-creative-badge-bg", text: "text-mode-creative-badge-fg" },
-  demo: { bg: "bg-mode-live-badge-bg", text: "text-mode-live-badge-fg" },
+// Reuses the 5 mode tokens declared in globals.css; multiple angles share a
+// token when sentiment matches. Re-tune mappings if design publishes per-angle
+// tokens.
+const ANGLE_COLORS: Record<SalesAngle, string> = {
+  precio: "bg-mode-web-badge-bg text-mode-web-badge-fg",
+  demostracion: "bg-mode-live-badge-bg text-mode-live-badge-fg",
+  comparacion: "bg-mode-live-badge-bg text-mode-live-badge-fg",
+  testimonio: "bg-mode-system-badge-bg text-mode-system-badge-fg",
+  urgencia: "bg-mode-traffic-badge-bg text-mode-traffic-badge-fg",
+  dolor: "bg-mode-traffic-badge-bg text-mode-traffic-badge-fg",
+  aspiracional: "bg-mode-creative-badge-bg text-mode-creative-badge-fg",
+  regalo: "bg-mode-creative-badge-bg text-mode-creative-badge-fg",
 }
 
 const ANGLE_GRADIENTS: string[] = [
@@ -28,11 +37,6 @@ interface CreativeCardProps {
 
 export function CreativeCard({ creative, selected, onToggle, index = 0 }: CreativeCardProps) {
   const gradient = ANGLE_GRADIENTS[index % ANGLE_GRADIENTS.length] ?? ANGLE_GRADIENTS[0]
-  const angleKey = creative.angle?.toLowerCase() ?? ""
-  const angleColors = ANGLE_COLORS[angleKey] ?? {
-    bg: "bg-surface-muted",
-    text: "text-fg-2",
-  }
 
   return (
     <button
@@ -113,8 +117,7 @@ export function CreativeCard({ creative, selected, onToggle, index = 0 }: Creati
             <span
               className={cn(
                 "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold",
-                angleColors.bg,
-                angleColors.text,
+                ANGLE_COLORS[creative.angle],
               )}
             >
               {creative.angle}
