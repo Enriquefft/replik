@@ -25,7 +25,7 @@ import { logger, metadata, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 
 import { withUser } from "@/db/client"
-import { creatives, idempotencyKeys, products } from "@/db/schema"
+import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { classifyAngle } from "@/lib/ai/angle-classify.ts"
 import { imperativeVerbCheck } from "@/lib/ai/guards.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
@@ -34,6 +34,7 @@ import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
+import { uploadSrt } from "@/lib/video"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
@@ -230,13 +231,19 @@ async function transcribeOne(
     return { transcribed: false, reason: "oversize" }
   }
 
-  // Transcribe via the canonical AI transcribe entrypoint (§9, text mode).
+  // Transcribe in SRT mode so we capture timed segments alongside the plain
+  // text. The burn pipeline (translateAndBurnSubs) reads the persisted SRT
+  // asset instead of re-running Whisper. whisper-1 and gpt-4o-transcribe are
+  // priced the same per minute, so this is cost-neutral in exchange for
+  // skipping the second transcription later.
   let transcriptText: string
   let language: string
+  let srt: string | null
   try {
-    const result = await transcribe({ mode: "text", audio: buffer })
+    const result = await transcribe({ mode: "srt", audio: buffer })
     transcriptText = result.transcriptText
     language = result.language
+    srt = result.srt
   } catch (err) {
     logger.warn("whisper_failed", {
       creativeId: creative.id,
@@ -262,6 +269,35 @@ async function transcribeOne(
       error: err instanceof Error ? err.message : String(err),
     })
     return { transcribed: false, reason: "persist_failed" }
+  }
+
+  if (srt !== null && srt.length > 0) {
+    try {
+      const upload = await uploadSrt(srt, `${creative.id}.srt`)
+      await withUser(userId, async (db) => {
+        await db
+          .insert(assets)
+          .values({
+            ownerType: "creative",
+            ownerId: creative.id,
+            kind: "srt",
+            url: upload.url,
+            bytes: Buffer.byteLength(srt, "utf8"),
+            mime: "text/plain",
+          })
+          .onConflictDoNothing({
+            target: [assets.ownerType, assets.ownerId, assets.kind],
+          })
+      })
+    } catch (err) {
+      // SRT persist is best-effort during scrape — burn falls back to
+      // re-transcribing if the asset is missing. Log and keep the transcript
+      // we already wrote.
+      logger.warn("srt_persist_failed", {
+        creativeId: creative.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
   }
 
   return { transcribed: true }
