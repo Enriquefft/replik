@@ -33,8 +33,8 @@ import { productTag } from "@/lib/trigger-tags.ts"
 import { toProductId } from "@/lib/types/ids.ts"
 import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
 import type { publishLandingTask } from "@/server/trigger/publishLanding"
+import type { rehostCreativesTask } from "@/server/trigger/rehostCreatives"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
-import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 
 const POLL_INTERVAL_MS = 5_000
 const POLL_TIMEOUT_MS = 45 * 60 * 1000
@@ -240,10 +240,10 @@ async function cmdSelect(args: ParsedArgs): Promise<void> {
   const ids = pickCreatives(rows, args.flags.get("pick"))
   if (ids.length === 0) throw new Error("nothing to select")
 
-  await tasks.batchTrigger<typeof translateAndBurnSubsTask>(
-    "translateAndBurnSubs",
-    ids.map((creativeId) => ({ payload: { creativeId, userId } })),
-  )
+  await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
+    creativeIds: ids,
+    userId,
+  })
   await withUser(userId, async (db) => {
     await db
       .update(creatives)

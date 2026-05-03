@@ -29,6 +29,45 @@ export async function uploadEditedVideo(buffer: Buffer, filename: string): Promi
   return { url: result.data.ufsUrl, key: result.data.key }
 }
 
+export interface OriginalUploadResult {
+  ok: true
+  url: string
+  key: string
+  bytes: number
+  mime: string
+}
+
+export interface OriginalUploadFailure {
+  ok: false
+  error: string
+}
+
+export type OriginalUploadOutcome = OriginalUploadResult | OriginalUploadFailure
+
+/**
+ * Rehost remote videos to UploadThing. UploadThing fetches each URL
+ * server-side, so the caller never buffers the bytes. Order of the returned
+ * array matches `urls`.
+ */
+export async function uploadOriginalsFromUrl(
+  urls: readonly string[],
+): Promise<OriginalUploadOutcome[]> {
+  if (urls.length === 0) return []
+  const results = await api().uploadFilesFromUrl(urls.slice())
+  return results.map((r) => {
+    if (r.error !== null) {
+      return { ok: false, error: `${r.error.code}: ${r.error.message}` }
+    }
+    return {
+      ok: true,
+      url: r.data.ufsUrl,
+      key: r.data.key,
+      bytes: r.data.size,
+      mime: r.data.type,
+    }
+  })
+}
+
 export async function uploadSrt(srt: string, filename: string): Promise<UploadedSrt> {
   const file = new File([srt], filename, { type: "text/plain" })
   const result = await api().uploadFiles(file)

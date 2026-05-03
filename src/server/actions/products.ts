@@ -10,8 +10,8 @@ import { assets, creatives, products, users } from "@/db/schema"
 import { logError, withTiming } from "@/lib/observability/log.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { type ProductId, toProductId } from "@/lib/types/ids.ts"
+import type { rehostCreativesTask } from "@/server/trigger/rehostCreatives"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
-import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 import type { ActionResult } from "./types.ts"
 import { validateUrl } from "./url-probe.ts"
 
@@ -283,10 +283,10 @@ export async function selectCreatives(
         }
 
         try {
-          await tasks.batchTrigger<typeof translateAndBurnSubsTask>(
-            "translateAndBurnSubs",
-            creativeIds.map((creativeId) => ({ payload: { creativeId, userId } })),
-          )
+          await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
+            creativeIds,
+            userId,
+          })
         } catch (err) {
           const reason =
             err instanceof Error ? err.message : "Error al iniciar la edición de video."

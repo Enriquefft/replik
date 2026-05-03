@@ -23,10 +23,9 @@ import "server-only"
 
 import { logger, metadata, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
-import { UTApi } from "uploadthing/server"
 
 import { withUser } from "@/db/client"
-import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
+import { creatives, idempotencyKeys, products } from "@/db/schema"
 import { classifyAngle } from "@/lib/ai/angle-classify.ts"
 import { imperativeVerbCheck } from "@/lib/ai/guards.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
@@ -48,13 +47,6 @@ interface ScrapeSummary {
   withTranscript: number
   withAngle: number
   source: "meta_ad_library" | "apify_fb" | "none"
-}
-
-let cachedUTApi: UTApi | undefined
-
-function getUTApi(): UTApi {
-  cachedUTApi ??= new UTApi()
-  return cachedUTApi
 }
 
 interface FoundAd {
@@ -151,52 +143,11 @@ async function transcribeOne(
   }
 
   const buffer = Buffer.from(await response.arrayBuffer())
-  const mime = response.headers.get("content-type") ?? "video/mp4"
   const sizeBytes = buffer.byteLength
 
-  // 1. Upload original to UploadThing.
-  let uploadedUrl: string | undefined
-  try {
-    const file = new File([new Uint8Array(buffer)], `${creative.id}.mp4`, {
-      type: mime,
-    })
-    const result = await getUTApi().uploadFiles(file)
-    if (result.data) {
-      uploadedUrl = result.data.ufsUrl
-    } else {
-      logger.warn("uploadthing_failed", {
-        creativeId: creative.id,
-        error: result.error.message,
-      })
-    }
-  } catch (err) {
-    logger.warn("uploadthing_threw", {
-      creativeId: creative.id,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  }
-
-  if (uploadedUrl) {
-    try {
-      await withUser(userId, async (db) => {
-        await db.insert(assets).values({
-          ownerType: "creative",
-          ownerId: creative.id,
-          kind: "original_video",
-          url: uploadedUrl,
-          bytes: sizeBytes,
-          mime,
-        })
-      })
-    } catch (err) {
-      logger.warn("asset_insert_failed", {
-        creativeId: creative.id,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }
-
-  // 2. Skip Whisper if file too big — Whisper API caps at 25 MB.
+  // Skip Whisper if file too big — Whisper API caps at 25 MB. Rehosting to
+  // UploadThing is deferred until the user selects this creative for editing
+  // (see `rehostCreatives` task).
   if (sizeBytes > WHISPER_MAX_BYTES) {
     logger.info("transcribe_skip_oversize", {
       creativeId: creative.id,
@@ -205,7 +156,7 @@ async function transcribeOne(
     return { transcribed: false, reason: "oversize" }
   }
 
-  // 3. Transcribe via the canonical AI transcribe entrypoint (§9, text mode).
+  // Transcribe via the canonical AI transcribe entrypoint (§9, text mode).
   let transcriptText: string
   let language: string
   try {

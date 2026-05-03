@@ -2,5 +2,11 @@ import "server-only"
 
 export type { BurnSubsInput, BurnSubsResult } from "./burnSubs"
 export { burnSubs } from "./burnSubs"
-export type { UploadedSrt, UploadedVideo } from "./upload"
-export { uploadEditedVideo, uploadSrt } from "./upload"
+export type {
+  OriginalUploadFailure,
+  OriginalUploadOutcome,
+  OriginalUploadResult,
+  UploadedSrt,
+  UploadedVideo,
+} from "./upload"
+export { uploadEditedVideo, uploadOriginalsFromUrl, uploadSrt } from "./upload"
