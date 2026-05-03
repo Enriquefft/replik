@@ -3,15 +3,8 @@
 import { z } from "zod"
 import { requireUser } from "@/db/client"
 import { accountsList, MetaAuthError, pixelsList } from "@/lib/meta"
-import { ShopifyAuthError, validateToken } from "@/lib/shopify"
 import { saveIntegration as persistIntegration } from "@/server/integrations"
 import type { ActionResult } from "./types.ts"
-
-const ShopifyFormInput = z.object({
-  provider: z.literal("shopify"),
-  token: z.string().min(10),
-  shop_domain: z.string().min(3),
-})
 
 const MetaFormInput = z.object({
   provider: z.literal("meta"),
@@ -20,50 +13,25 @@ const MetaFormInput = z.object({
   page_id: z.string().min(1),
 })
 
-const Input = z.discriminatedUnion("provider", [ShopifyFormInput, MetaFormInput])
+export type SaveMetaIntegrationInput = z.infer<typeof MetaFormInput>
 
-export type SaveIntegrationInput = z.infer<typeof Input>
-
-function inferProvider(raw: unknown): "meta" | "shopify" {
-  if (typeof raw === "object" && raw !== null && "provider" in raw) {
-    const p: unknown = raw.provider
-    if (p === "meta" || p === "shopify") return p
-  }
-  return "shopify"
-}
-
-export async function saveIntegration(rawInput: unknown): Promise<ActionResult<{ ok: true }>> {
-  const parsed = Input.safeParse(rawInput)
+/**
+ * Persists Meta credentials (token + ad account + page id), validating each
+ * field against the Marketing API before writing. Shopify uses OAuth and
+ * goes through `startShopifyOAuth` + the `/api/shopify/oauth/callback` route
+ * instead — no token is ever pasted by the user.
+ */
+export async function saveMetaIntegration(rawInput: unknown): Promise<ActionResult<{ ok: true }>> {
+  const parsed = MetaFormInput.safeParse(rawInput)
   if (!parsed.success) {
     return {
       ok: false,
-      needs: inferProvider(rawInput),
+      needs: "meta",
       error: "Datos inválidos en el formulario.",
     }
   }
   const data = parsed.data
   const { userId } = await requireUser()
-
-  if (data.provider === "shopify") {
-    try {
-      const shop = await validateToken({
-        token: data.token,
-        shop_domain: data.shop_domain,
-      })
-      await persistIntegration(userId, {
-        provider: "shopify",
-        token: data.token,
-        extra: {
-          provider: "shopify",
-          shop_domain: shop.myshopify_domain,
-        },
-      })
-      return { ok: true, data: { ok: true } }
-    } catch (err) {
-      const friendly = err instanceof ShopifyAuthError ? err.message : "Token Shopify inválido"
-      return { ok: false, needs: "shopify", error: friendly }
-    }
-  }
 
   try {
     const accounts = await accountsList({ token: data.token })

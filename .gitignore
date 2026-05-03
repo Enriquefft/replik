@@ -57,3 +57,9 @@ next-env.d.ts
 
 # runtime uploads
 /uploads/
+
+# npm lockfile (project uses bun.lock)
+/package-lock.json
+
+# diagnostic session captures (may contain CDN URLs with auth tokens)
+/scripts/diagnostics/runs/

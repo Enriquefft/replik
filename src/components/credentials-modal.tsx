@@ -23,12 +23,11 @@ import {
   FormMessage,
 } from "@/components/ui/form.tsx"
 import { Input } from "@/components/ui/input.tsx"
-import { saveIntegration } from "@/server/actions/integrations.ts"
+import { saveMetaIntegration } from "@/server/actions/integrations.ts"
+import { startShopifyOAuth } from "@/server/actions/shopify-oauth.ts"
 
-// --- Shopify form ---
+// --- Shopify form (OAuth — domain only; token comes via callback) ---
 const ShopifySchema = z.object({
-  provider: z.literal("shopify"),
-  token: z.string().min(10, "Token demasiado corto"),
   shop_domain: z.string().min(3, "Dominio inválido"),
 })
 type ShopifyFormValues = z.infer<typeof ShopifySchema>
@@ -50,25 +49,19 @@ interface CredentialsModalProps {
   errorMessage?: string
 }
 
-function ShopifyForm({
-  onSaved,
-  onError,
-}: {
-  onSaved: () => void
-  onError: (msg: string) => void
-}) {
+function ShopifyForm({ onError }: { onError: (msg: string) => void }) {
   const form = useForm<ShopifyFormValues>({
     resolver: zodResolver(ShopifySchema),
-    defaultValues: { provider: "shopify", token: "", shop_domain: "" },
+    defaultValues: { shop_domain: "" },
   })
 
   async function onSubmit(values: ShopifyFormValues) {
-    const result = await saveIntegration(values)
+    const result = await startShopifyOAuth({ shop_domain: values.shop_domain })
     if (result.ok) {
-      onSaved()
-    } else {
-      onError(result.error ?? "Error al guardar. Intenta de nuevo.")
+      window.location.href = result.data.authorizeUrl
+      return
     }
+    onError(result.error ?? "No se pudo iniciar la conexión.")
   }
 
   return (
@@ -88,29 +81,8 @@ function ShopifyForm({
               <FormControl>
                 <Input placeholder="mitienda.myshopify.com" {...field} />
               </FormControl>
-              <FormDescription>Ejemplo: mitienda.myshopify.com</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="token"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Admin API Token</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="shpat_..." {...field} />
-              </FormControl>
               <FormDescription>
-                <a
-                  href="https://admin.shopify.com/store/apps/private"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-mode-live hover:underline"
-                >
-                  Crear token en Shopify Admin <ExternalLink className="size-3" />
-                </a>
+                Te llevaremos al panel de Shopify para autorizar la app.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -118,7 +90,7 @@ function ShopifyForm({
         />
         <Button type="submit" className="w-full mt-2" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
-          Guardar y validar
+          Conectar Shopify
         </Button>
       </form>
     </Form>
@@ -137,7 +109,7 @@ function MetaForm({ onSaved, onError }: { onSaved: () => void; onError: (msg: st
   })
 
   async function onSubmit(values: MetaFormValues) {
-    const result = await saveIntegration(values)
+    const result = await saveMetaIntegration(values)
     if (result.ok) {
       onSaved()
     } else {
@@ -236,7 +208,7 @@ export function CredentialsModal({
   const title = provider === "shopify" ? "Conectar Shopify" : "Conectar Meta Ads"
   const description =
     provider === "shopify"
-      ? "Ingresa tu dominio de tienda y Admin API token para publicar la landing."
+      ? "Ingresa tu dominio de tienda. Te llevaremos a Shopify para autorizar la app."
       : "Ingresa tu token de Meta y datos de la cuenta para lanzar la campaña."
 
   function handleSaved() {
@@ -259,7 +231,7 @@ export function CredentialsModal({
         )}
 
         {provider === "shopify" ? (
-          <ShopifyForm onSaved={handleSaved} onError={setInternalError} />
+          <ShopifyForm onError={setInternalError} />
         ) : (
           <MetaForm onSaved={handleSaved} onError={setInternalError} />
         )}

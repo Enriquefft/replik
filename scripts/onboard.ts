@@ -22,6 +22,11 @@
  *   launch <productId> --budget=<cents>    fire launchCampaign
  *   wait-launch <productId>                poll until CAMPAIGN_LAUNCHED
  *   status <productId>                     snapshot
+ *   connect-shopify --token=shpat_… --domain=<store>.myshopify.com
+ *                                          persist a Shopify integration row directly,
+ *                                          bypassing the OAuth/UI flow. Useful when a
+ *                                          token has already been issued (legacy custom
+ *                                          app, prior OAuth, manual curl exchange).
  *   all <url> --price=<c> --bundle2=<c> --bundle3=<c> --budget=<c> [--template=N]
  */
 
@@ -29,8 +34,10 @@ import { tasks } from "@trigger.dev/sdk"
 import { and, eq, inArray } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, campaigns, creatives, products, users } from "@/db/schema"
+import { normalizeShopDomain } from "@/lib/shopify/oauth"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { toProductId } from "@/lib/types/ids.ts"
+import { getIntegration, saveIntegration } from "@/server/integrations"
 import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
 import type { publishLandingTask } from "@/server/trigger/publishLanding"
 import type { rehostCreativesTask } from "@/server/trigger/rehostCreatives"
@@ -314,6 +321,15 @@ async function cmdPublish(args: ParsedArgs): Promise<void> {
     templateRaw === 1 || templateRaw === 2 || templateRaw === 3 ? templateRaw : undefined
   const userId = await resolveUserId()
 
+  // Pre-flight: fail fast if Shopify integration is missing instead of letting
+  // the trigger task crash 5s later with the same diagnosis.
+  const shopify = await getIntegration(userId, "shopify")
+  if (!shopify) {
+    throw new Error(
+      "Shopify integration missing. Run `connect-shopify --token=… --domain=…` or connect via the UI first.",
+    )
+  }
+
   const updated = await withUser(userId, async (db) =>
     db
       .update(products)
@@ -329,6 +345,25 @@ async function cmdPublish(args: ParsedArgs): Promise<void> {
     ...(templateId !== undefined && { templateId }),
   })
   console.log(`run=${handle.id}`)
+}
+
+async function cmdConnectShopify(args: ParsedArgs): Promise<void> {
+  const token = args.flags.get("token")
+  const domainRaw = args.flags.get("domain")
+  if (!token || !domainRaw) {
+    throw new Error("usage: connect-shopify --token=shpat_… --domain=<store>.myshopify.com")
+  }
+  if (!token.startsWith("shpat_") && !token.startsWith("shpca_")) {
+    throw new Error("--token must look like shpat_… or shpca_…")
+  }
+  const domain = normalizeShopDomain(domainRaw)
+  const userId = await resolveUserId()
+  await saveIntegration(userId, {
+    provider: "shopify",
+    token,
+    extra: { provider: "shopify", shop_domain: domain },
+  })
+  console.log(`shopify integration saved: userId=${userId} shop=${domain}`)
 }
 
 async function cmdWaitPublish(args: ParsedArgs): Promise<void> {
@@ -448,6 +483,7 @@ const COMMANDS: Record<string, (a: ParsedArgs) => Promise<unknown>> = {
   launch: cmdLaunch,
   "wait-launch": cmdWaitLaunch,
   status: cmdStatus,
+  "connect-shopify": cmdConnectShopify,
   all: cmdAll,
 }
 
