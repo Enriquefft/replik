@@ -3,7 +3,7 @@ import "server-only"
 import crypto from "node:crypto"
 import { z } from "zod"
 
-const SHOP_DOMAIN_RE = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/
+const SHOP_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.myshopify\.com$/
 
 export class ShopifyOAuthError extends Error {
   constructor(message: string) {

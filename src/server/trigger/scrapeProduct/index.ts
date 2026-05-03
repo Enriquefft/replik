@@ -115,7 +115,7 @@ async function findAds(
       const batch = await meta.adLibrarySearch({
         searchTerms: keyword,
         countries: ["PE"],
-        limit: Math.min(MAX_ADS, Math.max(remaining, 1)),
+        limit: Math.max(remaining, 1),
       })
       let added = 0
       for (const ad of batch) {
