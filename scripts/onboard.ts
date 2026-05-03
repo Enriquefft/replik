@@ -397,6 +397,12 @@ async function cmdLaunch(args: ParsedArgs): Promise<void> {
   if (!productId) throw new Error("usage: launch <productId> --budget=<cents>")
   const budget = requireFlagInt(args.flags, "budget")
   const userId = await resolveUserId()
+
+  const meta = await getIntegration(userId, "meta")
+  if (!meta) {
+    throw new Error("Meta integration missing. Connect Facebook Ads via the UI OAuth flow first.")
+  }
+
   const handle = await tasks.trigger<typeof launchCampaignTask>("launchCampaign", {
     productId,
     userId,
