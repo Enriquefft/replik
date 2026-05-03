@@ -49,13 +49,25 @@ export const rehostCreativesTask = task({
 
     logger.info("rehost.start", { count: creativeIds.length })
 
+    // Single tenant-scoped round-trip: pair each creative with its
+    // `original_video` asset (if any) via LEFT JOIN. `assetOwnerId !== null`
+    // is the "already rehosted" signal.
     const rows = await withUser(userId, async (db) => {
       return await db
         .select({
           id: creatives.id,
           scrapeUrl: creatives.scrapeUrl,
+          assetOwnerId: assets.ownerId,
         })
         .from(creatives)
+        .leftJoin(
+          assets,
+          and(
+            eq(assets.ownerType, "creative"),
+            eq(assets.ownerId, creatives.id),
+            eq(assets.kind, "original_video"),
+          ),
+        )
         .where(and(inArray(creatives.id, creativeIds), eq(creatives.userId, userId)))
     })
 
@@ -76,19 +88,7 @@ export const rehostCreativesTask = task({
     }
 
     const validIds = rows.map((r) => r.id)
-    const existing = await withUser(userId, async (db) => {
-      return await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .where(
-          and(
-            eq(assets.ownerType, "creative"),
-            eq(assets.kind, "original_video"),
-            inArray(assets.ownerId, validIds),
-          ),
-        )
-    })
-    const alreadyHosted = new Set(existing.map((a) => a.ownerId))
+    const alreadyHosted = new Set(rows.filter((r) => r.assetOwnerId !== null).map((r) => r.id))
     const toRehost = rows.filter((r) => !alreadyHosted.has(r.id))
 
     const burnIds = new Set<string>(alreadyHosted)

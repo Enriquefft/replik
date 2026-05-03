@@ -247,10 +247,8 @@ async function cmdSelect(args: ParsedArgs): Promise<void> {
   const ids = pickCreatives(rows, args.flags.get("pick"))
   if (ids.length === 0) throw new Error("nothing to select")
 
-  await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
-    creativeIds: ids,
-    userId,
-  })
+  // Mirror server action ordering: flip selectedBool before triggering
+  // rehostCreatives so a trigger failure leaves the row recoverable.
   await withUser(userId, async (db) => {
     await db
       .update(creatives)
@@ -262,6 +260,10 @@ async function cmdSelect(args: ParsedArgs): Promise<void> {
           inArray(creatives.id, ids),
         ),
       )
+  })
+  await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
+    creativeIds: ids,
+    userId,
   })
   console.log(`selected=${ids.length} ids=${ids.join(",")}`)
 }

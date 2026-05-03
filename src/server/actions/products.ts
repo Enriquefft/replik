@@ -317,6 +317,22 @@ export async function selectCreatives(
           return { ok: false, error: "Creativos inválidos." }
         }
 
+        // Flip selectedBool first so a downstream trigger failure doesn't
+        // leave creatives rehosted-but-unselected (irrecoverable from the UI).
+        // The reverse — selected-but-unrehosted — is recoverable: the user
+        // re-clicks Select, and `rehostCreatives` short-circuits on creatives
+        // that already have an `original_video` asset.
+        await db
+          .update(creatives)
+          .set({ selectedBool: true })
+          .where(
+            and(
+              eq(creatives.productId, productId),
+              eq(creatives.userId, userId),
+              inArray(creatives.id, creativeIds),
+            ),
+          )
+
         try {
           await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
             creativeIds,
@@ -332,17 +348,6 @@ export async function selectCreatives(
           })
           return { ok: false, error: reason }
         }
-
-        await db
-          .update(creatives)
-          .set({ selectedBool: true })
-          .where(
-            and(
-              eq(creatives.productId, productId),
-              eq(creatives.userId, userId),
-              inArray(creatives.id, creativeIds),
-            ),
-          )
 
         return { ok: true, data: { triggered: creativeIds.length } }
       }),
