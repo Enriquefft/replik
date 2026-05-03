@@ -19,6 +19,11 @@ const ACTOR_ID = "apify/facebook-ads-scraper"
 const DEFAULT_COUNTRY = "PE"
 const RUN_TIMEOUT_SECS = 300
 const RESULT_CAP = 20
+// Hard upper bound on per-run spend. The actor is pay-per-event
+// (`apify-default-dataset-item` ≈ $0.0058/ad). 20 ads × $0.0058 ≈ $0.116
+// worst case; the SDK enforces the cap by passing it as
+// ACTOR_MAX_TOTAL_CHARGE_USD to the actor process.
+const MAX_TOTAL_CHARGE_USD = 0.15
 
 export interface RawCreative {
   ad_id: string
@@ -96,26 +101,34 @@ export function normalise(raw: unknown): RawCreative | null {
 }
 
 /**
- * Run the public Facebook Ads Library actor against a list of keywords and
- * return up to 20 video creatives. Throws on credential or network failure;
- * the Trigger task catches and treats as an empty result.
+ * Run the public Facebook Ads Library actor for a single keyword. Returns up
+ * to 20 video creatives. Caller is responsible for fanning out across keyword
+ * tiers (broad → narrow); this wrapper is one metered call per invocation.
+ *
+ * Spend is double-capped: `maxItems` bounds dataset items the actor pushes;
+ * `maxTotalChargeUsd` bounds dollars charged to the Apify account regardless
+ * of pricing model. Throws on credential or network failure; the Trigger task
+ * catches and treats as an empty result.
  */
-export async function searchFBAdsByKeywords(keywords: string[]): Promise<RawCreative[]> {
-  if (keywords.length === 0) return []
+export async function searchFBAdsByKeyword(keyword: string): Promise<RawCreative[]> {
+  if (keyword.length === 0) return []
 
   const client = getClient()
-  const urls = keywords.slice(0, 5).map((kw) => ({ url: buildSearchUrl(kw) }))
 
   const run = await client.actor(ACTOR_ID).call(
     {
-      startUrls: urls,
+      startUrls: [{ url: buildSearchUrl(keyword) }],
       resultsLimit: RESULT_CAP,
     },
-    { waitSecs: RUN_TIMEOUT_SECS },
+    {
+      waitSecs: RUN_TIMEOUT_SECS,
+      maxItems: RESULT_CAP,
+      maxTotalChargeUsd: MAX_TOTAL_CHARGE_USD,
+    },
   )
 
   const dataset = client.dataset(run.defaultDatasetId)
-  const { items } = await dataset.listItems({ limit: RESULT_CAP * 2 })
+  const { items } = await dataset.listItems({ limit: RESULT_CAP })
 
   const seen = new Set<string>()
   const results: RawCreative[] = []

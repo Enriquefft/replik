@@ -3,10 +3,10 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { tasks } from "@trigger.dev/sdk"
 import { generateText } from "ai"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, like } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
-import { assets, creatives, products, users } from "@/db/schema"
+import { assets, creatives, idempotencyKeys, products, users } from "@/db/schema"
 import { logError, withTiming } from "@/lib/observability/log.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { type ProductId, toProductId } from "@/lib/types/ids.ts"
@@ -14,6 +14,8 @@ import type { rehostCreativesTask } from "@/server/trigger/rehostCreatives"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import type { ActionResult } from "./types.ts"
 import { validateUrl } from "./url-probe.ts"
+
+const RETRY_COOLDOWN_MS = 60_000
 
 export type ProductStatus = (typeof products.$inferSelect)["status"]
 
@@ -72,12 +74,45 @@ export async function retryScrape(rawInput: unknown): Promise<ActionResult<null>
       if (!product) return { ok: false, error: "Producto no encontrado." }
 
       let competitorUrl = product.sourceUrl
+      let urlChanged = false
       if (parsed.data.newUrl !== undefined && parsed.data.newUrl !== product.sourceUrl) {
         const probe = await validateUrl(parsed.data.newUrl)
         if (!probe.ok) {
           return { ok: false, error: probe.error ?? "URL inválida." }
         }
         competitorUrl = probe.data.finalUrl
+        urlChanged = competitorUrl !== product.sourceUrl
+      }
+
+      // Cooldown: each retry creates a fresh idempotency key (the `attempt`
+      // suffix is monotonic), which means each retry pays full Apify charge.
+      // Block re-runs within RETRY_COOLDOWN_MS unless the URL actually
+      // changed — a URL change is a legitimate re-scrape.
+      if (!urlChanged) {
+        const recent = await withUser(userId, async (db) => {
+          const rows = await db
+            .select({ createdAt: idempotencyKeys.createdAt })
+            .from(idempotencyKeys)
+            .where(
+              and(
+                eq(idempotencyKeys.userId, userId),
+                like(idempotencyKeys.key, `scrape_${productId}_%`),
+              ),
+            )
+            .orderBy(desc(idempotencyKeys.createdAt))
+            .limit(1)
+          return rows[0] ?? null
+        })
+        if (recent) {
+          const elapsed = Date.now() - recent.createdAt.getTime()
+          if (elapsed < RETRY_COOLDOWN_MS) {
+            const waitSecs = Math.ceil((RETRY_COOLDOWN_MS - elapsed) / 1000)
+            return {
+              ok: false,
+              error: `Espera ${waitSecs.toString()} s antes de reintentar el análisis.`,
+            }
+          }
+        }
       }
 
       try {

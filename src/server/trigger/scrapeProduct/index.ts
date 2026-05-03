@@ -38,6 +38,12 @@ import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
 const MAX_ADS = 20
+// Maximum number of distinct keyword search calls per provider before giving
+// up. Both Meta and Apify are bounded — Meta calls are cheap but rate-limited,
+// Apify calls are metered (~$0.116 per 20-ad run worst case). Fanning out 5
+// broad-first terms keeps recall high without runaway cost.
+const META_MAX_KEYWORDS = 5
+const APIFY_MAX_KEYWORDS = 2
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
 const TRANSCRIBE_CONCURRENCY = 10
 const IDEMPOTENCY_TTL_DAYS = 7
@@ -55,57 +61,125 @@ interface FoundAd {
   scrape_url: string
 }
 
+/**
+ * Order keyword tiers broad-first and dedupe (case-insensitive). Broad tier
+ * (1-2 word generic terms) drives category recall; narrow tier (3-6 word
+ * long-tail buyer-intent phrases) is a fallback for niches where broad terms
+ * are saturated. Empty entries are dropped.
+ */
+function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const kw of [...input.broad, ...input.narrow]) {
+    const trimmed = kw.trim()
+    if (trimmed.length === 0) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(trimmed)
+  }
+  return out
+}
+
+/**
+ * Discover up to `MAX_ADS` distinct video ads for the supplied broad-first
+ * keyword list.
+ *
+ * Algorithm:
+ *   1. Iterate the keyword list (already broad-first). For each keyword call
+ *      `meta.adLibrarySearch` with that single keyword as `searchTerms`.
+ *      Accumulate de-duped ads keyed by `ad_id`. Stop once `MAX_ADS` reached
+ *      or `META_MAX_KEYWORDS` keywords tried.
+ *   2. If Meta produced any ads, return them tagged `meta_ad_library`.
+ *   3. Otherwise fall back to Apify on the first `APIFY_MAX_KEYWORDS` broad
+ *      keywords (Apify is metered per dataset item, so we cap aggressively).
+ *      Same per-keyword loop + de-dup.
+ *
+ * Joining broad+narrow into one whitespace-delimited query (the previous
+ * behaviour) over-specified Meta's substring matcher and silently returned 0
+ * for category-style products. Iterating per-keyword is the recall fix.
+ */
 async function findAds(
   keywords: string[],
 ): Promise<{ ads: FoundAd[]; source: "meta_ad_library" | "apify_fb" | "none" }> {
-  const searchTerms = keywords.join(" ")
-  // Try Meta Ad Library first.
-  try {
-    const metaAds = await meta.adLibrarySearch({
-      searchTerms,
-      countries: ["PE"],
-      limit: MAX_ADS,
-    })
-    if (metaAds.length > 0) {
-      const mapped: FoundAd[] = []
-      for (const ad of metaAds) {
+  if (keywords.length === 0) return { ads: [], source: "none" }
+
+  // ---------- Meta first ----------
+  const metaAds = new Map<string, FoundAd>()
+  const metaTried = keywords.slice(0, META_MAX_KEYWORDS)
+  for (const keyword of metaTried) {
+    if (metaAds.size >= MAX_ADS) break
+    try {
+      const remaining = MAX_ADS - metaAds.size
+      const batch = await meta.adLibrarySearch({
+        searchTerms: keyword,
+        countries: ["PE"],
+        limit: Math.min(MAX_ADS, Math.max(remaining, 1)),
+      })
+      let added = 0
+      for (const ad of batch) {
+        if (metaAds.has(ad.ad_id)) continue
         const url = ad.video_url ?? ad.ad_snapshot_url
         if (!url) continue
-        mapped.push({
+        metaAds.set(ad.ad_id, {
           source: "meta_ad_library",
           ad_id: ad.ad_id,
           scrape_url: url,
         })
-        if (mapped.length >= MAX_ADS) break
+        added++
+        if (metaAds.size >= MAX_ADS) break
       }
-      if (mapped.length > 0) return { ads: mapped, source: "meta_ad_library" }
+      logger.info("meta_ad_library_keyword", {
+        keyword,
+        rawCount: batch.length,
+        added,
+        total: metaAds.size,
+      })
+    } catch (err) {
+      logger.warn("meta_ad_library_failed", {
+        keyword,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
-  } catch (err) {
-    logger.warn("meta_ad_library_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    })
+  }
+  if (metaAds.size > 0) {
+    return { ads: Array.from(metaAds.values()).slice(0, MAX_ADS), source: "meta_ad_library" }
   }
 
-  // Fallback to Apify.
-  try {
-    const apifyAds = await apify.searchFBAdsByKeywords(keywords)
-    if (apifyAds.length > 0) {
-      const mapped: FoundAd[] = []
-      for (const ad of apifyAds) {
+  // ---------- Apify fallback ----------
+  const apifyAds = new Map<string, FoundAd>()
+  const apifyTried = keywords.slice(0, APIFY_MAX_KEYWORDS)
+  for (const keyword of apifyTried) {
+    if (apifyAds.size >= MAX_ADS) break
+    try {
+      const batch = await apify.searchFBAdsByKeyword(keyword)
+      let added = 0
+      for (const ad of batch) {
+        if (apifyAds.has(ad.ad_id)) continue
         if (!ad.video_url) continue
-        mapped.push({
+        apifyAds.set(ad.ad_id, {
           source: "apify_fb",
           ad_id: ad.ad_id,
           scrape_url: ad.video_url,
         })
-        if (mapped.length >= MAX_ADS) break
+        added++
+        if (apifyAds.size >= MAX_ADS) break
       }
-      if (mapped.length > 0) return { ads: mapped, source: "apify_fb" }
+      logger.info("apify_keyword", {
+        keyword,
+        rawCount: batch.length,
+        added,
+        total: apifyAds.size,
+      })
+    } catch (err) {
+      logger.warn("apify_failed", {
+        keyword,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
-  } catch (err) {
-    logger.warn("apify_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    })
+  }
+  if (apifyAds.size > 0) {
+    return { ads: Array.from(apifyAds.values()).slice(0, MAX_ADS), source: "apify_fb" }
   }
 
   return { ads: [], source: "none" }
@@ -337,9 +411,13 @@ export const scrapeProduct = task({
             category: scrapeResult.partial.category,
             description: scrapeResult.partial.description,
           }
-      const adKeywords = isReady
-        ? [...scrapeResult.product.keywords.broad, ...scrapeResult.product.keywords.narrow]
-        : []
+      // Broad-first ordering: `findAds` fans out per-keyword, and broad terms
+      // (e.g. "flores", "ramos") drive category recall on Meta Ad Library /
+      // Apify. Narrow long-tail phrases come last as a fallback for niches
+      // where broad terms are saturated. `orderedKeywords` also dedupes the
+      // tiers (case-insensitive) since the LLM occasionally repeats a phrase
+      // across buckets.
+      const adKeywords = isReady ? orderedKeywords(scrapeResult.product.keywords) : []
 
       if (isReady) {
         logger.info("scrape_done", {
