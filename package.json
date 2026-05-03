@@ -77,5 +77,8 @@
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "patchedDependencies": {
+    "uploadthing@7.7.4": "patches/uploadthing@7.7.4.patch"
+  }
 }
