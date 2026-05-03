@@ -29,8 +29,15 @@ export async function uploadEditedVideo(buffer: Buffer, filename: string): Promi
   return { url: result.data.ufsUrl, key: result.data.key }
 }
 
+export interface OriginalUploadInput {
+  url: string
+  /** Caller-supplied correlation id, round-tripped via UploadThing customId. */
+  customId: string
+}
+
 export interface OriginalUploadResult {
   ok: true
+  customId: string
   url: string
   key: string
   bytes: number
@@ -39,6 +46,7 @@ export interface OriginalUploadResult {
 
 export interface OriginalUploadFailure {
   ok: false
+  customId: string
   error: string
 }
 
@@ -46,20 +54,30 @@ export type OriginalUploadOutcome = OriginalUploadResult | OriginalUploadFailure
 
 /**
  * Rehost remote videos to UploadThing. UploadThing fetches each URL
- * server-side, so the caller never buffers the bytes. Order of the returned
- * array matches `urls`.
+ * server-side, so the caller never buffers the bytes. Each input carries a
+ * `customId` that UploadThing round-trips on success — callers correlate by
+ * `customId` rather than positional index, since the upstream return-array
+ * order is convention, not contract.
  */
 export async function uploadOriginalsFromUrl(
-  urls: readonly string[],
+  inputs: readonly OriginalUploadInput[],
 ): Promise<OriginalUploadOutcome[]> {
-  if (urls.length === 0) return []
-  const results = await api().uploadFilesFromUrl(urls.slice())
-  return results.map((r) => {
+  if (inputs.length === 0) return []
+  const results = await api().uploadFilesFromUrl(
+    inputs.map((i) => ({ url: i.url, customId: i.customId })),
+  )
+  return results.map((r, idx) => {
+    const fallbackId = inputs[idx]?.customId ?? ""
     if (r.error !== null) {
-      return { ok: false, error: `${r.error.code}: ${r.error.message}` }
+      return {
+        ok: false,
+        customId: fallbackId,
+        error: `${r.error.code}: ${r.error.message}`,
+      }
     }
     return {
       ok: true,
+      customId: r.data.customId ?? fallbackId,
       url: r.data.ufsUrl,
       key: r.data.key,
       bytes: r.data.size,

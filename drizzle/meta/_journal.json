@@ -43,6 +43,13 @@
       "when": 1777657044898,
       "tag": "0005_acoustic_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777804898424,
+      "tag": "0006_organic_jazinda",
+      "breakpoints": true
     }
   ]
 }

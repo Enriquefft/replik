@@ -120,16 +120,20 @@ export const creatives = pgTable("creatives", {
   scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const assets = pgTable("assets", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  ownerType: assetOwnerTypeEnum("owner_type").notNull(),
-  ownerId: uuid("owner_id").notNull(),
-  kind: assetKindEnum("kind").notNull(),
-  url: text("url").notNull(),
-  bytes: integer("bytes"),
-  mime: text("mime"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-})
+export const assets = pgTable(
+  "assets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerType: assetOwnerTypeEnum("owner_type").notNull(),
+    ownerId: uuid("owner_id").notNull(),
+    kind: assetKindEnum("kind").notNull(),
+    url: text("url").notNull(),
+    bytes: integer("bytes"),
+    mime: text("mime"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("assets_owner_kind_uniq").on(t.ownerType, t.ownerId, t.kind)],
+)
 
 export const campaigns = pgTable("campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),

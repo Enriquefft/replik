@@ -5,7 +5,7 @@ import { z } from "zod"
 import { withUser } from "@/db/client"
 import { assets, creatives } from "@/db/schema"
 import { logEvent } from "@/lib/observability/log.ts"
-import { uploadOriginalsFromUrl } from "@/lib/video"
+import { type OriginalUploadInput, uploadOriginalsFromUrl } from "@/lib/video"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 
 /**
@@ -16,7 +16,10 @@ import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurn
  * scrape inventory (see scrapeProduct/index.ts).
  *
  * Idempotent: creatives that already have an `original_video` asset row
- * skip the upload but are still included in the burn batch.
+ * skip the upload but are still included in the burn batch. Tenant safety:
+ * `creativeIds` are validated against the tenant-scoped `creatives` table
+ * before any asset lookup or burn trigger — ids that don't resolve to a
+ * row owned by `userId` are silently dropped.
  */
 
 const RehostCreativesPayloadSchema = z.object({
@@ -56,6 +59,23 @@ export const rehostCreativesTask = task({
         .where(and(inArray(creatives.id, creativeIds), eq(creatives.userId, userId)))
     })
 
+    if (rows.length === 0) {
+      const summary: RehostSummary = {
+        rehosted: 0,
+        alreadyHosted: 0,
+        failed: 0,
+        burnTriggered: 0,
+      }
+      logEvent("task.rehost.summary", {
+        userId,
+        ...summary,
+        ms: Date.now() - startedAt,
+        skipped: "no-tenant-rows",
+      })
+      return summary
+    }
+
+    const validIds = rows.map((r) => r.id)
     const existing = await withUser(userId, async (db) => {
       return await db
         .select({ ownerId: assets.ownerId })
@@ -64,44 +84,48 @@ export const rehostCreativesTask = task({
           and(
             eq(assets.ownerType, "creative"),
             eq(assets.kind, "original_video"),
-            inArray(assets.ownerId, creativeIds),
+            inArray(assets.ownerId, validIds),
           ),
         )
     })
     const alreadyHosted = new Set(existing.map((a) => a.ownerId))
     const toRehost = rows.filter((r) => !alreadyHosted.has(r.id))
 
+    const burnIds = new Set<string>(alreadyHosted)
     let rehosted = 0
     let failed = 0
-    const burnIds: string[] = [...alreadyHosted]
 
     if (toRehost.length > 0) {
-      const urls = toRehost.map((r) => r.scrapeUrl)
-      const outcomes = await uploadOriginalsFromUrl(urls)
+      const inputs: OriginalUploadInput[] = toRehost.map((r) => ({
+        url: r.scrapeUrl,
+        customId: r.id,
+      }))
+      const outcomes = await uploadOriginalsFromUrl(inputs)
 
+      const validIdSet = new Set(validIds)
       const inserts: Array<{
         creativeId: string
         url: string
         bytes: number
         mime: string
       }> = []
-      for (let i = 0; i < toRehost.length; i++) {
-        const creative = toRehost[i]
-        const outcome = outcomes[i]
-        if (!creative || !outcome) continue
+      for (const outcome of outcomes) {
+        if (!validIdSet.has(outcome.customId)) {
+          logger.warn("rehost.unknown_custom_id", { customId: outcome.customId })
+          continue
+        }
         if (outcome.ok) {
           inserts.push({
-            creativeId: creative.id,
+            creativeId: outcome.customId,
             url: outcome.url,
             bytes: outcome.bytes,
             mime: outcome.mime,
           })
-          burnIds.push(creative.id)
+          burnIds.add(outcome.customId)
         } else {
           failed += 1
           logger.warn("rehost.upload_failed", {
-            creativeId: creative.id,
-            scrapeUrl: creative.scrapeUrl,
+            creativeId: outcome.customId,
             error: outcome.error,
           })
         }
@@ -109,25 +133,36 @@ export const rehostCreativesTask = task({
 
       if (inserts.length > 0) {
         await withUser(userId, async (db) => {
-          await db.insert(assets).values(
-            inserts.map((i) => ({
-              ownerType: "creative" as const,
-              ownerId: i.creativeId,
-              kind: "original_video" as const,
-              url: i.url,
-              bytes: i.bytes,
-              mime: i.mime,
-            })),
-          )
+          await db
+            .insert(assets)
+            .values(
+              inserts.map((i) => ({
+                ownerType: "creative" as const,
+                ownerId: i.creativeId,
+                kind: "original_video" as const,
+                url: i.url,
+                bytes: i.bytes,
+                mime: i.mime,
+              })),
+            )
+            .onConflictDoNothing({
+              target: [assets.ownerType, assets.ownerId, assets.kind],
+            })
         })
       }
       rehosted = inserts.length
+
+      if (rehosted === 0 && failed > 0 && burnIds.size === 0) {
+        throw new Error(
+          `rehost: every upload failed (${failed.toString()}/${toRehost.length.toString()}), no creatives to burn`,
+        )
+      }
     }
 
-    if (burnIds.length > 0) {
+    if (burnIds.size > 0) {
       await tasks.batchTrigger<typeof translateAndBurnSubsTask>(
         "translateAndBurnSubs",
-        burnIds.map((creativeId) => ({ payload: { creativeId, userId } })),
+        [...burnIds].map((creativeId) => ({ payload: { creativeId, userId } })),
       )
     }
 
@@ -135,7 +170,7 @@ export const rehostCreativesTask = task({
       rehosted,
       alreadyHosted: alreadyHosted.size,
       failed,
-      burnTriggered: burnIds.length,
+      burnTriggered: burnIds.size,
     }
 
     logEvent("task.rehost.summary", {

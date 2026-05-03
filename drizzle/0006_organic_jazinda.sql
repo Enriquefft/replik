@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "assets_owner_kind_uniq" ON "assets" USING btree ("owner_type","owner_id","kind");
