@@ -35,7 +35,7 @@ import {
   videoUploadResumable,
 } from "@/lib/meta"
 import { interestsFor } from "@/lib/meta/interests"
-import { logError, withTiming } from "@/lib/observability/log.ts"
+import { logError, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { getIntegration, requireIntegration } from "@/server/integrations"
 import type { LaunchPhase } from "./metadata.ts"
 
@@ -509,6 +509,7 @@ export const launchCampaign = schemaTask({
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err)
       logError("task.launch.fatal", { productId, userId, attempt, reason })
+      await markProductFailed(userId, productId, reason, "launch-crashed")
       throw err
     }
   },

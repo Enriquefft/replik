@@ -6,7 +6,7 @@ import { EncryptedExtraJson } from "@/db/zod"
 import { TemplatePickInputSchema } from "@/lib/ai/schemas.ts"
 import { pickTemplate } from "@/lib/ai/template-pick.ts"
 import { decrypt } from "@/lib/crypto"
-import { logError, withTiming } from "@/lib/observability/log.ts"
+import { logError, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import type { ShopifyCreds } from "@/lib/shopify"
 import {
   applyTemplate,
@@ -315,6 +315,7 @@ export const publishLandingTask = task({
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err)
       logError("task.publish.fatal", { productId, userId, reason })
+      await markProductFailed(userId, productId, reason, "publish-crashed")
       throw err
     }
   },
