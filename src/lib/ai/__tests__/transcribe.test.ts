@@ -204,7 +204,7 @@ describe("transcribe — text mode (gpt-4o-transcribe)", () => {
     expect(result.transcriptText).toBe("Hola, este producto es genial.")
     expect(result.srt).toBeNull()
     expect(result.language).toBe("es")
-    expect(openAICtl.calls[0]?.model).toBe("gpt-4o-transcribe")
+    expect(openAICtl.calls[0]?.model).toBe("gpt-4o-mini-transcribe")
     expect(openAICtl.calls[0]?.response_format).toBe("json")
   })
 
@@ -405,11 +405,14 @@ describe("transcribe — srt mode (whisper-1)", () => {
 
 describe("transcribe — chunking (>20 min)", () => {
   test("invokes ffmpeg silence-detect when duration exceeds 20 min", async () => {
-    const { transcribe } = await import("../transcribe.ts")
+    const { transcribe, FFPROBE_SKIP_BYTES } = await import("../transcribe.ts")
     spawnCtl.ffprobeStdout = "1500\n" // 25 min
     spawnCtl.silenceStderr = "[silencedetect @ 0x1] silence_end: 1100.5 | silence_duration: 0.7\n"
     // Slice calls: one per chunk. We expect 2 chunks for a 1500s file (> 1200s).
     spawnCtl.sliceStdouts = [Buffer.from("chunk1"), Buffer.from("chunk2")]
+    // Buffer must exceed FFPROBE_SKIP_BYTES so the size short-circuit lets
+    // ffprobe run and the chunker engages.
+    const longAudio = Buffer.alloc(FFPROBE_SKIP_BYTES + 1)
 
     openAICtl.verboseResponses.push({
       text: "Primera parte.",
@@ -450,7 +453,7 @@ describe("transcribe — chunking (>20 min)", () => {
       ],
     })
 
-    const result = await transcribe({ mode: "srt", audio: Buffer.from("fake") })
+    const result = await transcribe({ mode: "srt", audio: longAudio })
 
     const cmds = spawnCtl.calls.map((c) => c.cmd)
     expect(cmds).toContain("ffprobe")

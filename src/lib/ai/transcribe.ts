@@ -54,6 +54,11 @@ export type TranscribeInput = z.infer<typeof TranscribeInputSchema>
 const CHUNK_THRESHOLD_SECONDS = 20 * 60 // 20 min — §9 step 2
 const NO_SPEECH_PROB_DROP = 0.6 // §9 step 4
 
+// Files this small cannot exceed CHUNK_THRESHOLD_SECONDS at any plausible
+// bitrate (16 kHz mono Opus would still need ~2.4 MB for 20 min); skip
+// ffprobe entirely and treat as a single-chunk text/srt input.
+export const FFPROBE_SKIP_BYTES = 4 * 1024 * 1024
+
 /**
  * Boilerplate phrases stripped after transcription (§9 step 4).
  * Match is line-trimmed + case-insensitive `includes` against the
@@ -81,7 +86,10 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
   const language = parsed.language ?? "es"
   const startedAt = Date.now()
 
-  const duration = await ffprobeDuration(parsed.audio)
+  const duration =
+    parsed.audio.byteLength > 0 && parsed.audio.byteLength <= FFPROBE_SKIP_BYTES
+      ? 1
+      : await ffprobeDuration(parsed.audio)
   if (duration <= 0) {
     logEvent("ai.transcribe.summary", {
       mode: parsed.mode,
@@ -99,7 +107,7 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
   const chunks =
     duration > CHUNK_THRESHOLD_SECONDS
       ? await chunkBySilence(parsed.audio, duration)
-      : [{ audio: await sliceAudio(parsed.audio, 0, duration), offsetSeconds: 0 }]
+      : [{ audio: parsed.audio, offsetSeconds: 0 }]
 
   const segments: TranscribedSegment[] = []
   let detectedLanguage = language

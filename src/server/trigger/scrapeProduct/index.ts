@@ -40,7 +40,7 @@ import type { ScrapePhase } from "./metadata.ts"
 const TASK_ID = "scrape-product"
 const MAX_ADS = 20
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
-const TRANSCRIBE_CONCURRENCY = 3
+const TRANSCRIBE_CONCURRENCY = 10
 const IDEMPOTENCY_TTL_DAYS = 7
 
 interface ScrapeSummary {
@@ -289,7 +289,7 @@ interface ScrapePayload {
 export const scrapeProduct = task({
   id: TASK_ID,
   maxDuration: 1800,
-  machine: { preset: "medium-1x" },
+  machine: { preset: "large-1x" },
   run: async (payload: ScrapePayload): Promise<ScrapeSummary> => {
     const { productId, userId, competitorUrl } = payload
     const attempt = payload.attempt ?? 1

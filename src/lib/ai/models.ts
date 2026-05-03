@@ -7,7 +7,7 @@ import { createHash } from "node:crypto"
 export const MODELS = {
   CREATIVE: "claude-opus-4-7", // copy gen, copy-gen judge, SRT translate, adjustCopy chat
   CLASSIFIER: "claude-sonnet-4-6", // template pick, scrape gap-fill, sales-angle classify
-  WHISPER_TEXT: "gpt-4o-transcribe", // scrape transcription pass
+  WHISPER_TEXT: "gpt-4o-mini-transcribe", // scrape transcription pass
   WHISPER_SRT: "whisper-1", // SRT pass — only OpenAI STT model with segment timestamps
 } as const
 
