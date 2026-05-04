@@ -7,6 +7,7 @@ import {
   buildAuthorizeUrl,
   generateNonce,
   normalizeShopDomain,
+  SHOPIFY_OAUTH_STATE_COOKIE,
   ShopifyOAuthError,
 } from "@/lib/shopify/oauth"
 import type { ActionResult } from "./types.ts"
@@ -15,9 +16,6 @@ const Input = z.object({
   shop_domain: z.string().min(3),
 })
 
-export type StartShopifyOAuthInput = z.infer<typeof Input>
-
-export const SHOPIFY_OAUTH_STATE_COOKIE = "shopify_oauth_state"
 const STATE_TTL_SECONDS = 600
 
 /**

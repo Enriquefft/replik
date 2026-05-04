@@ -5,6 +5,8 @@ import { z } from "zod"
 
 const SHOP_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.myshopify\.com$/
 
+export const SHOPIFY_OAUTH_STATE_COOKIE = "shopify_oauth_state"
+
 export class ShopifyOAuthError extends Error {
   constructor(message: string) {
     super(message)

@@ -7,10 +7,10 @@ import { logError, logEvent } from "@/lib/observability/log.ts"
 import {
   exchangeCode,
   normalizeShopDomain,
+  SHOPIFY_OAUTH_STATE_COOKIE,
   ShopifyOAuthError,
   verifyHmac,
 } from "@/lib/shopify/oauth"
-import { SHOPIFY_OAUTH_STATE_COOKIE } from "@/server/actions/shopify-oauth"
 import { saveIntegration } from "@/server/integrations"
 
 export const runtime = "nodejs"
