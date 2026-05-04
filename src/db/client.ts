@@ -15,7 +15,12 @@ function initSql(): Sql {
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is not set")
   }
-  return neon(databaseUrl)
+  try {
+    return neon(databaseUrl)
+  } catch (cause) {
+    // Scrub URL from error to prevent credential leak in logs/traces.
+    throw new Error("DATABASE_URL is set but is not a valid Postgres connection string", { cause })
+  }
 }
 
 export function getSql(): Sql {
