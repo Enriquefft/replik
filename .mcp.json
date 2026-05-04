@@ -1,5 +1,12 @@
 {
   "mcpServers": {
+    "trigger": {
+      "args": [
+        "trigger.dev@latest",
+        "mcp"
+      ],
+      "command": "npx"
+    },
     "vercel": {
       "type": "http",
       "url": "https://mcp.vercel.com"
