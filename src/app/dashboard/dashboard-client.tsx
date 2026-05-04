@@ -18,7 +18,10 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({ initialData }: DashboardClientProps) {
-  const [refreshRunId, setRefreshRunId] = React.useState<string | null>(null)
+  const [refreshRunHandle, setRefreshRunHandle] = React.useState<{
+    runId: string
+    accessToken: string
+  } | null>(null)
   const [credModalOpen, setCredModalOpen] = React.useState(false)
   const [credError, setCredError] = React.useState<string | undefined>()
   const [isRefreshing, setIsRefreshing] = React.useState(false)
@@ -47,7 +50,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       return
     }
 
-    setRefreshRunId(result.data.runId)
+    setRefreshRunHandle({ runId: result.data.runId, accessToken: result.data.accessToken })
     toast.success("Sincronizando métricas…")
   }
 
@@ -85,8 +88,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       </div>
 
       {/* Sync progress */}
-      {refreshRunId && (
-        <TaskProgress runId={refreshRunId} step="Sincronizando métricas desde Meta Ads…" />
+      {refreshRunHandle && (
+        <TaskProgress
+          runId={refreshRunHandle.runId}
+          accessToken={refreshRunHandle.accessToken}
+          step="Sincronizando métricas desde Meta Ads…"
+        />
       )}
 
       {/* Product grid */}

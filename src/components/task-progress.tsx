@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils.ts"
 
 interface TaskProgressProps {
   runId: string
+  accessToken: string
   step?: string
   detail?: string
   className?: string
@@ -58,8 +59,8 @@ function getProgress(status: RunStatus | undefined): number {
   }
 }
 
-export function TaskProgress({ runId, step, detail, className }: TaskProgressProps) {
-  const { run } = useRealtimeRun(runId)
+export function TaskProgress({ runId, accessToken, step, detail, className }: TaskProgressProps) {
+  const { run } = useRealtimeRun(runId, { accessToken })
 
   const status = run?.status
   const config = getStatusConfig(status)

@@ -1,6 +1,6 @@
 "use server"
 
-import { tasks } from "@trigger.dev/sdk"
+import { auth, tasks } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
@@ -30,7 +30,9 @@ export type PublishLandingInput = z.infer<typeof PublishLandingInput>
  * Returns `{ ok:false, needs:'shopify' }` when the user has no Shopify
  * integration so the client can mount `<CredentialsModal provider="shopify"/>`.
  */
-export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ runId: string }>> {
+export async function publishLanding(
+  rawInput: unknown,
+): Promise<ActionResult<{ runId: string; accessToken: string }>> {
   const parsed = PublishLandingInput.safeParse(rawInput)
   if (!parsed.success) {
     return {
@@ -44,7 +46,7 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
 
   return withTiming(
     "action.landing.publish",
-    async (): Promise<ActionResult<{ runId: string }>> => {
+    async (): Promise<ActionResult<{ runId: string; accessToken: string }>> => {
       // 1. Verify product belongs to user and has valid status for publishing.
       // SCRAPE_EMPTY products cannot be published. Must be READY or SCRAPE_PARTIAL
       // (with at least basic metadata).
@@ -122,13 +124,18 @@ export async function publishLanding(rawInput: unknown): Promise<ActionResult<{ 
         ...(overridesPayload !== undefined && { overrides: overridesPayload }),
       })
 
+      const accessToken = await auth.createPublicToken({
+        scopes: { read: { runs: [handle.id] } },
+        expirationTime: "1h",
+      })
+
       logEvent("action.landing.publish.triggered", {
         productId,
         runId: handle.id,
         templateId,
       })
 
-      return { ok: true, data: { runId: handle.id } }
+      return { ok: true, data: { runId: handle.id, accessToken } }
     },
     { productId },
   )

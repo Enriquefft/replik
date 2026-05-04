@@ -15,7 +15,7 @@
  * without bespoke error plumbing.
  */
 
-import { tasks } from "@trigger.dev/sdk"
+import { auth, tasks } from "@trigger.dev/sdk"
 import { and, eq, like, sql } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
@@ -25,7 +25,7 @@ import { IntegrationMissingError, requireIntegration } from "@/server/integratio
 import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
 
 export type LaunchResult =
-  | { ok: true; data: { runId: string } }
+  | { ok: true; data: { runId: string; accessToken: string } }
   | { ok: false; needs: "meta" | "shopify"; error?: string }
 
 const LaunchInput = z.object({
@@ -145,13 +145,18 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
         budgetDailyCents,
       })
 
+      const accessToken = await auth.createPublicToken({
+        scopes: { read: { runs: [handle.id] } },
+        expirationTime: "1h",
+      })
+
       logEvent("action.launch.triggered", {
         productId,
         runId: handle.id,
         attempt,
       })
 
-      return { ok: true, data: { runId: handle.id } }
+      return { ok: true, data: { runId: handle.id, accessToken } }
     },
     { productId, budgetDailyCents },
   )

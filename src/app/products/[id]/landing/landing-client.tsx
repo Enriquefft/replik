@@ -72,7 +72,9 @@ export function LandingClient({
   ])
   const [chatPending, setChatPending] = React.useState(false)
   const [publishing, setPublishing] = React.useState(false)
-  const [runId, setRunId] = React.useState<string | null>(null)
+  const [runHandle, setRunHandle] = React.useState<{ runId: string; accessToken: string } | null>(
+    null,
+  )
   const [credModalOpen, setCredModalOpen] = React.useState(false)
   const [credError, setCredError] = React.useState<string | undefined>()
 
@@ -141,7 +143,7 @@ export function LandingClient({
       return
     }
 
-    setRunId(result.data.runId)
+    setRunHandle({ runId: result.data.runId, accessToken: result.data.accessToken })
     toast.success("¡Publicación iniciada!")
   }
 
@@ -241,9 +243,10 @@ export function LandingClient({
           </div>
 
           {/* Publish button */}
-          {runId ? (
+          {runHandle ? (
             <TaskProgress
-              runId={runId}
+              runId={runHandle.runId}
+              accessToken={runHandle.accessToken}
               step="Publicando landing en Shopify…"
               detail="Creando producto + página + aplicando template"
             />
@@ -260,7 +263,7 @@ export function LandingClient({
           )}
 
           {/* Continue to launch */}
-          {runId && (
+          {runHandle && (
             <Button
               type="button"
               variant="outline"

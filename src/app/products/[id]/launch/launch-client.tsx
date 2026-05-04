@@ -61,7 +61,9 @@ export function LaunchClient({
   bundle3PricingCents,
   selectedCreatives,
 }: LaunchClientProps) {
-  const [runId, setRunId] = React.useState<string | null>(null)
+  const [runHandle, setRunHandle] = React.useState<{ runId: string; accessToken: string } | null>(
+    null,
+  )
   const [credModalOpen, setCredModalOpen] = React.useState(false)
   const [credError, setCredError] = React.useState<string | undefined>()
 
@@ -86,7 +88,7 @@ export function LaunchClient({
       return
     }
 
-    setRunId(result.data.runId)
+    setRunHandle({ runId: result.data.runId, accessToken: result.data.accessToken })
     toast.success("¡Campaña creada en Meta!")
   }
 
@@ -219,9 +221,10 @@ export function LaunchClient({
               </div>
             </div>
 
-            {runId ? (
+            {runHandle ? (
               <TaskProgress
-                runId={runId}
+                runId={runHandle.runId}
+                accessToken={runHandle.accessToken}
                 step="Lanzando campaña en Meta Ads…"
                 detail="Video upload → Creative → Campaign → AdSet → Ads"
               />
@@ -239,7 +242,7 @@ export function LaunchClient({
               </Button>
             )}
 
-            {runId && (
+            {runHandle && (
               <a
                 href="https://business.facebook.com/adsmanager/manage/campaigns"
                 target="_blank"
