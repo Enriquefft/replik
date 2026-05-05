@@ -527,7 +527,7 @@ export const scrapeProduct = task({
       if (productView.imageUrl) {
         metadata.set("imageUrl", productView.imageUrl)
       }
-      metadata.set("keywordCount", adKeywords.length)
+      metadata.set("keywords", adKeywords)
 
       // Mark partial scrapes early so the manual-fill UI surfaces them. We still
       // proceed to ad discovery + transcription so the demo path keeps running.
@@ -536,7 +536,7 @@ export const scrapeProduct = task({
         await withUser(userId, async (db) => {
           await db
             .update(products)
-            .set({ status: "SCRAPE_PARTIAL", scrapeReason: partialReason })
+            .set({ status: "SCRAPE_PARTIAL", scrapeReason: partialReason, keywords: adKeywords })
             .where(and(eq(products.id, productId), eq(products.userId, userId)))
         })
       }
@@ -574,7 +574,7 @@ export const scrapeProduct = task({
         await withUser(userId, async (db) => {
           await db
             .update(products)
-            .set({ status: "SCRAPE_EMPTY", scrapeReason: "no-ads" })
+            .set({ status: "SCRAPE_EMPTY", scrapeReason: "no-ads", keywords: adKeywords })
             .where(and(eq(products.id, productId), eq(products.userId, userId)))
         })
         const summary: ScrapeSummary = {
@@ -668,7 +668,7 @@ export const scrapeProduct = task({
       await withUser(userId, async (db) => {
         await db
           .update(products)
-          .set({ status: "READY", scrapeReason: null })
+          .set({ status: "READY", scrapeReason: null, keywords: adKeywords })
           .where(and(eq(products.id, productId), eq(products.userId, userId)))
       })
 

@@ -96,6 +96,7 @@ export const products = pgTable("products", {
   description: text("description"),
   scrapeReason: text("scrape_reason"),
   brandTokens: jsonb("brand_tokens").$type<string[]>().notNull().default([]),
+  keywords: jsonb("keywords").$type<string[]>().notNull().default([]),
   shopifyProductId: text("shopify_product_id"),
   shopifyPageHandle: text("shopify_page_handle"),
   shopifyTemplateId: integer("shopify_template_id"),

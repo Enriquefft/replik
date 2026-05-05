@@ -297,6 +297,7 @@ describe("generateCopy — explicit semantics", () => {
       bundle2PricingCents: 9000,
       bundle3PricingCents: 13000,
       brandTokens: [],
+      keywords: [],
       status: "READY",
       shopifyProductId: null,
       shopifyPageHandle: "producto-x",

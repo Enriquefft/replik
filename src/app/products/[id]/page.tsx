@@ -2,7 +2,7 @@ import { auth } from "@trigger.dev/sdk"
 import { and, eq, inArray } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
-import { ScrapeProgress } from "@/components/scrape-progress.tsx"
+import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products } from "@/db/schema"
 import { productTag } from "@/lib/trigger-tags.ts"
@@ -118,6 +118,7 @@ export default async function ProductPage({ params }: PageProps) {
           <p className="text-body text-fg-2 mt-1">
             Selecciona los videos que quieres editar con subtítulos en español. Recomendamos 3–5.
           </p>
+          <KeywordChips keywords={productData.keywords} className="mt-3" />
         </div>
         <CreativesClient productId={productId} creatives={creativesWithVideo} />
       </div>

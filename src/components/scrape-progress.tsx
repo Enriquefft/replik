@@ -299,11 +299,11 @@ interface DetectedPanelProps {
 function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
   const productName = meta?.productName
   const imageUrl = meta?.imageUrl
-  const keywordCount = meta?.keywordCount
+  const keywords = meta?.keywords
   const hasAny = productName !== undefined || imageUrl !== undefined
 
   return (
-    <div className="mt-5 flex items-center gap-3 rounded-card border border-border bg-surface-elevated p-3 transition-opacity duration-300">
+    <div className="mt-5 flex items-start gap-3 rounded-card border border-border bg-surface-elevated p-3 transition-opacity duration-300">
       <div className="size-14 rounded-card overflow-hidden bg-surface-muted flex items-center justify-center shrink-0 border border-border relative">
         {imageUrl !== undefined ? (
           <Image
@@ -325,14 +325,42 @@ function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
         ) : (
           <Skeleton className="h-4 w-2/3 mt-1" />
         )}
-        {keywordCount !== undefined && keywordCount > 0 ? (
-          <p className="text-caption text-fg-2 mt-0.5">
-            {keywordCount.toString()} keywords listas para buscar anuncios
-          </p>
+        {keywords !== undefined && keywords.length > 0 ? (
+          <KeywordChips keywords={keywords} className="mt-1.5" />
         ) : !hasAny ? (
           <Skeleton className="h-3 w-1/3 mt-1" />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+const KEYWORD_CHIP_LIMIT = 6
+
+interface KeywordChipsProps {
+  keywords: readonly string[]
+  className?: string
+}
+
+export function KeywordChips({ keywords, className }: KeywordChipsProps): React.JSX.Element | null {
+  if (keywords.length === 0) return null
+  const visible = keywords.slice(0, KEYWORD_CHIP_LIMIT)
+  const overflow = keywords.length - visible.length
+  return (
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
+      {visible.map((kw) => (
+        <span
+          key={kw}
+          className="inline-flex items-center h-6 px-2 rounded-pill border border-border bg-surface-muted text-caption text-fg-2"
+        >
+          {kw}
+        </span>
+      ))}
+      {overflow > 0 ? (
+        <span className="inline-flex items-center h-6 px-2 rounded-pill border border-border bg-surface-muted text-caption font-medium text-fg-3 tabular-nums">
+          +{overflow.toString()} más
+        </span>
+      ) : null}
     </div>
   )
 }
