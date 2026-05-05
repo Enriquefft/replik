@@ -1,13 +1,13 @@
 import { auth } from "@trigger.dev/sdk"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { ScrapeProgress } from "@/components/scrape-progress.tsx"
 import { requireUser, withUser } from "@/db/client"
-import { creatives, products } from "@/db/schema"
+import { assets, creatives, products } from "@/db/schema"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { toProductId } from "@/lib/types/ids.ts"
-import { CreativesClient } from "./creatives-client.tsx"
+import { CreativesClient, type CreativeWithVideo } from "./creatives-client.tsx"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -83,6 +83,30 @@ export default async function ProductPage({ params }: PageProps) {
     )
   }
 
+  const creativeIds = creativeRows.map((row) => row.id)
+  const videoAssetRows = await withUser(userId, async (db) => {
+    return db
+      .select({ ownerId: assets.ownerId, url: assets.url })
+      .from(assets)
+      .where(
+        and(
+          eq(assets.ownerType, "creative"),
+          eq(assets.kind, "original_video"),
+          inArray(assets.ownerId, creativeIds),
+        ),
+      )
+  })
+
+  const videoUrlByCreativeId = new Map<string, string>()
+  for (const row of videoAssetRows) {
+    videoUrlByCreativeId.set(row.ownerId, row.url)
+  }
+
+  const creativesWithVideo: CreativeWithVideo[] = creativeRows.map((row) => ({
+    ...row,
+    originalVideoUrl: videoUrlByCreativeId.get(row.id) ?? null,
+  }))
+
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-8">
       <div className="mx-auto max-w-7xl">
@@ -95,7 +119,7 @@ export default async function ProductPage({ params }: PageProps) {
             Selecciona los videos que quieres editar con subtítulos en español. Recomendamos 3–5.
           </p>
         </div>
-        <CreativesClient productId={productId} creatives={creativeRows} />
+        <CreativesClient productId={productId} creatives={creativesWithVideo} />
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import { Play } from "lucide-react"
+import * as React from "react"
 import { Badge } from "@/components/ui/badge.tsx"
 import type { Creative } from "@/db/schema"
 import type { SalesAngle } from "@/lib/ai/taxonomies.ts"
@@ -30,18 +31,34 @@ const ANGLE_GRADIENTS: string[] = [
 
 interface CreativeCardProps {
   creative: Creative
+  videoUrl: string | null
   selected: boolean
   onToggle: () => void
   index?: number
 }
 
-export function CreativeCard({ creative, selected, onToggle, index = 0 }: CreativeCardProps) {
+export function CreativeCard({
+  creative,
+  videoUrl,
+  selected,
+  onToggle,
+  index = 0,
+}: CreativeCardProps) {
   const gradient = ANGLE_GRADIENTS[index % ANGLE_GRADIENTS.length] ?? ANGLE_GRADIENTS[0]
+  const [hovering, setHovering] = React.useState(false)
+  const [errored, setErrored] = React.useState(false)
+  const showVideo = hovering && videoUrl !== null && !errored
 
   return (
     <button
       type="button"
       onClick={onToggle}
+      onMouseEnter={() => {
+        setHovering(true)
+      }}
+      onMouseLeave={() => {
+        setHovering(false)
+      }}
       className={cn(
         "group relative flex flex-col text-left rounded-card overflow-hidden",
         "transition-all duration-200 ease-spring cursor-pointer",
@@ -55,8 +72,25 @@ export function CreativeCard({ creative, selected, onToggle, index = 0 }: Creati
       <div className="relative w-full" style={{ aspectRatio: "9/16", background: gradient }}>
         <div className="absolute inset-0 bg-radial-gradient-subtle" />
 
+        {showVideo && videoUrl !== null && (
+          <video
+            src={videoUrl}
+            muted
+            playsInline
+            loop
+            autoPlay
+            preload="metadata"
+            onError={() => {
+              setErrored(true)
+            }}
+            className="absolute inset-0 z-0 h-full w-full object-cover"
+          >
+            <track kind="captions" />
+          </video>
+        )}
+
         {/* Play button */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <div className="size-12 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center shadow-lg">
             <Play className="size-5 text-white translate-x-0.5" strokeWidth={1.8} fill="white" />
           </div>
@@ -67,7 +101,7 @@ export function CreativeCard({ creative, selected, onToggle, index = 0 }: Creati
           type="button"
           aria-label={selected ? "Deseleccionar creativo" : "Seleccionar creativo"}
           aria-pressed={selected}
-          className="absolute top-2 left-2"
+          className="absolute top-2 left-2 z-20"
           onClick={(e) => {
             e.stopPropagation()
             onToggle()
@@ -96,7 +130,7 @@ export function CreativeCard({ creative, selected, onToggle, index = 0 }: Creati
         </button>
 
         {/* Source badge */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 z-20">
           <span className="inline-flex items-center h-5 px-2 rounded-full bg-black/80 text-white text-[10px] font-semibold tracking-wide">
             {creative.source === "meta_ad_library" ? "FB" : "Apify"}
           </span>

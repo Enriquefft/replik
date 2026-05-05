@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button.tsx"
 import type { Creative } from "@/db/schema"
 import { selectCreatives } from "@/server/actions/products.ts"
 
+export type CreativeWithVideo = Creative & { originalVideoUrl: string | null }
+
 interface CreativesClientProps {
   productId: string
-  creatives: Creative[]
+  creatives: CreativeWithVideo[]
 }
 
 export function CreativesClient({ productId, creatives }: CreativesClientProps) {
@@ -52,6 +54,7 @@ export function CreativesClient({ productId, creatives }: CreativesClientProps) 
           <CreativeCard
             key={creative.id}
             creative={creative}
+            videoUrl={creative.originalVideoUrl}
             selected={selected.has(creative.id)}
             onToggle={() => {
               toggle(creative.id)
