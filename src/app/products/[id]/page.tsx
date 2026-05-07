@@ -66,20 +66,14 @@ export default async function ProductPage({ params }: PageProps) {
     )
   }
 
-  // Render order: classified-with-transcript first, then classified-without,
-  // then unclassified-with-transcript, then everything else by insertion order.
-  // The user's eye lands on signal first; surviving low-confidence cards live
-  // at the bottom of the grid.
+  // Render order: classified creatives first (they have transcripts and a
+  // sales angle), then everything else by insertion order.
   const creativeRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
       .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
-      .orderBy(
-        desc(sql`${creatives.angle} IS NOT NULL`),
-        desc(sql`length(coalesce(${creatives.transcriptText}, '')) > 0`),
-        asc(creatives.scrapedAt),
-      )
+      .orderBy(desc(sql`${creatives.angle} IS NOT NULL`), asc(creatives.scrapedAt))
   })
 
   if (creativeRows.length === 0) {

@@ -595,6 +595,7 @@ export const scrapeProduct = task({
         keywordCount: adKeywords.length,
       })
       logger.info("find_ads_done", { count: ads.length, source })
+      metadata.set("ads_fetched", ads.length)
 
       if (ads.length === 0) {
         await withUser(userId, async (db) => {
@@ -620,6 +621,7 @@ export const scrapeProduct = task({
       //      classifies as off-topic for the product.
       // Fail-open: gate failure marks every ad relevant=true so the demo path
       // never regresses to an empty creative grid because the gate went down.
+      metadata.set("phase", "relevance_gating" satisfies ScrapePhase)
       const fetchedCount = ads.length
       const afterBlocklist = ads.filter((a) => !isBlocked(a.page_name))
       const blocklisted = fetchedCount - afterBlocklist.length
@@ -654,8 +656,9 @@ export const scrapeProduct = task({
             }),
           { count: afterBlocklist.length },
         )
+        const adById = new Map(afterBlocklist.map((a) => [a.ad_id, a] as const))
         for (const v of verdict.verdicts) {
-          const ad = afterBlocklist.find((a) => a.ad_id === v.adId)
+          const ad = adById.get(v.adId)
           logger.info("relevance_verdict", {
             adId: v.adId,
             page_name: ad?.page_name,
@@ -685,13 +688,15 @@ export const scrapeProduct = task({
             .set({ status: "SCRAPE_EMPTY", scrapeReason: "no-ads", keywords: adKeywords })
             .where(and(eq(products.id, productId), eq(products.userId, userId)))
         })
+        const exhaustionReason =
+          afterBlocklist.length === 0 ? "no-ads-after-blocklist" : "no-ads-after-gate"
         const summary: ScrapeSummary = {
           creativeCount: 0,
           withTranscript: 0,
           withAngle: 0,
           source,
         }
-        logEvent("task.scrape.done", { ...summary, reason: "no-ads-after-gate" })
+        logEvent("task.scrape.done", { ...summary, reason: exhaustionReason })
         return summary
       }
 

@@ -36,7 +36,7 @@ import { logEvent, withTiming } from "@/lib/observability/log.ts"
 
 export const RelevanceClassifyInputSchema = z.object({
   product: z.object({
-    name: z.string().min(1),
+    name: z.string(),
     category: InterestCategory.nullable(),
     keywords: z.array(z.string().min(1)),
   }),
@@ -93,7 +93,7 @@ function buildPrompt(input: RelevanceClassifyInput, critique?: string): string {
   }
   const base = JSON.stringify(payload)
   if (critique === undefined) return base
-  return `${base}\n\n<previous_attempt critique="${critique}"/>`
+  return `${base}\n\n<previous_attempt>\n${critique}\n</previous_attempt>`
 }
 
 // ─── Single LLM call ──────────────────────────────────────────────────────────
@@ -153,13 +153,6 @@ function validate(
     }
   }
 
-  for (const v of output.verdicts) {
-    const matches = input.ads.some((a) => a.id === v.adId)
-    if (!matches) {
-      return { ok: false, critique: `Unknown adId in output: ${v.adId}.` }
-    }
-  }
-
   return { ok: true }
 }
 
@@ -184,6 +177,7 @@ export async function classifyRelevance(
   input: RelevanceClassifyInput,
   options: ClassifyRelevanceOptions = {},
 ): Promise<RelevanceClassification> {
+  if (input.ads.length === 0) return { verdicts: [] }
   const primaryFactory = options.primaryModel ?? (() => anthropic(MODELS.CLASSIFIER))
   const bumpedFactory = options.bumpedModel ?? (() => anthropic(MODELS.CREATIVE))
 
