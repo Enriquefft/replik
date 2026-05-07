@@ -314,6 +314,7 @@ function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
             alt={productName ?? "Producto detectado"}
             fill
             className="object-cover"
+            unoptimized
           />
         ) : (
           <ImageIcon className="size-5 text-fg-3" strokeWidth={1.5} />
