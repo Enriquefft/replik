@@ -28,17 +28,19 @@ import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { classifyAngle } from "@/lib/ai/angle-classify.ts"
 import { imperativeVerbCheck } from "@/lib/ai/guards.ts"
+import { classifyRelevance } from "@/lib/ai/relevance-classify.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
+import { isBlocked } from "@/lib/scrape-blocklist.ts"
+import { MAX_ADS, MAX_ADS_FETCH } from "@/lib/scrape-limits.ts"
 import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
 import { uploadSrt } from "@/lib/video"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
-const MAX_ADS = 20
 // Maximum number of distinct keyword search calls per provider before giving
 // up. Both Meta and Apify are bounded — Meta calls are cheap but rate-limited,
 // Apify calls are metered (~$0.116 per 20-ad run worst case). Fanning out 5
@@ -60,6 +62,12 @@ interface FoundAd {
   source: "meta_ad_library" | "apify_fb"
   ad_id: string
   scrape_url: string
+  /** Advertiser page name. Consumed by `isBlocked` and the relevance gate. */
+  page_name?: string
+  /** Advertiser page id. Preserved for future page-level expansion (search_page_ids). */
+  page_id?: string
+  /** Concatenated ad copy (creative bodies for Meta, body text for Apify). */
+  ad_text?: string
 }
 
 /**
@@ -83,14 +91,20 @@ function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[]
 }
 
 /**
- * Discover up to `MAX_ADS` distinct video ads for the supplied broad-first
- * keyword list.
+ * Discover up to `MAX_ADS_FETCH` distinct video ads for the supplied
+ * broad-first keyword list.
+ *
+ * The pre-filter ceiling is `MAX_ADS_FETCH` (50), not `MAX_ADS` (20). The
+ * downstream blocklist + LLM relevance gate trim back to `MAX_ADS` before
+ * any Whisper or DB cost; over-fetching gives the gate room to drop noise
+ * (DramaBox-class spam, marketplace ads tagging every category) without
+ * starving the creative grid.
  *
  * Algorithm:
  *   1. Iterate the keyword list (already broad-first). For each keyword call
  *      `meta.adLibrarySearch` with that single keyword as `searchTerms`.
- *      Accumulate de-duped ads keyed by `ad_id`. Stop once `MAX_ADS` reached
- *      or `META_MAX_KEYWORDS` keywords tried.
+ *      Accumulate de-duped ads keyed by `ad_id`. Stop once `MAX_ADS_FETCH`
+ *      reached or `META_MAX_KEYWORDS` keywords tried.
  *   2. If Meta produced any ads, return them tagged `meta_ad_library`.
  *   3. Otherwise fall back to Apify on the first `APIFY_MAX_KEYWORDS` broad
  *      keywords (Apify is metered per dataset item, so we cap aggressively).
@@ -109,9 +123,9 @@ async function findAds(
   const metaAds = new Map<string, FoundAd>()
   const metaTried = keywords.slice(0, META_MAX_KEYWORDS)
   for (const keyword of metaTried) {
-    if (metaAds.size >= MAX_ADS) break
+    if (metaAds.size >= MAX_ADS_FETCH) break
     try {
-      const remaining = MAX_ADS - metaAds.size
+      const remaining = MAX_ADS_FETCH - metaAds.size
       const batch = await meta.adLibrarySearch({
         searchTerms: keyword,
         countries: ["PE"],
@@ -120,15 +134,22 @@ async function findAds(
       let added = 0
       for (const ad of batch) {
         if (metaAds.has(ad.ad_id)) continue
-        const url = ad.video_url ?? ad.ad_snapshot_url
-        if (!url) continue
-        metaAds.set(ad.ad_id, {
+        // Video-only ingestion — `ad_snapshot_url` (HTML page) was previously
+        // accepted as a fallback but is unfetchable by Whisper and unplayable
+        // in `<video>`, leaving rows that clog the selection grid forever.
+        if (!ad.video_url) continue
+        const found: FoundAd = {
           source: "meta_ad_library",
           ad_id: ad.ad_id,
-          scrape_url: url,
-        })
+          scrape_url: ad.video_url,
+        }
+        if (ad.page_name !== undefined) found.page_name = ad.page_name
+        if (ad.page_id !== undefined) found.page_id = ad.page_id
+        const adText = ad.ad_creative_bodies?.join(" ").trim()
+        if (adText !== undefined && adText.length > 0) found.ad_text = adText
+        metaAds.set(ad.ad_id, found)
         added++
-        if (metaAds.size >= MAX_ADS) break
+        if (metaAds.size >= MAX_ADS_FETCH) break
       }
       logger.info("meta_ad_library_keyword", {
         keyword,
@@ -144,10 +165,13 @@ async function findAds(
     }
   }
   if (metaAds.size > 0) {
-    return { ads: Array.from(metaAds.values()).slice(0, MAX_ADS), source: "meta_ad_library" }
+    return { ads: Array.from(metaAds.values()), source: "meta_ad_library" }
   }
 
   // ---------- Apify fallback ----------
+  // Apify is metered per dataset item (~$0.0058/ad) — keep fetch tight at
+  // MAX_ADS so spend stays bounded. The relevance gate still runs on Apify
+  // results; over-fetch is a Meta-only optimization.
   const apifyAds = new Map<string, FoundAd>()
   const apifyTried = keywords.slice(0, APIFY_MAX_KEYWORDS)
   for (const keyword of apifyTried) {
@@ -158,11 +182,14 @@ async function findAds(
       for (const ad of batch) {
         if (apifyAds.has(ad.ad_id)) continue
         if (!ad.video_url) continue
-        apifyAds.set(ad.ad_id, {
+        const found: FoundAd = {
           source: "apify_fb",
           ad_id: ad.ad_id,
           scrape_url: ad.video_url,
-        })
+        }
+        if (ad.page_name !== undefined) found.page_name = ad.page_name
+        if (ad.ad_text !== undefined && ad.ad_text.length > 0) found.ad_text = ad.ad_text
+        apifyAds.set(ad.ad_id, found)
         added++
         if (apifyAds.size >= MAX_ADS) break
       }
@@ -180,7 +207,7 @@ async function findAds(
     }
   }
   if (apifyAds.size > 0) {
-    return { ads: Array.from(apifyAds.values()).slice(0, MAX_ADS), source: "apify_fb" }
+    return { ads: Array.from(apifyAds.values()), source: "apify_fb" }
   }
 
   return { ads: [], source: "none" }
@@ -567,8 +594,8 @@ export const scrapeProduct = task({
       const { ads, source } = await withTiming("task.scrape.find_ads", () => findAds(adKeywords), {
         keywordCount: adKeywords.length,
       })
-      metadata.set("ads_total", ads.length)
       logger.info("find_ads_done", { count: ads.length, source })
+      metadata.set("ads_fetched", ads.length)
 
       if (ads.length === 0) {
         await withUser(userId, async (db) => {
@@ -587,9 +614,95 @@ export const scrapeProduct = task({
         return summary
       }
 
+      // ---------- Relevance gate ----------
+      // Two-stage filter before Whisper + DB cost:
+      //   1. Static blocklist drops known unrelated mass spenders by page_name.
+      //   2. LLM gate (Sonnet 4.6, single batched call) drops ads the model
+      //      classifies as off-topic for the product.
+      // Fail-open: gate failure marks every ad relevant=true so the demo path
+      // never regresses to an empty creative grid because the gate went down.
+      metadata.set("phase", "relevance_gating" satisfies ScrapePhase)
+      const fetchedCount = ads.length
+      const afterBlocklist = ads.filter((a) => !isBlocked(a.page_name))
+      const blocklisted = fetchedCount - afterBlocklist.length
+      metadata.set("relevance.fetched", fetchedCount)
+      metadata.set("relevance.blocklisted", blocklisted)
+      logger.info("relevance_blocklist_done", {
+        fetched: fetchedCount,
+        blocklisted,
+        remaining: afterBlocklist.length,
+      })
+
+      let finalAds: FoundAd[]
+      if (afterBlocklist.length === 0) {
+        finalAds = []
+        metadata.set("relevance.dropped_by_llm", 0)
+        metadata.set("relevance.kept", 0)
+      } else {
+        const verdict = await withTiming(
+          "task.scrape.classify_relevance",
+          () =>
+            classifyRelevance({
+              product: {
+                name: productView.productName ?? "",
+                category: productView.category,
+                keywords: adKeywords,
+              },
+              ads: afterBlocklist.map((a) => ({
+                id: a.ad_id,
+                page_name: a.page_name,
+                ad_text: a.ad_text,
+              })),
+            }),
+          { count: afterBlocklist.length },
+        )
+        const adById = new Map(afterBlocklist.map((a) => [a.ad_id, a] as const))
+        for (const v of verdict.verdicts) {
+          const ad = adById.get(v.adId)
+          logger.info("relevance_verdict", {
+            adId: v.adId,
+            page_name: ad?.page_name,
+            relevant: v.relevant,
+            reason: v.reason,
+          })
+        }
+        const relevantIds = new Set(verdict.verdicts.filter((v) => v.relevant).map((v) => v.adId))
+        finalAds = afterBlocklist.filter((a) => relevantIds.has(a.ad_id)).slice(0, MAX_ADS)
+        metadata.set("relevance.dropped_by_llm", afterBlocklist.length - finalAds.length)
+        metadata.set("relevance.kept", finalAds.length)
+      }
+
+      // Set `ads_total` to the post-gate count so the progress UI's transcribe
+      // skeletons render the right denominator (we only transcribe finalAds).
+      metadata.set("ads_total", finalAds.length)
+      logger.info("relevance_done", {
+        fetched: fetchedCount,
+        blocklisted,
+        kept: finalAds.length,
+      })
+
+      if (finalAds.length === 0) {
+        await withUser(userId, async (db) => {
+          await db
+            .update(products)
+            .set({ status: "SCRAPE_EMPTY", scrapeReason: "no-ads", keywords: adKeywords })
+            .where(and(eq(products.id, productId), eq(products.userId, userId)))
+        })
+        const exhaustionReason =
+          afterBlocklist.length === 0 ? "no-ads-after-blocklist" : "no-ads-after-gate"
+        const summary: ScrapeSummary = {
+          creativeCount: 0,
+          withTranscript: 0,
+          withAngle: 0,
+          source,
+        }
+        logEvent("task.scrape.done", { ...summary, reason: exhaustionReason })
+        return summary
+      }
+
       // Insert creative rows.
       const insertedCreatives = await withUser(userId, async (db) => {
-        const rows = ads.map((ad) => ({
+        const rows = finalAds.map((ad) => ({
           productId,
           userId,
           source: ad.source,

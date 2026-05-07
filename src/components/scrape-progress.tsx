@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { Skeleton } from "@/components/ui/skeleton.tsx"
+import { MAX_ADS } from "@/lib/scrape-limits.ts"
 import { isRunFailed } from "@/lib/trigger-status.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import type { ProductId } from "@/lib/types/ids.ts"
@@ -31,6 +32,7 @@ interface StepDef {
 const STEPS: readonly StepDef[] = [
   { id: "scraping", label: "Producto" },
   { id: "finding_ads", label: "Anuncios" },
+  { id: "relevance_gating", label: "Relevancia" },
   { id: "transcribing", label: "Transcripción" },
   { id: "classifying", label: "Ángulos" },
 ]
@@ -79,8 +81,8 @@ function derive(
     }
   }
   if (phase === "finding_ads") {
-    const total = meta?.ads_total
-    if (total === undefined) {
+    const fetched = meta?.ads_fetched ?? meta?.ads_total
+    if (fetched === undefined) {
       return {
         title: "Buscando creativos en Meta Ad Library…",
         detail: "Probando keywords en Perú.",
@@ -89,12 +91,25 @@ function derive(
       }
     }
     return {
-      title: `Encontré ${total.toString()} anuncios`,
+      title: `Encontré ${fetched.toString()} anuncios`,
       detail:
-        total === 0
+        fetched === 0
           ? "Probando con Apify como respaldo."
           : "Descargando los videos para transcribir.",
       progress: 42,
+      activeIndex,
+    }
+  }
+  if (phase === "relevance_gating") {
+    const fetched = meta?.ads_fetched ?? 0
+    const kept = meta?.ads_total
+    return {
+      title:
+        kept === undefined
+          ? `Filtrando ${fetched.toString()} anuncios por relevancia…`
+          : `Filtrados ${kept.toString()} de ${fetched.toString()} anuncios`,
+      detail: "Descartando spam y categorías no relacionadas.",
+      progress: 44,
       activeIndex,
     }
   }
@@ -105,7 +120,7 @@ function derive(
     return {
       title: `Transcribiendo videos (${done.toString()}/${total.toString()})`,
       detail: "Whisper está leyendo el audio de cada anuncio.",
-      progress: 45 + Math.round(ratio * 40),
+      progress: 50 + Math.round(ratio * 40),
       activeIndex,
     }
   }
@@ -214,7 +229,7 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
             </span>
           </div>
 
-          <ol className="mt-5 grid grid-cols-4 gap-2">
+          <ol className="mt-5 grid grid-cols-5 gap-2">
             {STEPS.map((step, idx) => {
               const state = idx < activeIndex ? "done" : idx === activeIndex ? "active" : "pending"
               return (
@@ -267,9 +282,11 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }, (_, i) => `skel-${i.toString()}`).map((skelId) => (
-            <Skeleton key={skelId} className="aspect-[9/16] rounded-card" />
-          ))}
+          {Array.from({ length: meta?.ads_total ?? MAX_ADS }, (_, i) => `skel-${i.toString()}`).map(
+            (skelId) => (
+              <Skeleton key={skelId} className="aspect-[9/16] rounded-card" />
+            ),
+          )}
         </div>
       </div>
     </div>
@@ -311,6 +328,7 @@ function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
             alt={productName ?? "Producto detectado"}
             fill
             className="object-cover"
+            unoptimized
           />
         ) : (
           <ImageIcon className="size-5 text-fg-3" strokeWidth={1.5} />

@@ -1,5 +1,5 @@
 import { auth } from "@trigger.dev/sdk"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
@@ -66,11 +66,14 @@ export default async function ProductPage({ params }: PageProps) {
     )
   }
 
+  // Render order: classified creatives first (they have transcripts and a
+  // sales angle), then everything else by insertion order.
   const creativeRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
       .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+      .orderBy(desc(sql`${creatives.angle} IS NOT NULL`), asc(creatives.scrapedAt))
   })
 
   if (creativeRows.length === 0) {
@@ -84,27 +87,38 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   const creativeIds = creativeRows.map((row) => row.id)
-  const videoAssetRows = await withUser(userId, async (db) => {
+  const assetRows = await withUser(userId, async (db) => {
     return db
-      .select({ ownerId: assets.ownerId, url: assets.url })
+      .select({ ownerId: assets.ownerId, kind: assets.kind, url: assets.url })
       .from(assets)
       .where(
         and(
           eq(assets.ownerType, "creative"),
-          eq(assets.kind, "original_video"),
+          inArray(assets.kind, ["original_video", "srt"]),
           inArray(assets.ownerId, creativeIds),
         ),
       )
   })
 
-  const videoUrlByCreativeId = new Map<string, string>()
-  for (const row of videoAssetRows) {
-    videoUrlByCreativeId.set(row.ownerId, row.url)
+  // Resolve playable + caption URLs per creative. Rehosted UploadThing URL
+  // wins over `scrapeUrl` because it's permanent — Meta/Apify CDN URLs carry
+  // signed expirations that drift over hours/days. Pre-rehost creatives fall
+  // back to `scrapeUrl`, which is guaranteed to be a direct video URL by the
+  // video-only filter in `findAds`.
+  const rehostedByCreativeId = new Map<string, string>()
+  const srtByCreativeId = new Map<string, string>()
+  for (const row of assetRows) {
+    if (row.kind === "original_video") {
+      rehostedByCreativeId.set(row.ownerId, row.url)
+    } else if (row.kind === "srt") {
+      srtByCreativeId.set(row.ownerId, row.url)
+    }
   }
 
   const creativesWithVideo: CreativeWithVideo[] = creativeRows.map((row) => ({
     ...row,
-    originalVideoUrl: videoUrlByCreativeId.get(row.id) ?? null,
+    previewUrl: rehostedByCreativeId.get(row.id) ?? row.scrapeUrl,
+    srtUrl: srtByCreativeId.get(row.id) ?? null,
   }))
 
   return (

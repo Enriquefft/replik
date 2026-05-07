@@ -1,9 +1,16 @@
 import { z } from "zod"
 
-export const SCRAPE_PHASES = ["scraping", "finding_ads", "transcribing", "classifying"] as const
+export const SCRAPE_PHASES = [
+  "scraping",
+  "finding_ads",
+  "relevance_gating",
+  "transcribing",
+  "classifying",
+] as const
 
 export const ScrapeProgressMetadataSchema = z.object({
   phase: z.enum(SCRAPE_PHASES),
+  ads_fetched: z.number().int().nonnegative().optional(),
   ads_total: z.number().int().nonnegative().optional(),
   transcribed: z.number().int().nonnegative().optional(),
   classified: z.number().int().nonnegative().optional(),

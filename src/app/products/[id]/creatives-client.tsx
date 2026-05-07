@@ -7,9 +7,42 @@ import { toast } from "sonner"
 import { CreativeCard } from "@/components/creative-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import type { Creative } from "@/db/schema"
+import { cn } from "@/lib/utils.ts"
 import { selectCreatives } from "@/server/actions/products.ts"
 
-export type CreativeWithVideo = Creative & { originalVideoUrl: string | null }
+const SELECTION_RECOMMENDED_MIN = 3
+const SELECTION_RECOMMENDED_MAX = 5
+
+interface SelectionTone {
+  count: string
+  helper: string | null
+}
+
+function selectionTone(count: number): SelectionTone {
+  if (count === 0) {
+    return { count: "text-fg-3", helper: null }
+  }
+  if (count < SELECTION_RECOMMENDED_MIN) {
+    return {
+      count: "text-mode-traffic-badge-fg",
+      helper: `Recomendamos al menos ${SELECTION_RECOMMENDED_MIN.toString()}.`,
+    }
+  }
+  if (count > SELECTION_RECOMMENDED_MAX) {
+    return {
+      count: "text-mode-traffic-badge-fg",
+      helper: `Más de ${SELECTION_RECOMMENDED_MAX.toString()} puede diluir resultados.`,
+    }
+  }
+  return { count: "text-mode-web-badge-fg", helper: null }
+}
+
+export type CreativeWithVideo = Creative & {
+  /** Playable URL — rehosted UploadThing if available, else direct CDN scrapeUrl. */
+  previewUrl: string
+  /** Source-language SRT asset URL, when transcribe succeeded. */
+  srtUrl: string | null
+}
 
 interface CreativesClientProps {
   productId: string
@@ -46,30 +79,35 @@ export function CreativesClient({ productId, creatives }: CreativesClientProps) 
     router.push(`/products/${productId}/edit`)
   }
 
+  const tone = selectionTone(selected.size)
+
   return (
     <div className="flex flex-col gap-4">
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {creatives.map((creative, i) => (
+        {creatives.map((creative) => (
           <CreativeCard
             key={creative.id}
             creative={creative}
-            videoUrl={creative.originalVideoUrl}
+            previewUrl={creative.previewUrl}
+            srtUrl={creative.srtUrl}
             selected={selected.has(creative.id)}
             onToggle={() => {
               toggle(creative.id)
             }}
-            index={i}
           />
         ))}
       </div>
 
       {/* Bottom bar */}
       <div className="sticky bottom-4 flex items-center justify-between gap-4 rounded-card bg-surface-elevated glass shadow-card border border-border px-5 py-3">
-        <p className="text-callout text-fg-2">
-          <span className="font-semibold text-fg-1">{selected.size}</span> seleccionado
-          {selected.size !== 1 ? "s" : ""}
-        </p>
+        <div className="flex flex-col">
+          <p className="text-callout text-fg-2">
+            <span className={cn("font-semibold tabular-nums", tone.count)}>{selected.size}</span>{" "}
+            seleccionado{selected.size !== 1 ? "s" : ""}
+          </p>
+          {tone.helper !== null && <p className="text-caption text-fg-3 mt-0.5">{tone.helper}</p>}
+        </div>
         <Button
           onClick={() => void handleContinue()}
           disabled={selected.size === 0 || submitting}
