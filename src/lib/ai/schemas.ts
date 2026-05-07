@@ -300,8 +300,6 @@ export const RelevanceVerdictSchema = z.object({
   reason: z.string().min(1).max(200),
 })
 
-export type RelevanceVerdict = z.infer<typeof RelevanceVerdictSchema>
-
 export const RelevanceClassificationSchema = z.object({
   verdicts: z.array(RelevanceVerdictSchema),
 })
