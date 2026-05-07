@@ -323,7 +323,9 @@ export function MarketingHome({ signedIn }: MarketingHomeProps) {
           <span>© 2026 Replik.ai · Lima, Perú</span>
           <span className="flex gap-[18px]">
             <span>Términos</span>
-            <span>Privacidad</span>
+            <Link href="/privacy" className="transition-colors hover:text-fg-1">
+              Privacidad
+            </Link>
             <span>Soporte</span>
           </span>
         </footer>
