@@ -67,14 +67,13 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
     router.push(`/products/${result.data.id}`)
   }
 
-  // Three click-to-fill examples. Pick the URL of a SPECIFIC product page, not
-  // a collection or homepage — Stage A's JSON-LD/og:* extractors only fire on
+  // Click-to-fill examples. Pick the URL of a SPECIFIC product page, not a
+  // collection or homepage — Stage A's JSON-LD/og:* extractors only fire on
   // product pages. If any of these URLs goes stale, swap it for another active
   // public storefront.
   const EXAMPLE_URLS: readonly string[] = [
-    "https://www.allbirds.com/products/mens-tree-runners",
-    "https://us.gymshark.com/products/gymshark-arrival-shorts-charcoal-aw21",
-    "https://www.bombas.com/products/originals-ankle-sock-women-4-pack-mixed-pack",
+    "https://www.floreriabloom.com/",
+    "https://www.blume.com/products/treat-hydrate-kit",
   ]
 
   return (
