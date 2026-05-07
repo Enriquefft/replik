@@ -1,5 +1,5 @@
 import { auth } from "@trigger.dev/sdk"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
@@ -66,11 +66,20 @@ export default async function ProductPage({ params }: PageProps) {
     )
   }
 
+  // Render order: classified-with-transcript first, then classified-without,
+  // then unclassified-with-transcript, then everything else by insertion order.
+  // The user's eye lands on signal first; surviving low-confidence cards live
+  // at the bottom of the grid.
   const creativeRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
       .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+      .orderBy(
+        desc(sql`${creatives.angle} IS NOT NULL`),
+        desc(sql`length(coalesce(${creatives.transcriptText}, '')) > 0`),
+        asc(creatives.scrapedAt),
+      )
   })
 
   if (creativeRows.length === 0) {

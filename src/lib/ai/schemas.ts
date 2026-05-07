@@ -283,3 +283,27 @@ export const SalesAngleClassificationSchema = z.object({
 })
 
 export type SalesAngleClassification = z.infer<typeof SalesAngleClassificationSchema>
+
+// ─── Relevance gate (pre-transcribe filter) ──────────────────────────────────
+
+/**
+ * Per-ad relevance verdict from the LLM gate. Runs between findAds and DB
+ * insert so we never spend Whisper on off-topic ads (DramaBox short-drama,
+ * marketplace spam, political pages tagged with category-adjacent tokens).
+ *
+ * `relevant` is the only signal consumed by the pipeline. `reason` is a
+ * short operator-facing explanation persisted only in Trigger.dev run logs.
+ */
+export const RelevanceVerdictSchema = z.object({
+  adId: z.string().min(1),
+  relevant: z.boolean(),
+  reason: z.string().min(1).max(200),
+})
+
+export type RelevanceVerdict = z.infer<typeof RelevanceVerdictSchema>
+
+export const RelevanceClassificationSchema = z.object({
+  verdicts: z.array(RelevanceVerdictSchema),
+})
+
+export type RelevanceClassification = z.infer<typeof RelevanceClassificationSchema>

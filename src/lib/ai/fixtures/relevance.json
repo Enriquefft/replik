@@ -1,0 +1,46 @@
+{
+  "rows": [
+    {
+      "adId": "rel-flores-1",
+      "page_name": "Florería Bloom",
+      "ad_text": "Ramo de rosas rojas con delivery el mismo día en Lima. Sorprende a quien más quieres.",
+      "expected": true,
+      "label": "competitor florist — same vertical, same audience"
+    },
+    {
+      "adId": "rel-flores-2",
+      "page_name": "Carmen del Rosario",
+      "ad_text": "Tortas decoradas con flores comestibles. La pastelería también puede ser arte.",
+      "expected": true,
+      "label": "adjacent gifting vertical (cake decor) — overlaps occasion + audience for flower shop"
+    },
+    {
+      "adId": "rel-dramabox-1",
+      "page_name": "DramaBox",
+      "ad_text": "De la ruina al triunfo: cuando todo cambia. Mira ahora la nueva serie.",
+      "expected": false,
+      "label": "DramaBox — short-drama app, unrelated vertical"
+    },
+    {
+      "adId": "rel-dramabox-2",
+      "page_name": "ReelShort",
+      "ad_text": "Mi exesposo no sabía que yo era millonaria. Capítulos completos gratis.",
+      "expected": false,
+      "label": "short-drama app, unrelated vertical despite emotional hook tokens"
+    },
+    {
+      "adId": "rel-political-1",
+      "page_name": "EDIRCOM 2025",
+      "ad_text": "Inteligencia con Estrategia. Encuentro de líderes en comunicación gubernamental.",
+      "expected": false,
+      "label": "political/government event — unrelated vertical"
+    },
+    {
+      "adId": "rel-marketplace-1",
+      "page_name": "Temu",
+      "ad_text": "Compra como millonario por menos. Envío gratis en todos los productos.",
+      "expected": false,
+      "label": "generic marketplace — covers every category, not a creative reference"
+    }
+  ]
+}
