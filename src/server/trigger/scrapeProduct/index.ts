@@ -33,12 +33,12 @@ import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import * as meta from "@/lib/meta"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
+import { MAX_ADS } from "@/lib/scrape-limits.ts"
 import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
 import { uploadSrt } from "@/lib/video"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
-const MAX_ADS = 20
 // Maximum number of distinct keyword search calls per provider before giving
 // up. Both Meta and Apify are bounded — Meta calls are cheap but rate-limited,
 // Apify calls are metered (~$0.116 per 20-ad run worst case). Fanning out 5
@@ -120,12 +120,14 @@ async function findAds(
       let added = 0
       for (const ad of batch) {
         if (metaAds.has(ad.ad_id)) continue
-        const url = ad.video_url ?? ad.ad_snapshot_url
-        if (!url) continue
+        // Video-only ingestion — `ad_snapshot_url` (HTML page) was previously
+        // accepted as a fallback but is unfetchable by Whisper and unplayable
+        // in `<video>`, leaving rows that clog the selection grid forever.
+        if (!ad.video_url) continue
         metaAds.set(ad.ad_id, {
           source: "meta_ad_library",
           ad_id: ad.ad_id,
-          scrape_url: url,
+          scrape_url: ad.video_url,
         })
         added++
         if (metaAds.size >= MAX_ADS) break

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { Skeleton } from "@/components/ui/skeleton.tsx"
+import { MAX_ADS } from "@/lib/scrape-limits.ts"
 import { isRunFailed } from "@/lib/trigger-status.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import type { ProductId } from "@/lib/types/ids.ts"
@@ -267,9 +268,11 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }, (_, i) => `skel-${i.toString()}`).map((skelId) => (
-            <Skeleton key={skelId} className="aspect-[9/16] rounded-card" />
-          ))}
+          {Array.from({ length: meta?.ads_total ?? MAX_ADS }, (_, i) => `skel-${i.toString()}`).map(
+            (skelId) => (
+              <Skeleton key={skelId} className="aspect-[9/16] rounded-card" />
+            ),
+          )}
         </div>
       </div>
     </div>
