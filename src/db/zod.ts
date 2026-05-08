@@ -1,5 +1,6 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod"
 import { z } from "zod"
+import { CopyContentSchema } from "@/lib/ai/copy-schema.ts"
 import {
   ads,
   assets,
@@ -43,9 +44,9 @@ export type Campaign = z.infer<typeof Campaign>
 export const CampaignInsert = createInsertSchema(campaigns)
 export type CampaignInsert = z.infer<typeof CampaignInsert>
 
-export const Ad = createSelectSchema(ads)
+export const Ad = createSelectSchema(ads, { copyJson: CopyContentSchema })
 export type Ad = z.infer<typeof Ad>
-export const AdInsert = createInsertSchema(ads)
+export const AdInsert = createInsertSchema(ads, { copyJson: CopyContentSchema })
 export type AdInsert = z.infer<typeof AdInsert>
 
 export const Metric = createSelectSchema(metrics)

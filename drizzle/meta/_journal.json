@@ -57,6 +57,13 @@
       "when": 1778025234560,
       "tag": "0007_flowery_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778201388664,
+      "tag": "0008_far_sprite",
+      "breakpoints": true
     }
   ]
 }

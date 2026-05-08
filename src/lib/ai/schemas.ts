@@ -1,20 +1,11 @@
 import { z } from "zod"
 import { Product } from "@/db/zod.ts"
+import { type CopyContent, CopyContentSchema } from "@/lib/ai/copy-schema.ts"
 import { InterestCategory, Locale, SalesAngle, TemplateId } from "@/lib/ai/taxonomies.ts"
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
 
-/**
- * Single Meta ad copy unit. Length limits are spec-owned (§4) — not derived
- * from Meta API direct. DB column: ads.copyJson jsonb.
- */
-export const CopyContentSchema = z.object({
-  primaryText: z.string().min(1).max(125),
-  headline: z.string().min(1).max(40),
-  description: z.string().min(1).max(30),
-})
-
-export type CopyContent = z.infer<typeof CopyContentSchema>
+export { type CopyContent, CopyContentSchema }
 
 /**
  * Per-creative input for copy gen (§11). Carries id, classified angle,
