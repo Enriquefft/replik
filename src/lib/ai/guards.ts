@@ -1,5 +1,4 @@
-import type { CopyContent } from "@/lib/ai/schemas.ts"
-import { CopyContentSchema } from "@/lib/ai/schemas.ts"
+import { type CopyContent, CopyContentSchema } from "@/lib/ai/copy-schema.ts"
 
 // ─── AI-speak ban list (§5) ───────────────────────────────────────────────────
 

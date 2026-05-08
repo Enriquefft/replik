@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core"
 import type { z } from "zod"
 
-import type { CopyContent } from "@/lib/ai/schemas.ts"
+import type { CopyContent } from "@/lib/ai/copy-schema.ts"
 import type { InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
 
 type SalesAngleT = z.infer<typeof SalesAngle>

@@ -27,8 +27,9 @@ import {
   type RegenerateFn,
   runPostCheck,
 } from "@/lib/ai/copy-gen.ts"
+import type { CopyContent } from "@/lib/ai/copy-schema.ts"
 import { aiSpeak, metaPolicy } from "@/lib/ai/guards.ts"
-import { type CopyContent, type CopyGenInput, CopyGenInputSchema } from "@/lib/ai/schemas.ts"
+import { type CopyGenInput, CopyGenInputSchema } from "@/lib/ai/schemas.ts"
 
 // ─── Fixture loader ──────────────────────────────────────────────────────────
 

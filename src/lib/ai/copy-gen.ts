@@ -25,17 +25,11 @@ import { anthropic } from "@ai-sdk/anthropic"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { generateText, Output } from "ai"
 import { z } from "zod"
-
+import { type CopyContent, CopyContentSchema } from "@/lib/ai/copy-schema.ts"
 import { aiSpeak, lengthCheck, metaPolicy, wrapUntrusted } from "@/lib/ai/guards.ts"
 import { copyGenTemperature, MODELS, runHash } from "@/lib/ai/models.ts"
 import { withRetry } from "@/lib/ai/retry.ts"
-import {
-  type CopyContent,
-  CopyContentSchema,
-  type CopyGenCreative,
-  type CopyGenInput,
-  CopyGenInputSchema,
-} from "@/lib/ai/schemas.ts"
+import { type CopyGenCreative, type CopyGenInput, CopyGenInputSchema } from "@/lib/ai/schemas.ts"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
 
 // ─── Framings (§11 Stage 1) ──────────────────────────────────────────────────

@@ -1,11 +1,6 @@
 import { z } from "zod"
 import { Product } from "@/db/zod.ts"
-import { type CopyContent, CopyContentSchema } from "@/lib/ai/copy-schema.ts"
 import { InterestCategory, Locale, SalesAngle, TemplateId } from "@/lib/ai/taxonomies.ts"
-
-// ─── Copy ────────────────────────────────────────────────────────────────────
-
-export { type CopyContent, CopyContentSchema }
 
 /**
  * Per-creative input for copy gen (§11). Carries id, classified angle,
