@@ -10,7 +10,7 @@ const SECTIONS = [
       {
         type: "p-with-link",
         prefix: "Para consultas relacionadas con esta política, puedes contactarnos en: ",
-        link: { href: "mailto:hola@replik.ai", label: "hola@replik.ai" },
+        link: { href: "mailto:hello@usereplik.com", label: "hello@usereplik.com" },
       },
     ],
   },
@@ -258,7 +258,7 @@ const SECTIONS = [
       {
         type: "p-with-link",
         prefix: "Para ejercer cualquiera de estos derechos, contáctanos en ",
-        link: { href: "mailto:hola@replik.ai", label: "hola@replik.ai" },
+        link: { href: "mailto:hello@usereplik.com", label: "hello@usereplik.com" },
         suffix: ". Responderemos en un plazo de 30 días.",
       },
     ],
@@ -436,10 +436,10 @@ export default function PrivacyPage() {
               <div className="rounded-card border border-border bg-surface-solid px-6 py-5 text-[15px] leading-[1.7] text-fg-2 shadow-tight">
                 <p className="font-semibold text-fg-1">Replik.ai</p>
                 <a
-                  href="mailto:hola@replik.ai"
+                  href="mailto:hello@usereplik.com"
                   className="text-mode-live underline decoration-mode-live/30 underline-offset-4 transition-colors hover:decoration-mode-live"
                 >
-                  hola@replik.ai
+                  hello@usereplik.com
                 </a>
               </div>
             </section>
