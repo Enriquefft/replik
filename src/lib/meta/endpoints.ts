@@ -9,7 +9,6 @@ import "server-only"
  * prefer the barrel `@/lib/meta`.
  */
 
-export { adLibrarySearch } from "./adLibrary"
 export { adCreate } from "./ads"
 export { adsetCreate } from "./adsets"
 export { campaignCreate, campaignList } from "./campaigns"
@@ -17,8 +16,6 @@ export { creativeCreate } from "./creatives"
 export { insightsGet } from "./insights"
 export type {
   AdCreateInput,
-  AdLibraryAd,
-  AdLibrarySearchInput,
   AdSetCreateInput,
   AdSetSummary,
   AdSummary,

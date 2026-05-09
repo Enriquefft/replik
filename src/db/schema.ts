@@ -37,7 +37,7 @@ export const productStatusEnum = pgEnum("product_status", [
   "FAILED",
 ])
 
-export const creativeSourceEnum = pgEnum("creative_source", ["meta_ad_library", "apify_fb"])
+export const creativeSourceEnum = pgEnum("creative_source", ["apify_fb"])
 
 export const assetOwnerTypeEnum = pgEnum("asset_owner_type", ["creative", "product"])
 
@@ -114,6 +114,7 @@ export const creatives = pgTable("creatives", {
     .references(() => users.id, { onDelete: "cascade" }),
   source: creativeSourceEnum("source").notNull(),
   scrapeUrl: text("scrape_url").notNull(),
+  advertiserName: text("advertiser_name"),
   angle: text("angle").$type<SalesAngleT | null>(),
   transcriptText: text("transcript_text"),
   language: text("language"),

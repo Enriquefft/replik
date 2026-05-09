@@ -59,27 +59,6 @@ export class MetaError extends Error {
   }
 }
 
-// ---------- Ad Library ----------
-
-export const AdLibrarySearchInputSchema = z.object({
-  searchTerms: z.string().min(1),
-  countries: z.array(z.string().length(2)).default(["PE"]),
-  limit: z.number().int().min(1).max(100).default(20),
-})
-export type AdLibrarySearchInput = z.input<typeof AdLibrarySearchInputSchema>
-
-export const AdLibraryAdSchema = z.object({
-  ad_id: z.string(),
-  page_name: z.string().optional(),
-  page_id: z.string().optional(),
-  ad_snapshot_url: z.url().optional(),
-  ad_creative_bodies: z.array(z.string()).optional(),
-  ad_creative_link_titles: z.array(z.string()).optional(),
-  /** First scrape-ready video URL when available (FB CDN, expires). */
-  video_url: z.url().optional(),
-})
-export type AdLibraryAd = z.infer<typeof AdLibraryAdSchema>
-
 // ---------- Campaigns ----------
 
 export const CampaignCreateInputSchema = z.object({

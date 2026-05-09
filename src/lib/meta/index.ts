@@ -15,8 +15,6 @@ export {
 } from "./accounts"
 export type {
   AdCreateInput,
-  AdLibraryAd,
-  AdLibrarySearchInput,
   AdSetCreateInput,
   AdSetSummary,
   AdSummary,
@@ -33,7 +31,6 @@ export type {
 } from "./endpoints"
 export {
   adCreate,
-  adLibrarySearch,
   adsetCreate,
   campaignCreate,
   campaignList,

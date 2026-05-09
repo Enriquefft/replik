@@ -8,8 +8,8 @@ import "server-only"
  *      Sonnet 4.6 gap-fill in Stage C). Returns either `READY` with the
  *      fully-resolved product + keyword tiers, or `SCRAPE_PARTIAL` with the
  *      best-effort partial. Either branch backfills product fields.
- *   2. findAds — try `meta.adLibrarySearch`, fall back to Apify on
- *      empty/error. If both empty → `products.status='SCRAPE_EMPTY'`.
+ *   2. findAds — fan out across broad-first keywords on Apify's Facebook Ads
+ *      Library scraper. If empty → `products.status='SCRAPE_EMPTY'`.
  *   3. transcribeAds — for each creative, download video, push original to
  *      UploadThing, transcribe via the canonical §9 entry point (skip if
  *      > 25 MB), persist transcript + language.
@@ -32,7 +32,6 @@ import { classifyRelevance } from "@/lib/ai/relevance-classify.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
-import * as meta from "@/lib/meta"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { isBlocked } from "@/lib/scrape-blocklist.ts"
 import { MAX_ADS, MAX_ADS_FETCH } from "@/lib/scrape-limits.ts"
@@ -42,11 +41,9 @@ import { normalizeVideoUrl } from "@/lib/video-url.ts"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
-// Maximum number of distinct keyword search calls per provider before giving
-// up. Both Meta and Apify are bounded — Meta calls are cheap but rate-limited,
-// Apify calls are metered (~$0.116 per 20-ad run worst case). Fanning out 5
-// broad-first terms keeps recall high without runaway cost.
-const META_MAX_KEYWORDS = 5
+// Apify Facebook Ads scraper is the sole creative source. Calls are metered
+// (~$0.116 per 20-ad run worst case); fanning out 4 broad-first terms keeps
+// recall high without runaway cost.
 const APIFY_MAX_KEYWORDS = 4
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
 const TRANSCRIBE_CONCURRENCY = 10
@@ -56,18 +53,17 @@ interface ScrapeSummary {
   creativeCount: number
   withTranscript: number
   withAngle: number
-  source: "meta_ad_library" | "apify_fb" | "none"
+  source: "apify_fb" | "none"
 }
 
 interface FoundAd {
-  source: "meta_ad_library" | "apify_fb"
+  source: "apify_fb"
   ad_id: string
   scrape_url: string
-  /** Advertiser page name. Consumed by `isBlocked` and the relevance gate. */
+  /** Advertiser page name. Persisted on creatives.advertiserName and consumed
+   *  by `isBlocked` + the relevance gate. */
   page_name?: string
-  /** Advertiser page id. Preserved for future page-level expansion (search_page_ids). */
-  page_id?: string
-  /** Concatenated ad copy (creative bodies for Meta, body text for Apify). */
+  /** Apify body text. Consumed by the relevance gate. */
   ad_text?: string
 }
 
@@ -93,7 +89,7 @@ function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[]
 
 /**
  * Discover up to `MAX_ADS_FETCH` distinct video ads for the supplied
- * broad-first keyword list.
+ * broad-first keyword list via the Apify Facebook Ads scraper.
  *
  * The pre-filter ceiling is `MAX_ADS_FETCH` (50), not `MAX_ADS` (20). The
  * downstream blocklist + LLM relevance gate trim back to `MAX_ADS` before
@@ -101,83 +97,20 @@ function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[]
  * (DramaBox-class spam, marketplace ads tagging every category) without
  * starving the creative grid.
  *
- * Algorithm:
- *   1. Iterate the keyword list (already broad-first). For each keyword call
- *      `meta.adLibrarySearch` with that single keyword as `searchTerms`.
- *      Accumulate de-duped ads keyed by `ad_id`. Stop once `MAX_ADS_FETCH`
- *      reached or `META_MAX_KEYWORDS` keywords tried.
- *   2. If Meta produced any ads, return them tagged `meta_ad_library`.
- *   3. Otherwise fall back to Apify on the first `APIFY_MAX_KEYWORDS` broad
- *      keywords. Same per-keyword loop + de-dup, same `MAX_ADS_FETCH` cap.
- *      Apify is the de-facto primary path today (Meta OAuth permanently
- *      broken), so the over-fetch optimization applies symmetrically.
+ * Algorithm: iterate the broad-first keyword list, call Apify per-keyword,
+ * accumulate de-duped ads keyed by `ad_id`. Stop once `MAX_ADS_FETCH` reached
+ * or `APIFY_MAX_KEYWORDS` keywords tried. Worst-case spend bounded by
+ * APIFY_MAX_KEYWORDS × per-keyword actor cap.
  *
- * Joining broad+narrow into one whitespace-delimited query (the previous
- * behaviour) over-specified Meta's substring matcher and silently returned 0
- * for category-style products. Iterating per-keyword is the recall fix.
+ * Joining broad+narrow into one whitespace-delimited query over-specifies the
+ * substring matcher and silently returns 0 for category-style products.
+ * Iterating per-keyword is the recall fix.
  */
 async function findAds(
   keywords: string[],
-): Promise<{ ads: FoundAd[]; source: "meta_ad_library" | "apify_fb" | "none" }> {
+): Promise<{ ads: FoundAd[]; source: "apify_fb" | "none" }> {
   if (keywords.length === 0) return { ads: [], source: "none" }
 
-  // ---------- Meta first ----------
-  const metaAds = new Map<string, FoundAd>()
-  const metaTried = keywords.slice(0, META_MAX_KEYWORDS)
-  for (const keyword of metaTried) {
-    if (metaAds.size >= MAX_ADS_FETCH) break
-    try {
-      const remaining = MAX_ADS_FETCH - metaAds.size
-      const batch = await meta.adLibrarySearch({
-        searchTerms: keyword,
-        countries: ["PE"],
-        limit: Math.max(remaining, 1),
-      })
-      let added = 0
-      for (const ad of batch) {
-        if (metaAds.has(ad.ad_id)) continue
-        // Video-only ingestion — `ad_snapshot_url` (HTML page) was previously
-        // accepted as a fallback but is unfetchable by Whisper and unplayable
-        // in `<video>`, leaving rows that clog the selection grid forever.
-        if (!ad.video_url) continue
-        const found: FoundAd = {
-          source: "meta_ad_library",
-          ad_id: ad.ad_id,
-          scrape_url: ad.video_url,
-        }
-        if (ad.page_name !== undefined) found.page_name = ad.page_name
-        if (ad.page_id !== undefined) found.page_id = ad.page_id
-        const adText = ad.ad_creative_bodies?.join(" ").trim()
-        if (adText !== undefined && adText.length > 0) found.ad_text = adText
-        metaAds.set(ad.ad_id, found)
-        added++
-        if (metaAds.size >= MAX_ADS_FETCH) break
-      }
-      logger.info("meta_ad_library_keyword", {
-        keyword,
-        rawCount: batch.length,
-        added,
-        total: metaAds.size,
-      })
-    } catch (err) {
-      logger.warn("meta_ad_library_failed", {
-        keyword,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }
-  if (metaAds.size > 0) {
-    return { ads: Array.from(metaAds.values()), source: "meta_ad_library" }
-  }
-
-  // ---------- Apify fallback ----------
-  // Apify is metered per dataset item (~$0.0058/ad) and is the de-facto
-  // primary path: the Meta Ad Library OAuth token is permanently broken at
-  // the integration level, so the Meta loop above always returns 0 and we
-  // fall through here on every run. We over-fetch to MAX_ADS_FETCH (50) so
-  // the blocklist + LLM relevance gate + URL dedup downstream have headroom
-  // to trim back to MAX_ADS (20) without starving the grid. Worst-case
-  // spend is bounded by APIFY_MAX_KEYWORDS × per-keyword actor cap.
   const apifyAds = new Map<string, FoundAd>()
   const apifyTried = keywords.slice(0, APIFY_MAX_KEYWORDS)
   for (const keyword of apifyTried) {
@@ -212,11 +145,8 @@ async function findAds(
       })
     }
   }
-  if (apifyAds.size > 0) {
-    return { ads: Array.from(apifyAds.values()), source: "apify_fb" }
-  }
-
-  return { ads: [], source: "none" }
+  if (apifyAds.size === 0) return { ads: [], source: "none" }
+  return { ads: Array.from(apifyAds.values()), source: "apify_fb" }
 }
 
 interface CreativeRow {
@@ -431,7 +361,7 @@ export const scrapeProduct = task({
         creativeCount: summary.length,
         withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
         withAngle: summary.filter((s) => s.angle !== null).length,
-        source: summary[0]?.source ?? "none",
+        source: summary.length > 0 ? "apify_fb" : "none",
       }
     }
 
@@ -464,7 +394,7 @@ export const scrapeProduct = task({
         creativeCount: summary.length,
         withTranscript: summary.filter((s) => typeof s.transcriptText === "string").length,
         withAngle: summary.filter((s) => s.angle !== null).length,
-        source: summary[0]?.source ?? "none",
+        source: summary.length > 0 ? "apify_fb" : "none",
       }
     }
 
@@ -750,13 +680,16 @@ export const scrapeProduct = task({
         return summary
       }
 
-      // Insert creative rows.
+      // Insert creative rows. `advertiserName` (page_name from Apify) is
+      // persisted so downstream phases (P2 brand-match boost, P4 angle
+      // diversity grouping) can read advertiser identity without re-scraping.
       const insertedCreatives = await withUser(userId, async (db) => {
         const rows = finalAds.map((ad) => ({
           productId,
           userId,
           source: ad.source,
           scrapeUrl: ad.scrape_url,
+          advertiserName: ad.page_name ?? null,
           selectedBool: false,
         }))
         return await db
