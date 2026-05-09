@@ -23,13 +23,12 @@ const DEFAULT_COUNTRY = "PE"
 const RUN_TIMEOUT_SECS = 300
 const RESULT_CAP = 20
 // Hard upper bound on per-run spend. clockworks/tiktok-scraper bills per
-// dataset item and rejects any input below its $0.50 platform floor with
-// "Maximum cost per run is less than the allowed minimum of $0.50".
-// Actual spend is still bounded by `RESULT_CAP × per-item rate`, which at
-// the published rate (~$4 / 1k items) is ~$0.08 for a 20-item call —
-// well under the floor. The floor is a platform safety net, not a
-// per-call expectation.
-const MAX_TOTAL_CHARGE_USD = 0.5
+// dataset item, with a $0.50 platform floor enforced by Apify. We keep
+// `shouldDownloadVideos: true` (required — see below) so the per-item
+// rate runs higher than metadata-only mode; $1.00 covers a 20-item call
+// at the observed download rate with margin. RESULT_CAP × per-item rate
+// is the real safety bound; this ceiling is a backstop.
+const MAX_TOTAL_CHARGE_USD = 1.0
 
 const NonEmpty = z.string().min(1)
 
@@ -112,7 +111,13 @@ export async function searchTikTokByKeyword(keyword: string): Promise<RawCreativ
       searchSection: "/video",
       videoSearchSorting: "MOST_RELEVANT",
       proxyCountryCode: DEFAULT_COUNTRY,
-      shouldDownloadVideos: false,
+      // shouldDownloadVideos MUST be true: with downloads disabled the
+      // actor populates neither videoMeta.downloadAddr nor playAddr nor
+      // mediaUrls — only `webVideoUrl` (the embed page), which is not a
+      // direct video URL and breaks the downstream transcribe pipeline.
+      // With downloads enabled, the actor rehosts to Apify Key-Value
+      // Store and surfaces the .mp4 URL via videoMeta.downloadAddr.
+      shouldDownloadVideos: true,
       shouldDownloadCovers: false,
       shouldDownloadAvatars: false,
       shouldDownloadSlideshowImages: false,
