@@ -1,10 +1,11 @@
 import { auth } from "@trigger.dev/sdk"
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products } from "@/db/schema"
+import { rankByAngleDiversity } from "@/lib/rank/angle-diversity.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { toProductId } from "@/lib/types/ids.ts"
 import { CreativesClient, type CreativeWithVideo } from "./creatives-client.tsx"
@@ -66,13 +67,17 @@ export default async function ProductPage({ params }: PageProps) {
     )
   }
 
-  // Render order: classified creatives first (they have transcripts and a
-  // sales angle), then everything else by insertion order. Null-transcript
-  // rows are persistent transcribe failures (oversize, fetch_failed,
-  // whisper_failed) — hide them so the user can't pick one and crash the
-  // downstream burn pipeline, which dereferences `transcriptText` directly.
-  // Music-only ads transcribe to "" (empty string), not null, so they pass.
-  const creativeRows = await withUser(userId, async (db) => {
+  // Null-transcript rows are persistent transcribe failures (oversize,
+  // fetch_failed, whisper_failed) — hide them so the user can't pick one
+  // and crash the downstream burn pipeline, which dereferences
+  // `transcriptText` directly. Music-only ads transcribe to "" (empty
+  // string), not null, so they pass.
+  //
+  // Ordering is delegated to `rankByAngleDiversity`: round-robins across
+  // sales-angle buckets so the first sweep across the grid surfaces every
+  // distinct angle once before repeating any single angle. Unclassified
+  // rows sink to the tail.
+  const fetchedRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
@@ -83,8 +88,8 @@ export default async function ProductPage({ params }: PageProps) {
           isNotNull(creatives.transcriptText),
         ),
       )
-      .orderBy(desc(sql`${creatives.angle} IS NOT NULL`), asc(creatives.scrapedAt))
   })
+  const creativeRows = rankByAngleDiversity(fetchedRows)
 
   if (creativeRows.length === 0) {
     return (
