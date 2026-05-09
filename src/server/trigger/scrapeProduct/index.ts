@@ -33,6 +33,7 @@ import { classifyRelevance } from "@/lib/ai/relevance-classify.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
+import { withApifyTokenIfKv } from "@/lib/apify/auth.ts"
 import * as tiktokApify from "@/lib/apify/tiktok.ts"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { isBlocked } from "@/lib/scrape-blocklist.ts"
@@ -257,7 +258,7 @@ async function transcribeOne(
 ): Promise<{ transcribed: boolean; reason?: string }> {
   let response: Response
   try {
-    response = await fetch(creative.scrapeUrl, {
+    response = await fetch(withApifyTokenIfKv(creative.scrapeUrl), {
       redirect: "follow",
       cache: "no-store",
     })

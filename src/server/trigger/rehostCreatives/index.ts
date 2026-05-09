@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { withUser } from "@/db/client"
 import { assets, creatives } from "@/db/schema"
+import { withApifyTokenIfKv } from "@/lib/apify/auth.ts"
 import { logEvent } from "@/lib/observability/log.ts"
 import { type OriginalUploadInput, uploadOriginalsFromUrl } from "@/lib/video"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
@@ -104,7 +105,7 @@ export const rehostCreativesTask = task({
 
     if (toRehost.length > 0) {
       const inputs: OriginalUploadInput[] = toRehost.map((r) => ({
-        url: r.scrapeUrl,
+        url: withApifyTokenIfKv(r.scrapeUrl),
         customId: r.id,
       }))
       const outcomes = await uploadOriginalsFromUrl(inputs)

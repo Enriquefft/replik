@@ -116,10 +116,10 @@ export default async function ProductPage({ params }: PageProps) {
   })
 
   // Resolve playable + caption URLs per creative. Rehosted UploadThing URL
-  // wins over `scrapeUrl` because it's permanent — Meta/Apify CDN URLs carry
-  // signed expirations that drift over hours/days. Pre-rehost creatives fall
-  // back to `scrapeUrl`, which is guaranteed to be a direct video URL by the
-  // video-only filter in `findAds`.
+  // wins when present — it's permanent and browser-fetchable. Otherwise we
+  // route through `/api/creative-preview/[id]`, which 302-redirects FB CDN
+  // URLs (publicly fetchable) and server-streams Apify-KV URLs with
+  // `Authorization: Bearer` so APIFY_TOKEN never reaches the browser.
   const rehostedByCreativeId = new Map<string, string>()
   const srtByCreativeId = new Map<string, string>()
   for (const row of assetRows) {
@@ -132,7 +132,7 @@ export default async function ProductPage({ params }: PageProps) {
 
   const creativesWithVideo: CreativeWithVideo[] = creativeRows.map((row) => ({
     ...row,
-    previewUrl: rehostedByCreativeId.get(row.id) ?? row.scrapeUrl,
+    previewUrl: rehostedByCreativeId.get(row.id) ?? `/api/creative-preview/${row.id}`,
     srtUrl: srtByCreativeId.get(row.id) ?? null,
   }))
 
