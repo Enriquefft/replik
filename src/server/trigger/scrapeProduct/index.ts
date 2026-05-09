@@ -279,10 +279,11 @@ async function transcribeOne(
     return { transcribed: false, reason: "whisper_failed" }
   }
 
-  if (transcriptText.length === 0) {
-    return { transcribed: false, reason: "empty_transcript" }
-  }
-
+  // Empty transcriptText with no thrown exception is a positive signal:
+  // Whisper successfully analysed the audio and found no speech (music-only
+  // ad, ambient sounds, etc). Persist "" + detected language so downstream
+  // tasks can branch on `transcriptText === ""` (music-only fast-path) vs
+  // `transcriptText === null` (transcribe never ran).
   try {
     await withUser(userId, async (db) => {
       await db
@@ -296,6 +297,10 @@ async function transcribeOne(
       error: err instanceof Error ? err.message : String(err),
     })
     return { transcribed: false, reason: "persist_failed" }
+  }
+
+  if (transcriptText.length === 0) {
+    return { transcribed: true, reason: "no_speech_detected" }
   }
 
   if (srt !== null && srt.length > 0) {
@@ -356,14 +361,24 @@ async function runWithConcurrency<T, R>(
 }
 
 /**
- * Derive brand tokens from a product name. Splits on whitespace and keeps
- * tokens of length ≥ 3 that contain at least one uppercase letter (typical
- * brand-name pattern). Returns a uniqued list. Returns [] for null/empty name
- * or when no tokens qualify.
+ * Derive brand tokens from the LLM-emitted brand string (Phase 1).
+ *
+ * The brand column is the canonical source of brand identity for this
+ * product. SRT-translate still consumes `brandTokens: string[]` (its API
+ * is locked), so we mirror the column into tokens via a deterministic
+ * whitespace split, dropping any short connectives (≤ 2 chars). No
+ * uppercase heuristic — Stage C emits the brand verbatim from the page,
+ * which may legitimately be all-lowercase ("loreal") or contain
+ * lowercase connectives ("Florería de Bloom").
+ *
+ * Returns [] for null/empty brand or when no tokens qualify.
  */
-function deriveBrandTokens(name: string | null): string[] {
-  if (name === null || name === "") return []
-  const tokens = name.split(/\s+/).filter((t) => t.length >= 3 && /[A-Z]/.test(t))
+function deriveBrandTokens(brand: string | null): string[] {
+  if (brand === null || brand === "") return []
+  const tokens = brand
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3)
   return [...new Set(tokens)]
 }
 
@@ -463,16 +478,18 @@ export const scrapeProduct = task({
       const isReady = scrapeResult.status === "READY"
       const productView = isReady
         ? {
-            imageUrl: scrapeResult.product.imageUrl,
+            imageUrls: scrapeResult.product.imageUrls,
             productName: scrapeResult.product.productName,
             category: scrapeResult.product.category,
             description: scrapeResult.product.description,
+            brand: scrapeResult.product.brand,
           }
         : {
-            imageUrl: scrapeResult.partial.imageUrl,
+            imageUrls: scrapeResult.partial.imageUrls,
             productName: scrapeResult.partial.productName,
             category: scrapeResult.partial.category,
             description: scrapeResult.partial.description,
+            brand: scrapeResult.partial.brand,
           }
       // Broad-first ordering: `findAds` fans out per-keyword, and broad terms
       // (e.g. "flores", "ramos") drive category recall on Meta Ad Library /
@@ -500,8 +517,9 @@ export const scrapeProduct = task({
           const [row] = await db
             .select({
               name: products.name,
-              imageUrl: products.imageUrl,
+              imageUrls: products.imageUrls,
               category: products.category,
+              brand: products.brand,
             })
             .from(products)
             .where(and(eq(products.id, productId), eq(products.userId, userId)))
@@ -518,7 +536,13 @@ export const scrapeProduct = task({
               })
             }
           }
-          if (!row?.imageUrl && productView.imageUrl) updates.imageUrl = productView.imageUrl
+          // Image-set: only seed if user hasn't set anything (`row.imageUrls`
+          // is `[]` for new rows since the column is `not null default '{}'`).
+          // Stage C / vision-pick produces 1-3 ordered URLs.
+          const existingImages = row?.imageUrls ?? []
+          if (existingImages.length === 0 && productView.imageUrls.length > 0) {
+            updates.imageUrls = productView.imageUrls
+          }
           if (!row?.category && productView.category) updates.category = productView.category
           if (productView.description != null) {
             const descCheck = imperativeVerbCheck(productView.description)
@@ -533,7 +557,12 @@ export const scrapeProduct = task({
           } else {
             updates.description = null
           }
-          updates.brandTokens = deriveBrandTokens(productView.productName)
+          // Brand: persist whatever Stage C emitted (or null on non-PDP
+          // pages without a detectable brand). Brand-tokens mirror the
+          // brand string deterministically — keeps SRT-translate's
+          // brandTokens API contract intact.
+          updates.brand = productView.brand
+          updates.brandTokens = deriveBrandTokens(productView.brand)
           await db
             .update(products)
             .set(updates)
@@ -551,8 +580,8 @@ export const scrapeProduct = task({
       if (productView.productName) {
         metadata.set("productName", productView.productName)
       }
-      if (productView.imageUrl) {
-        metadata.set("imageUrl", productView.imageUrl)
+      if (productView.imageUrls.length > 0) {
+        metadata.set("imageUrls", productView.imageUrls)
       }
       metadata.set("keywords", adKeywords)
 

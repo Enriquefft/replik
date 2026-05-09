@@ -103,14 +103,45 @@ async function shopifyFetch<T>(
 // ---------- Domain types ----------
 
 export interface ShopifyProductInput {
+  productId: string
   name: string
   category: string | null
   description?: string | null
-  imageUrl?: string | null
+  /**
+   * 1–3 product image URLs ordered best-first (matches the scraper bound
+   * on `products.imageUrls` for `READY` rows). All entries are forwarded to
+   * Shopify so the product gallery shows the same set as the landing hero.
+   */
+  imageUrls: string[]
   pricingCents: number
   bundle2PricingCents: number
   bundle3PricingCents: number
   templateId: 1 | 2 | 3
+}
+
+/**
+ * Derives the per-product page-template suffix from the Replik product id.
+ *
+ * Why per-product (not per-template-id): each product has unique copy, prices,
+ * and AI-generated body content baked into the JSON template at upload time.
+ * Sharing `templates/page.replik-1.json` across every product on a shop using
+ * Template 1 would have all those products render with the most-recently-
+ * published product's copy.
+ *
+ * The suffix is deterministic so `publishLanding` (writes the asset),
+ * `publishProduct` (sets `template_suffix` on the page), and any rerender
+ * tooling all derive the same key without persisting it separately.
+ */
+export function templateSuffixFor(productId: string): string {
+  return `replik-${productId}`
+}
+
+/**
+ * The Shopify asset path that stores a product's rendered page-template JSON.
+ * Mirror of `templateSuffixFor` so the suffix and asset key cannot drift.
+ */
+export function templateAssetKeyFor(productId: string): string {
+  return `templates/page.${templateSuffixFor(productId)}.json`
 }
 
 export interface PublishProductResult {
@@ -163,7 +194,7 @@ export async function publishProduct(
       vendor: "Replik",
       product_type: p.category ?? "",
       status: "active",
-      images: p.imageUrl ? [{ src: p.imageUrl }] : [],
+      images: p.imageUrls.map((src) => ({ src })),
       options: [{ name: "Pack" }],
       variants,
     },
@@ -178,7 +209,7 @@ export async function publishProduct(
     },
   )
 
-  const templateSuffix = `replik-${p.templateId.toString()}`
+  const templateSuffix = templateSuffixFor(p.productId)
   const pagePayload = {
     page: {
       title: p.name,

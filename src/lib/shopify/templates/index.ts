@@ -1,28 +1,75 @@
 import "server-only"
 
-import template1 from "./1.json" with { type: "json" }
-import template2 from "./2.json" with { type: "json" }
-import template3 from "./3.json" with { type: "json" }
+import {
+  benefitsSection,
+  bundleSection,
+  faqSection,
+  formCodSection,
+  heroSection,
+  objectionsSection,
+  type SectionDef,
+  type TemplateVariant,
+} from "./blocks.ts"
 
 export type TemplateId = 1 | 2 | 3
 
-export type LandingTemplate = typeof template1
+export interface LandingTemplate {
+  name: string
+  sections: Record<string, SectionDef>
+  order: string[]
+}
 
-const templates: Record<TemplateId, LandingTemplate> = {
-  1: template1,
-  2: template2,
-  3: template3,
+const VARIANT_BY_ID: Record<TemplateId, TemplateVariant> = {
+  1: "clean",
+  2: "urgency",
+  3: "lifestyle",
+}
+
+const VARIANT_NAMES: Record<TemplateVariant, string> = {
+  clean: "Replik Landing 1 — Clean Classic",
+  urgency: "Replik Landing 2 — Urgency / Sales",
+  lifestyle: "Replik Landing 3 — Lifestyle",
+}
+
+const SECTION_ORDER: readonly string[] = [
+  "hero",
+  "bundle_pricing",
+  "benefits",
+  "faq",
+  "objections",
+  "form_cod",
+] as const
+
+function buildTemplate(variant: TemplateVariant): LandingTemplate {
+  return {
+    name: VARIANT_NAMES[variant],
+    sections: {
+      hero: heroSection(variant),
+      bundle_pricing: bundleSection(variant),
+      benefits: benefitsSection(variant),
+      faq: faqSection(variant),
+      objections: objectionsSection(variant),
+      form_cod: formCodSection(variant),
+    },
+    order: [...SECTION_ORDER],
+  }
+}
+
+const TEMPLATES_BY_ID: Record<TemplateId, LandingTemplate> = {
+  1: buildTemplate(VARIANT_BY_ID[1]),
+  2: buildTemplate(VARIANT_BY_ID[2]),
+  3: buildTemplate(VARIANT_BY_ID[3]),
 }
 
 export function loadTemplate(id: TemplateId): LandingTemplate {
-  return templates[id]
+  return TEMPLATES_BY_ID[id]
 }
 
 /**
- * Display metadata for the template picker UI. Decoupled from the JSON render
- * payloads in `./N.json` so editing copy/visuals does not require touching the
- * Shopify section definitions. The JSON files remain the source of truth for
- * what gets rendered onto the storefront page.
+ * Display metadata for the template picker UI. Decoupled from the rendered
+ * sections so editing copy/visuals does not require touching Shopify section
+ * definitions. The block builders in `./blocks.ts` are the source of truth
+ * for what gets rendered onto the storefront page.
  */
 export interface TemplateMeta {
   id: TemplateId

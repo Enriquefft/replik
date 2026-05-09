@@ -29,11 +29,11 @@ import {
   pickTemplate,
   TEMPLATE_PICK_SYSTEM_PROMPT,
 } from "@/lib/ai/template-pick.ts"
+import { loadTemplate } from "@/lib/shopify/templates"
 
 // ─── Fixture loader ───────────────────────────────────────────────────────────
 
 const FIXTURES_DIR = join(import.meta.dir, "..", "fixtures")
-const TEMPLATES_DIR = join(import.meta.dir, "..", "..", "shopify", "templates")
 
 const FixtureFileSchema = z.object({
   version: z.number(),
@@ -49,20 +49,12 @@ const fixtureFile = FixtureFileSchema.parse(
   JSON.parse(readFileSync(join(FIXTURES_DIR, "template-pick.json"), "utf-8")),
 )
 
-const TemplateJsonSchema = z.object({
-  name: z.string(),
-  sections: z.record(z.string(), z.unknown()),
-})
-
-const t1Json = TemplateJsonSchema.parse(
-  JSON.parse(readFileSync(join(TEMPLATES_DIR, "1.json"), "utf-8")),
-)
-const t2Json = TemplateJsonSchema.parse(
-  JSON.parse(readFileSync(join(TEMPLATES_DIR, "2.json"), "utf-8")),
-)
-const t3Json = TemplateJsonSchema.parse(
-  JSON.parse(readFileSync(join(TEMPLATES_DIR, "3.json"), "utf-8")),
-)
+// Source of truth: the actual rendered templates built in `blocks.ts` /
+// `templates/index.ts`. Tests assert the system prompt mentions tokens that
+// genuinely appear in the rendered HTML, so prompt drift surfaces immediately.
+const t1 = loadTemplate(1)
+const t2 = loadTemplate(2)
+const t3 = loadTemplate(3)
 
 // ─── Mock builder ─────────────────────────────────────────────────────────────
 
@@ -139,7 +131,7 @@ describe("template-pick fixture", () => {
 
 describe("system prompt discriminating-token snapshot (§8 contract)", () => {
   // ── Template 1 — Clean Classic ─────────────────────────────────────────────
-  test("contains 'Clean Classic' (Template 1 name, t1Json.name token)", () => {
+  test("contains 'Clean Classic' (Template 1 name)", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Clean Classic")
   })
 
@@ -151,76 +143,106 @@ describe("system prompt discriminating-token snapshot (§8 contract)", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT.toLowerCase()).toContain("classic")
   })
 
-  test("contains 'Calidad garantizada' — Template 1 subheading verbatim from 1.json", () => {
+  test("contains 'Calidad garantizada' — Template 1 subheading", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Calidad garantizada")
   })
 
-  test("contains 'Pedido contra entrega' — Template 1 form heading verbatim from 1.json", () => {
+  test("contains 'Pedido contra entrega' — Template 1 form heading from blocks.ts", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Pedido contra entrega")
   })
 
   // ── Template 2 — Urgency / Sales ───────────────────────────────────────────
-  test("contains 'Urgency' — from t2Json.name", () => {
+  test("contains 'Urgency' — from Template 2 name", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Urgency")
   })
 
-  test("contains 'Sales' — from t2Json.name", () => {
+  test("contains 'Sales' — from Template 2 name", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Sales")
   })
 
-  test("contains 'OFERTA LIMITADA' — Template 2 hero heading verbatim from 2.json", () => {
+  test("contains 'OFERTA LIMITADA' — Template 2 hero heading prefix from blocks.ts", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("OFERTA LIMITADA")
   })
 
-  test("contains 'solo hoy' — Template 2 subheading verbatim from 2.json", () => {
+  test("contains 'solo hoy' — Template 2 subheading", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("solo hoy")
   })
 
-  test("contains 'Quedan pocas unidades' — Template 2 urgency_text verbatim from 2.json", () => {
-    expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Quedan pocas unidades")
-  })
-
-  test("contains 'más popular' — Template 2 bundle tier label from 2.json", () => {
-    expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("más popular")
+  test("contains 'máximo ahorro' — Template 2 third-tier label from blocks.ts", () => {
+    expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("máximo ahorro")
   })
 
   // ── Template 3 — Lifestyle ─────────────────────────────────────────────────
-  test("contains 'Lifestyle' — from t3Json.name", () => {
+  test("contains 'Lifestyle' — Template 3 name", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Lifestyle")
   })
 
-  test("contains 'warm' — Template 3 lifestyle_mood value from 3.json", () => {
+  test("contains 'warm' — Template 3 visual mood descriptor", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("warm")
   })
 
-  test("contains 'estilo de vida' — Template 3 subheading verbatim from 3.json", () => {
+  test("contains 'estilo de vida' — Template 3 subheading", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("estilo de vida")
   })
 
-  test("contains 'Para mí' — Template 3 bundle tier_1_label from 3.json", () => {
+  test("contains 'Para mí' — Template 3 bundle label from blocks.ts", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Para mí")
   })
 
-  test("contains 'Para regalar' — Template 3 bundle tier_3_label from 3.json", () => {
+  test("contains 'Para regalar' — Template 3 bundle label from blocks.ts", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Para regalar")
   })
 
-  test("contains 'Quiero el mío' — Template 3 CTA button text from 3.json", () => {
+  test("contains 'Quiero el mío' — Template 3 CTA button text from blocks.ts", () => {
     expect(TEMPLATE_PICK_SYSTEM_PROMPT).toContain("Quiero el mío")
   })
 
-  test("t1Json.name contains 'Clean' and 'Classic'", () => {
-    expect(t1Json.name).toContain("Clean")
-    expect(t1Json.name).toContain("Classic")
+  test("t1.name contains 'Clean' and 'Classic'", () => {
+    expect(t1.name).toContain("Clean")
+    expect(t1.name).toContain("Classic")
   })
 
-  test("t2Json.name contains 'Urgency' and 'Sales'", () => {
-    expect(t2Json.name).toContain("Urgency")
-    expect(t2Json.name).toContain("Sales")
+  test("t2.name contains 'Urgency' and 'Sales'", () => {
+    expect(t2.name).toContain("Urgency")
+    expect(t2.name).toContain("Sales")
   })
 
-  test("t3Json.name contains 'Lifestyle'", () => {
-    expect(t3Json.name).toContain("Lifestyle")
+  test("t3.name contains 'Lifestyle'", () => {
+    expect(t3.name).toContain("Lifestyle")
+  })
+})
+
+// ─── SSOT contract: every prompt-cited token actually exists in blocks.ts ────
+
+describe("rendered templates contain prompt tokens (SSOT contract)", () => {
+  // Walk every string leaf in the section JSON tree (works whether the
+  // section is `custom-liquid` or a Dawn-stock section with nested blocks).
+  function rendered(t: typeof t1): string {
+    return JSON.stringify(t.sections)
+  }
+
+  test("Template 1 rendered HTML contains 'Pedido contra entrega'", () => {
+    expect(rendered(t1)).toContain("Pedido contra entrega")
+  })
+
+  test("Template 2 rendered HTML contains 'OFERTA LIMITADA'", () => {
+    expect(rendered(t2)).toContain("OFERTA LIMITADA")
+  })
+
+  test("Template 2 rendered HTML contains 'máximo ahorro'", () => {
+    expect(rendered(t2)).toContain("máximo ahorro")
+  })
+
+  test("Template 3 rendered HTML contains 'Para mí'", () => {
+    expect(rendered(t3)).toContain("Para mí")
+  })
+
+  test("Template 3 rendered HTML contains 'Para regalar'", () => {
+    expect(rendered(t3)).toContain("Para regalar")
+  })
+
+  test("Template 3 rendered HTML contains 'Quiero el mío'", () => {
+    expect(rendered(t3)).toContain("Quiero el mío")
   })
 })
 

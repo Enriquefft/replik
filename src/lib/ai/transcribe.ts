@@ -86,10 +86,9 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
   const language = parsed.language ?? "es"
   const startedAt = Date.now()
 
-  const duration =
+  const ffprobeSkipped =
     parsed.audio.byteLength > 0 && parsed.audio.byteLength <= FFPROBE_SKIP_BYTES
-      ? 1
-      : await ffprobeDuration(parsed.audio)
+  const duration = ffprobeSkipped ? 1 : await ffprobeDuration(parsed.audio)
   if (duration <= 0) {
     logEvent("ai.transcribe.summary", {
       mode: parsed.mode,
@@ -146,6 +145,7 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
       mode: "text",
       chunks: chunks.length,
       durationSeconds: duration,
+      ffprobeSkipped,
       ms: Date.now() - startedAt,
       language: detectedLanguage,
     })
@@ -171,6 +171,7 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
     mode: "srt",
     chunks: chunks.length,
     durationSeconds: duration,
+    ffprobeSkipped,
     segments: cleaned.length,
     ms: Date.now() - startedAt,
     language: detectedLanguage,

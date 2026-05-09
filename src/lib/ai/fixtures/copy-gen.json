@@ -9,7 +9,6 @@
           "userId": "11111111-1111-4111-8111-000000000065",
           "sourceUrl": "https://shop.example.com/p/1",
           "name": "Producto Happy 1",
-          "imageUrl": "https://cdn.example.com/1.jpg",
           "category": "kitchen",
           "pricingCents": 5000,
           "bundle2PricingCents": 9000,
@@ -22,7 +21,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/1.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -93,7 +94,6 @@
           "userId": "11111111-1111-4111-8111-000000000066",
           "sourceUrl": "https://shop.example.com/p/2",
           "name": "Producto Happy 2",
-          "imageUrl": "https://cdn.example.com/2.jpg",
           "category": "kitchen",
           "pricingCents": 5100,
           "bundle2PricingCents": 9100,
@@ -106,7 +106,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/2.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -177,7 +179,6 @@
           "userId": "11111111-1111-4111-8111-000000000067",
           "sourceUrl": "https://shop.example.com/p/3",
           "name": "Producto Happy 3",
-          "imageUrl": "https://cdn.example.com/3.jpg",
           "category": "kitchen",
           "pricingCents": 5200,
           "bundle2PricingCents": 9200,
@@ -190,7 +191,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/3.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -261,7 +264,6 @@
           "userId": "11111111-1111-4111-8111-000000000068",
           "sourceUrl": "https://shop.example.com/p/4",
           "name": "Producto Happy 4",
-          "imageUrl": "https://cdn.example.com/4.jpg",
           "category": "kitchen",
           "pricingCents": 5300,
           "bundle2PricingCents": 9300,
@@ -274,7 +276,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/4.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -345,7 +349,6 @@
           "userId": "11111111-1111-4111-8111-000000000069",
           "sourceUrl": "https://shop.example.com/p/5",
           "name": "Producto Happy 5",
-          "imageUrl": "https://cdn.example.com/5.jpg",
           "category": "kitchen",
           "pricingCents": 5400,
           "bundle2PricingCents": 9400,
@@ -358,7 +361,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/5.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -429,7 +434,6 @@
           "userId": "11111111-1111-4111-8111-00000000006a",
           "sourceUrl": "https://shop.example.com/p/6",
           "name": "Producto Happy 6",
-          "imageUrl": "https://cdn.example.com/6.jpg",
           "category": "kitchen",
           "pricingCents": 5500,
           "bundle2PricingCents": 9500,
@@ -442,7 +446,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/6.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -513,7 +519,6 @@
           "userId": "11111111-1111-4111-8111-00000000006b",
           "sourceUrl": "https://shop.example.com/p/7",
           "name": "Producto Happy 7",
-          "imageUrl": "https://cdn.example.com/7.jpg",
           "category": "kitchen",
           "pricingCents": 5600,
           "bundle2PricingCents": 9600,
@@ -526,7 +531,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/7.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -597,7 +604,6 @@
           "userId": "11111111-1111-4111-8111-00000000006c",
           "sourceUrl": "https://shop.example.com/p/8",
           "name": "Producto Happy 8",
-          "imageUrl": "https://cdn.example.com/8.jpg",
           "category": "kitchen",
           "pricingCents": 5700,
           "bundle2PricingCents": 9700,
@@ -610,7 +616,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/8.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -681,7 +689,6 @@
           "userId": "11111111-1111-4111-8111-00000000006d",
           "sourceUrl": "https://shop.example.com/p/9",
           "name": "Producto Happy 9",
-          "imageUrl": "https://cdn.example.com/9.jpg",
           "category": "kitchen",
           "pricingCents": 5800,
           "bundle2PricingCents": 9800,
@@ -694,7 +701,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/9.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -765,7 +774,6 @@
           "userId": "11111111-1111-4111-8111-00000000006e",
           "sourceUrl": "https://shop.example.com/p/10",
           "name": "Producto Happy 10",
-          "imageUrl": "https://cdn.example.com/10.jpg",
           "category": "kitchen",
           "pricingCents": 5900,
           "bundle2PricingCents": 9900,
@@ -778,7 +786,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/10.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -849,7 +859,6 @@
           "userId": "11111111-1111-4111-8111-00000000006f",
           "sourceUrl": "https://shop.example.com/p/11",
           "name": "Producto Happy 11",
-          "imageUrl": "https://cdn.example.com/11.jpg",
           "category": "kitchen",
           "pricingCents": 6000,
           "bundle2PricingCents": 10000,
@@ -862,7 +871,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/11.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -933,7 +944,6 @@
           "userId": "11111111-1111-4111-8111-000000000070",
           "sourceUrl": "https://shop.example.com/p/12",
           "name": "Producto Happy 12",
-          "imageUrl": "https://cdn.example.com/12.jpg",
           "category": "kitchen",
           "pricingCents": 6100,
           "bundle2PricingCents": 10100,
@@ -946,7 +956,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/12.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1017,7 +1029,6 @@
           "userId": "11111111-1111-4111-8111-000000000071",
           "sourceUrl": "https://shop.example.com/p/13",
           "name": "Producto Happy 13",
-          "imageUrl": "https://cdn.example.com/13.jpg",
           "category": "kitchen",
           "pricingCents": 6200,
           "bundle2PricingCents": 10200,
@@ -1030,7 +1041,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/13.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1101,7 +1114,6 @@
           "userId": "11111111-1111-4111-8111-000000000072",
           "sourceUrl": "https://shop.example.com/p/14",
           "name": "Producto Happy 14",
-          "imageUrl": "https://cdn.example.com/14.jpg",
           "category": "kitchen",
           "pricingCents": 6300,
           "bundle2PricingCents": 10300,
@@ -1114,7 +1126,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/14.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1185,7 +1199,6 @@
           "userId": "11111111-1111-4111-8111-000000000073",
           "sourceUrl": "https://shop.example.com/p/15",
           "name": "Producto Happy 15",
-          "imageUrl": "https://cdn.example.com/15.jpg",
           "category": "kitchen",
           "pricingCents": 6400,
           "bundle2PricingCents": 10400,
@@ -1198,7 +1211,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/15.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1269,7 +1284,6 @@
           "userId": "11111111-1111-4111-8111-000000000074",
           "sourceUrl": "https://shop.example.com/p/16",
           "name": "Producto Happy 16",
-          "imageUrl": "https://cdn.example.com/16.jpg",
           "category": "kitchen",
           "pricingCents": 6500,
           "bundle2PricingCents": 10500,
@@ -1282,7 +1296,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/16.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1353,7 +1369,6 @@
           "userId": "11111111-1111-4111-8111-000000000075",
           "sourceUrl": "https://shop.example.com/p/17",
           "name": "Producto Happy 17",
-          "imageUrl": "https://cdn.example.com/17.jpg",
           "category": "kitchen",
           "pricingCents": 6600,
           "bundle2PricingCents": 10600,
@@ -1366,7 +1381,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/17.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1437,7 +1454,6 @@
           "userId": "11111111-1111-4111-8111-000000000076",
           "sourceUrl": "https://shop.example.com/p/18",
           "name": "Producto Happy 18",
-          "imageUrl": "https://cdn.example.com/18.jpg",
           "category": "kitchen",
           "pricingCents": 6700,
           "bundle2PricingCents": 10700,
@@ -1450,7 +1466,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/18.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1521,7 +1539,6 @@
           "userId": "11111111-1111-4111-8111-0000000000c8",
           "sourceUrl": "https://shop.example.com/p/100",
           "name": "Producto JudgeDisagree 1",
-          "imageUrl": "https://cdn.example.com/100.jpg",
           "category": "beauty",
           "pricingCents": 14900,
           "bundle2PricingCents": 18900,
@@ -1534,7 +1551,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/100.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1599,7 +1618,6 @@
           "userId": "11111111-1111-4111-8111-0000000000c9",
           "sourceUrl": "https://shop.example.com/p/101",
           "name": "Producto JudgeDisagree 2",
-          "imageUrl": "https://cdn.example.com/101.jpg",
           "category": "beauty",
           "pricingCents": 15000,
           "bundle2PricingCents": 19000,
@@ -1612,7 +1630,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/101.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1677,7 +1697,6 @@
           "userId": "11111111-1111-4111-8111-0000000000ca",
           "sourceUrl": "https://shop.example.com/p/102",
           "name": "Producto JudgeDisagree 3",
-          "imageUrl": "https://cdn.example.com/102.jpg",
           "category": "beauty",
           "pricingCents": 15100,
           "bundle2PricingCents": 19100,
@@ -1690,7 +1709,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/102.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1755,7 +1776,6 @@
           "userId": "11111111-1111-4111-8111-0000000000cb",
           "sourceUrl": "https://shop.example.com/p/103",
           "name": "Producto JudgeDisagree 4",
-          "imageUrl": "https://cdn.example.com/103.jpg",
           "category": "beauty",
           "pricingCents": 15200,
           "bundle2PricingCents": 19200,
@@ -1768,7 +1788,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/103.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1833,7 +1855,6 @@
           "userId": "11111111-1111-4111-8111-0000000000cc",
           "sourceUrl": "https://shop.example.com/p/104",
           "name": "Producto JudgeDisagree 5",
-          "imageUrl": "https://cdn.example.com/104.jpg",
           "category": "beauty",
           "pricingCents": 15300,
           "bundle2PricingCents": 19300,
@@ -1846,7 +1867,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/104.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1911,7 +1934,6 @@
           "userId": "11111111-1111-4111-8111-0000000000cd",
           "sourceUrl": "https://shop.example.com/p/105",
           "name": "Producto JudgeDisagree 6",
-          "imageUrl": "https://cdn.example.com/105.jpg",
           "category": "beauty",
           "pricingCents": 15400,
           "bundle2PricingCents": 19400,
@@ -1924,7 +1946,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/105.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -1989,7 +2013,6 @@
           "userId": "11111111-1111-4111-8111-00000000012c",
           "sourceUrl": "https://shop.example.com/p/200",
           "name": "Producto Failure 1",
-          "imageUrl": "https://cdn.example.com/200.jpg",
           "category": "fitness",
           "pricingCents": 24900,
           "bundle2PricingCents": 28900,
@@ -2002,7 +2025,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/200.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -2061,7 +2086,6 @@
           "userId": "11111111-1111-4111-8111-00000000012d",
           "sourceUrl": "https://shop.example.com/p/201",
           "name": "Producto Failure 2",
-          "imageUrl": "https://cdn.example.com/201.jpg",
           "category": "fitness",
           "pricingCents": 25000,
           "bundle2PricingCents": 29000,
@@ -2074,7 +2098,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/201.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -2133,7 +2159,6 @@
           "userId": "11111111-1111-4111-8111-00000000012e",
           "sourceUrl": "https://shop.example.com/p/202",
           "name": "Producto Failure 3",
-          "imageUrl": "https://cdn.example.com/202.jpg",
           "category": "fitness",
           "pricingCents": 25100,
           "bundle2PricingCents": 29100,
@@ -2146,7 +2171,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/202.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -2205,7 +2232,6 @@
           "userId": "11111111-1111-4111-8111-00000000012f",
           "sourceUrl": "https://shop.example.com/p/203",
           "name": "Producto Failure 4",
-          "imageUrl": "https://cdn.example.com/203.jpg",
           "category": "fitness",
           "pricingCents": 25200,
           "bundle2PricingCents": 29200,
@@ -2218,7 +2244,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/203.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -2277,7 +2305,6 @@
           "userId": "11111111-1111-4111-8111-000000000130",
           "sourceUrl": "https://shop.example.com/p/204",
           "name": "Producto Failure 5",
-          "imageUrl": "https://cdn.example.com/204.jpg",
           "category": "fitness",
           "pricingCents": 25300,
           "bundle2PricingCents": 29300,
@@ -2290,7 +2317,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/204.jpg"],
+          "brand": null
         },
         "creatives": [
           {
@@ -2349,7 +2378,6 @@
           "userId": "11111111-1111-4111-8111-000000000131",
           "sourceUrl": "https://shop.example.com/p/205",
           "name": "Producto Failure 6",
-          "imageUrl": "https://cdn.example.com/205.jpg",
           "category": "fitness",
           "pricingCents": 25400,
           "bundle2PricingCents": 29400,
@@ -2362,7 +2390,9 @@
           "createdAt": "2026-04-30T00:00:00.000Z",
           "brandTokens": [],
           "scrapeReason": null,
-          "keywords": []
+          "keywords": [],
+          "imageUrls": ["https://cdn.example.com/205.jpg"],
+          "brand": null
         },
         "creatives": [
           {

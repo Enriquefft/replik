@@ -64,6 +64,13 @@
       "when": 1778201388664,
       "tag": "0008_far_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778600000000,
+      "tag": "0009_product_images_brand",
+      "breakpoints": true
     }
   ]
 }

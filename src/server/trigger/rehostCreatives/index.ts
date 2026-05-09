@@ -34,13 +34,18 @@ interface RehostSummary {
   alreadyHosted: number
   failed: number
   burnTriggered: number
+  burnSucceeded: number
+  burnFailed: number
 }
 
 const TASK_ID = "rehostCreatives"
 
 export const rehostCreativesTask = task({
   id: TASK_ID,
-  maxDuration: 300,
+  // Rehost waits on translateAndBurnSubs (maxDuration 900s); add headroom for
+  // upload + retry overhead so the wait inherits a longer ceiling than the
+  // child task itself.
+  maxDuration: 1200,
   machine: { preset: "small-1x" },
   run: async (rawPayload: RehostCreativesPayload): Promise<RehostSummary> => {
     const payload = RehostCreativesPayloadSchema.parse(rawPayload)
@@ -77,6 +82,8 @@ export const rehostCreativesTask = task({
         alreadyHosted: 0,
         failed: 0,
         burnTriggered: 0,
+        burnSucceeded: 0,
+        burnFailed: 0,
       }
       logEvent("task.rehost.summary", {
         userId,
@@ -159,11 +166,30 @@ export const rehostCreativesTask = task({
       }
     }
 
+    let burnSucceeded = 0
+    let burnFailed = 0
     if (burnIds.size > 0) {
-      await tasks.batchTrigger<typeof translateAndBurnSubsTask>(
+      // Block rehost on burn completion so the publish lane can read complete
+      // edited_video state without a race. Pin attempt=1 so re-runs of
+      // rehostCreatives for the same creatives replay translateAndBurnSubs's
+      // idempotency keys (loadPersistedAssets) instead of re-burning.
+      const burnBatch = await tasks.batchTriggerAndWait<typeof translateAndBurnSubsTask>(
         "translateAndBurnSubs",
-        [...burnIds].map((creativeId) => ({ payload: { creativeId, userId } })),
+        [...burnIds].map((creativeId) => ({
+          payload: { creativeId, userId, attempt: 1 },
+        })),
       )
+      for (const run of burnBatch.runs) {
+        if (run.ok) {
+          burnSucceeded += 1
+        } else {
+          burnFailed += 1
+          logger.warn("burn_run_failed", {
+            runId: run.id,
+            error: run.error instanceof Error ? run.error.message : String(run.error),
+          })
+        }
+      }
     }
 
     const summary: RehostSummary = {
@@ -171,6 +197,8 @@ export const rehostCreativesTask = task({
       alreadyHosted: alreadyHosted.size,
       failed,
       burnTriggered: burnIds.size,
+      burnSucceeded,
+      burnFailed,
     }
 
     logEvent("task.rehost.summary", {

@@ -187,10 +187,10 @@ export const launchCampaign = schemaTask({
       if (selected.length === 0) {
         throw new LaunchError("No hay creativos editados listos.")
       }
-      if (!product.imageUrl) {
+      const productImageUrl = product.imageUrls[0]
+      if (!productImageUrl) {
         throw new LaunchError("El producto no tiene imagen para el thumbnail.")
       }
-      const productImageUrl = product.imageUrl
       const productName = product.name ?? "Producto"
 
       // 3. Build creds (Meta required, Shopify optional but expected).
@@ -226,23 +226,38 @@ export const launchCampaign = schemaTask({
         : `https://example.com/${pageHandle}`
 
       // 4. Copy generation — §11 best-of-5 + Opus judge + post-check.
-      // One copy unit shared across every ad in this launch.
+      // One copy unit per distinct angle so A/B variants run differentiated
+      // text. Creatives without a classified angle group into the "default"
+      // bucket. Cost scales linearly with the number of distinct angles
+      // (typical selections yield 2-4).
       metadata.set("phase", "copy" satisfies LaunchPhase)
-      const copy = await withTiming(
+      const angleKeys = [...new Set(selected.map((c) => c.angle ?? "default"))]
+      const copyEntries = await withTiming(
         "task.launch.copy",
         () =>
-          generateCopy({
-            product,
-            creatives: selected.map((c) => ({
-              id: c.id,
-              angle: c.angle,
-              transcript: c.transcript ?? "",
-              language: c.language ?? "es",
-            })),
-          }),
-        { productId, creativeCount: selected.length },
+          Promise.all(
+            angleKeys.map(async (angleKey) => {
+              const bucket = selected.filter((c) => (c.angle ?? "default") === angleKey)
+              const copy = await generateCopy({
+                product,
+                creatives: bucket.map((c) => ({
+                  id: c.id,
+                  angle: c.angle,
+                  transcript: c.transcript ?? "",
+                  language: c.language ?? "es",
+                })),
+              })
+              return [angleKey, copy] as const
+            }),
+          ),
+        { productId, creativeCount: selected.length, angleCount: angleKeys.length },
       )
-      logger.info("copy_generation_done", { adCount: selected.length })
+      const copyByAngle = new Map(copyEntries)
+      logger.info("copy_generation_done", {
+        adCount: selected.length,
+        angleCount: angleKeys.length,
+        angles: angleKeys,
+      })
 
       // 5. Sequential video uploads (Meta requires per-video resumable flow).
       metadata.set("phase", "upload_videos" satisfies LaunchPhase)
@@ -417,6 +432,10 @@ export const launchCampaign = schemaTask({
           throw new LaunchError(`Estado interno inconsistente para creativo ${c.id}.`)
         }
         const angle = c.angle ?? "default"
+        const copy = copyByAngle.get(angle)
+        if (!copy) {
+          throw new LaunchError(`Falta copy para el ángulo ${angle}.`)
+        }
 
         let metaCreativeId: string
         try {

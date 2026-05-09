@@ -1,10 +1,10 @@
 "use server"
 
 import { auth, tasks } from "@trigger.dev/sdk"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
-import { products } from "@/db/schema"
+import { assets, creatives, products } from "@/db/schema"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
 import type { publishLandingTask } from "@/server/trigger/publishLanding"
@@ -90,6 +90,45 @@ export async function publishLanding(
       })
       if (!owned) {
         return { ok: false, error: "Producto no encontrado." }
+      }
+
+      // 2b. Gate on burn completion. Every selected creative must have a
+      // persisted edited_video asset; otherwise we'd publish with a partial
+      // video CSV silently. rehostCreatives uses batchTriggerAndWait on burn,
+      // so this only fires while the burn batch is still running.
+      const burnGate = await withUser(userId, async (db) => {
+        const selectedRows = await db
+          .select({ id: creatives.id })
+          .from(creatives)
+          .where(
+            and(
+              eq(creatives.productId, productId),
+              eq(creatives.userId, userId),
+              eq(creatives.selectedBool, true),
+            ),
+          )
+        const selectedIds = selectedRows.map((r) => r.id)
+        if (selectedIds.length === 0) return { selected: 0, edited: 0 }
+        const editedRows = await db
+          .select({ ownerId: assets.ownerId })
+          .from(assets)
+          .where(
+            and(
+              eq(assets.ownerType, "creative"),
+              eq(assets.kind, "edited_video"),
+              inArray(assets.ownerId, selectedIds),
+            ),
+          )
+        return { selected: selectedIds.length, edited: editedRows.length }
+      })
+      if (burnGate.selected === 0) {
+        return { ok: false, error: "Selecciona al menos un creativo antes de publicar." }
+      }
+      if (burnGate.edited < burnGate.selected) {
+        return {
+          ok: false,
+          error: `Aún editando los videos (${burnGate.edited.toString()}/${burnGate.selected.toString()}). Espera a que terminen para publicar.`,
+        }
       }
 
       // 3. Gate on Shopify integration. We do not need Meta to publish a landing —

@@ -315,7 +315,7 @@ interface DetectedPanelProps {
 
 function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
   const productName = meta?.productName
-  const imageUrl = meta?.imageUrl
+  const imageUrl = meta?.imageUrls?.[0]
   const keywords = meta?.keywords
   const hasAny = productName !== undefined || imageUrl !== undefined
 

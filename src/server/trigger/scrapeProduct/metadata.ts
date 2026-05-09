@@ -16,7 +16,7 @@ export const ScrapeProgressMetadataSchema = z.object({
   classified: z.number().int().nonnegative().optional(),
   // Stage A signals — populated as soon as the scraper sees the page.
   productName: z.string().optional(),
-  imageUrl: z.url().optional(),
+  imageUrls: z.array(z.url()).optional(),
   keywords: z.array(z.string()).optional(),
 })
 

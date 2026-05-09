@@ -10,6 +10,8 @@ export {
   getActiveThemeId,
   publishProduct,
   ShopifyApiError,
+  templateAssetKeyFor,
+  templateSuffixFor,
 } from "./client"
 export { ShopifyAuthError } from "./errors"
 export type { TemplateVars } from "./render"

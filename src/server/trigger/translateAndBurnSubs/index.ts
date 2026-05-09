@@ -119,6 +119,48 @@ export const translateAndBurnSubsTask = task({
         throw new Error(`original_video asset missing for creative ${creativeId}`)
       }
 
+      // Music-only fast-path: Whisper found no speech (transcriptText === "")
+      // so there is nothing to translate or burn. Re-publish the original
+      // video URL as the `edited_video` asset so the publish gate's
+      // editedAssets count matches selectedCreatives. The same UploadThing
+      // URL is reused — no re-upload, no transcode.
+      if (creative.transcriptText === "") {
+        const language = creative.language ?? "es"
+        logger.info("translateAndBurnSubs:music-only-fast-path", {
+          creativeId,
+          language,
+          originalUrl: originalAsset.url,
+        })
+        await withUser(userId, async (db) => {
+          await db
+            .insert(assets)
+            .values({
+              ownerType: "creative",
+              ownerId: creativeId,
+              kind: "edited_video",
+              url: originalAsset.url,
+              bytes: null,
+              mime: "video/mp4",
+            })
+            .onConflictDoUpdate({
+              target: [assets.ownerType, assets.ownerId, assets.kind],
+              set: { url: originalAsset.url, bytes: null, mime: "video/mp4" },
+            })
+          await db
+            .update(creatives)
+            .set({ translated: false })
+            .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
+        })
+        const persisted = await loadPersistedAssets(userId, creativeId)
+        if (persisted) return persisted
+        return {
+          editedUrl: originalAsset.url,
+          srtUrl: sourceSrtAsset?.url ?? "",
+          language,
+          translated: false,
+        }
+      }
+
       // 4. Resolve the source SRT. Fast path: read the persisted asset from
       // UploadThing (text/plain, cheap). Backfill path: creatives scraped
       // before the scrape-time SRT rollout have no asset row, so re-Whisper
@@ -299,7 +341,11 @@ async function loadPersistedAssets(
       .from(assets)
       .where(and(eq(assets.ownerType, "creative"), eq(assets.ownerId, creativeId)))
     const creativeRow = await db
-      .select({ language: creatives.language, translated: creatives.translated })
+      .select({
+        language: creatives.language,
+        translated: creatives.translated,
+        transcriptText: creatives.transcriptText,
+      })
       .from(creatives)
       .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
       .limit(1)
@@ -307,13 +353,27 @@ async function loadPersistedAssets(
   })
   const edited = result.rows.find((r) => r.kind === "edited_video")
   const srt = result.rows.find((r) => r.kind === "srt")
-  if (!edited || !srt) return null
+  if (!edited) return null
   const lang = result.creativeRow?.language ?? "unknown"
   // Read the persisted flag directly — inferring from language was wrong because
   // it returned `true` for any non-es source even when the fallback fired.
   // Null means the previous run pre-dates the column; fall back to language heuristic
   // only for those legacy rows.
   const translated = result.creativeRow?.translated ?? lang !== "es"
+  // Music-only creatives have no SRT (Whisper found no speech). The
+  // transcriptText === "" signal — set by scrapeProduct's empty-transcript
+  // branch — means a missing SRT row is expected, not a half-completed run.
+  if (!srt) {
+    if (result.creativeRow?.transcriptText === "") {
+      return {
+        editedUrl: edited.url,
+        srtUrl: "",
+        language: lang,
+        translated,
+      }
+    }
+    return null
+  }
   return {
     editedUrl: edited.url,
     srtUrl: srt.url,

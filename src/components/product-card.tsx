@@ -42,9 +42,9 @@ export function ProductCard({ product }: ProductCardProps) {
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            {product.imageUrl ? (
+            {product.imageUrls[0] ? (
               <Image
-                src={product.imageUrl}
+                src={product.imageUrls[0]}
                 alt={product.name ?? "Producto"}
                 width={40}
                 height={40}

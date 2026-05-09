@@ -214,6 +214,83 @@ function formatPriceCents(cents: number | null): string {
   return `S/ ${(cents / 100).toFixed(2)}`
 }
 
+interface PricingFact {
+  label: string
+  cents: number
+}
+
+/**
+ * Compute the savings-cents pair for the supplied bundle prices. Returns null
+ * for bundles whose savings are non-positive (charity/loss-leader pricing) so
+ * the prompt never advertises a "savings" of zero or negative.
+ */
+function computeBundleSavingsCents(
+  unitCents: number | null,
+  bundleCents: number | null,
+  qty: 2 | 3,
+): number | null {
+  if (unitCents === null || bundleCents === null) return null
+  const savings = unitCents * qty - bundleCents
+  return savings > 0 ? savings : null
+}
+
+/**
+ * Build the authorised pricing facts for this product. Any standalone digit
+ * the model emits in copy must be one of these — the §11 post-check rejects
+ * everything else as a hallucination.
+ */
+function buildPricingFacts(product: CopyGenInput["product"]): PricingFact[] {
+  const facts: PricingFact[] = []
+  if (product.pricingCents !== null) {
+    facts.push({ label: "Precio unitario", cents: product.pricingCents })
+  }
+  if (product.bundle2PricingCents !== null) {
+    facts.push({ label: "Precio bundle x2", cents: product.bundle2PricingCents })
+  }
+  if (product.bundle3PricingCents !== null) {
+    facts.push({ label: "Precio bundle x3", cents: product.bundle3PricingCents })
+  }
+  const savings2 = computeBundleSavingsCents(product.pricingCents, product.bundle2PricingCents, 2)
+  if (savings2 !== null) {
+    facts.push({ label: "Ahorro pack 2", cents: savings2 })
+  }
+  const savings3 = computeBundleSavingsCents(product.pricingCents, product.bundle3PricingCents, 3)
+  if (savings3 !== null) {
+    facts.push({ label: "Ahorro pack 3", cents: savings3 })
+  }
+  return facts
+}
+
+/**
+ * Build the digit whitelist consumed by `runPostCheck`. Always includes the
+ * quantity literals 1/2/3 (legitimately referenced as pack sizes) and both
+ * the integer and `.00` decimal forms of every pricing fact.
+ */
+function buildDigitWhitelist(facts: readonly PricingFact[]): readonly string[] {
+  const out = new Set<string>(["1", "2", "3"])
+  for (const fact of facts) {
+    const integer = Math.floor(fact.cents / 100).toString()
+    const decimal = (fact.cents / 100).toFixed(2)
+    out.add(integer)
+    out.add(decimal)
+  }
+  return [...out]
+}
+
+function formatPricingFactsBlock(facts: readonly PricingFact[]): string[] {
+  if (facts.length === 0) return []
+  const lines: string[] = []
+  lines.push("Hechos numéricos AUTORIZADOS — los únicos números que puedes citar en el copy:")
+  for (const fact of facts) {
+    const integer = Math.floor(fact.cents / 100).toString()
+    const decimal = (fact.cents / 100).toFixed(2)
+    lines.push(`- ${fact.label}: ${integer} (S/ ${decimal})`)
+  }
+  lines.push("- Cantidades de pack: 1, 2, 3")
+  lines.push("PROHIBIDO inventar otros números (precios, cantidades, porcentajes, duraciones).")
+  return lines
+}
+
 export function buildUserPrompt(input: CopyGenInput): string {
   const { product, creatives } = input
   const lines: string[] = []
@@ -223,6 +300,11 @@ export function buildUserPrompt(input: CopyGenInput): string {
   lines.push(`- precio unitario: ${formatPriceCents(product.pricingCents)}`)
   lines.push(`- bundle x2: ${formatPriceCents(product.bundle2PricingCents)}`)
   lines.push(`- bundle x3: ${formatPriceCents(product.bundle3PricingCents)}`)
+  const factsBlock = formatPricingFactsBlock(buildPricingFacts(product))
+  if (factsBlock.length > 0) {
+    lines.push("")
+    lines.push(...factsBlock)
+  }
   lines.push("")
   lines.push("Creativos seleccionados:")
   for (const creative of creatives) {
@@ -495,10 +577,44 @@ const COPY_FIELDS = [
 ] as const satisfies readonly CopyField[]
 
 /**
+ * Numeric tokens (integer or decimal) anywhere in the string. Unanchored on
+ * purpose: embedded digits inside tokens like "Top10" still match, since
+ * fabricated digits are equally suspect when the model is supposed to cite
+ * only authorised pricing facts.
+ */
+const DIGIT_TOKEN_RE = /\d+(?:[.,]\d+)?/g
+
+/**
+ * Reject any standalone digit-token in `text` that is not present in
+ * `whitelist`. The whitelist is built from the product's authorised pricing
+ * facts (`buildDigitWhitelist`) plus quantity literals 1/2/3. Empty whitelist
+ * disables the check (used by tests that don't care about pricing facts).
+ */
+function digitWhitelistViolations(text: string, whitelist: readonly string[]): string[] {
+  if (whitelist.length === 0) return []
+  const allowed = new Set(whitelist)
+  const offenders: string[] = []
+  for (const match of text.matchAll(DIGIT_TOKEN_RE)) {
+    const token = match[0].replace(",", ".")
+    if (!allowed.has(token)) {
+      offenders.push(match[0])
+    }
+  }
+  return offenders
+}
+
+/**
  * Run the rule-based deterministic post-check on a candidate.
  * Returns the list of failed fields (empty list = pass).
+ *
+ * `digitWhitelist` (optional) constrains which numeric tokens may appear in
+ * the copy. Pass an empty array (or omit) to skip the digit check — the
+ * production path always supplies the whitelist via `buildDigitWhitelist`.
  */
-export function runPostCheck(candidate: CopyContent): FieldViolation[] {
+export function runPostCheck(
+  candidate: CopyContent,
+  digitWhitelist: readonly string[] = [],
+): FieldViolation[] {
   const violations: FieldViolation[] = []
 
   const length = lengthCheck(candidate)
@@ -521,6 +637,13 @@ export function runPostCheck(candidate: CopyContent): FieldViolation[] {
     const speak = aiSpeak(text)
     if (!speak.ok) {
       violations.push({ field, reason: `AI_SPEAK: ${speak.reason}` })
+    }
+    const offenders = digitWhitelistViolations(text, digitWhitelist)
+    if (offenders.length > 0) {
+      violations.push({
+        field,
+        reason: `DIGIT_HALLUCINATION: ${offenders.join(", ")}`,
+      })
     }
   }
 
@@ -561,6 +684,7 @@ export async function generateCopy(
     "ai.copy_gen",
     async () => {
       const userPrompt = buildUserPrompt(input)
+      const digitWhitelist = buildDigitWhitelist(buildPricingFacts(input.product))
 
       const realDeps: CopyGenDeps = isInjectedDeps(deps)
         ? deps
@@ -593,7 +717,7 @@ export async function generateCopy(
       }
 
       // ── Stage 3 — rule-based post-check (one regenerate cycle) ──────────
-      const initialViolations = runPostCheck(winnerCandidate)
+      const initialViolations = runPostCheck(winnerCandidate, digitWhitelist)
       if (initialViolations.length === 0) {
         return winnerCandidate
       }
@@ -626,7 +750,7 @@ export async function generateCopy(
           : winnerCandidate.description,
       }
 
-      const postRegenViolations = runPostCheck(merged)
+      const postRegenViolations = runPostCheck(merged, digitWhitelist)
       if (postRegenViolations.length === 0) {
         return merged
       }

@@ -33,14 +33,24 @@ export type CopyGenInput = z.infer<typeof CopyGenInputSchema>
 /**
  * Output of Stage A deterministic extractor (§7). Every field is nullable
  * because the extractor degrades gracefully — Stage B gates on presence.
+ *
+ * `imageUrls` is an array of *candidate* image URLs collected from the page
+ * (deduped + filtered upstream). The downstream LLM image-picker narrows to
+ * the 1-3 best product photos. Empty array means no candidates found.
+ *
+ * `brand` is the source-store brand string (extracted from JSON-LD/og or
+ * synthesized by Stage C for non-PDP entries). Used to (a) exclude the
+ * source brand from the user's landing copy and (b) feed deterministic
+ * `brand_tokens` for srt-translate.
  */
 export const ProductPartialSchema = z.object({
-  imageUrl: z.url().nullable(),
+  imageUrls: z.array(z.url()).default([]),
   productName: z.string().nullable(),
   category: InterestCategory.nullable(),
   priceText: z.string().nullable(),
   description: z.string().nullable(),
   locale: Locale.nullable(),
+  brand: z.string().nullable(),
 })
 
 export type ProductPartial = z.infer<typeof ProductPartialSchema>
@@ -67,13 +77,22 @@ export const ProductKeywordsSchema = z.object({
 })
 
 /**
- * Stage C LLM output (§7). Only the three mandatory fields plus keywords —
- * priceText, description, and locale ride through from Stage A.
+ * Stage C LLM output (§7). Only the three mandatory fields plus keywords
+ * and the brand string — priceText, description, and locale ride through
+ * from Stage A.
+ *
+ * `imageUrls` is the post-pick subset (1-3 URLs) chosen by the vision
+ * picker. `brand` is non-null for PDP pages whose source store is
+ * detectable; otherwise the LLM emits the storefront brand it identified
+ * (so we can scrub it from synthesised copy). For pure non-PDP synthesis
+ * with no detectable brand, the LLM should still attempt to emit one.
  */
 export const ProductFinalLLMSchema = z.object({
-  imageUrl: z.url(),
+  imageUrls: z.array(z.url()).min(1).max(3),
   productName: z.string().min(1),
   category: InterestCategory,
+  brand: z.string().nullable(),
+  description: z.string().nullable(),
   keywords: ProductKeywordsSchema,
 })
 
@@ -81,14 +100,16 @@ export type ProductFinalLLM = z.infer<typeof ProductFinalLLMSchema>
 
 /**
  * Fully-resolved product after Stage C LLM gap-fill + Stage D merge (§7).
- * Mandatory: imageUrl, productName, category, keywords. Carry-forward fields
- * (priceText, description, locale) are nullable because Stage A may legitimately
- * miss them on sparse pages — the demo path only gates on the mandatory three.
+ * Mandatory: imageUrls (1-3), productName, category, keywords. Carry-forward
+ * fields (priceText, description, locale) are nullable because Stage A may
+ * legitimately miss them on sparse pages — the demo path only gates on the
+ * mandatory three. `brand` is nullable because not every page declares one.
  */
 export const ProductFinalSchema = z.object({
-  imageUrl: z.url(),
+  imageUrls: z.array(z.url()).min(1).max(3),
   productName: z.string().min(1),
   category: InterestCategory,
+  brand: z.string().nullable(),
   priceText: z.string().nullable(),
   description: z.string().nullable(),
   locale: Locale.nullable(),
@@ -161,6 +182,36 @@ export type TemplatePickInput = z.infer<typeof TemplatePickInputSchema>
 export const TemplatePickResultSchema = z.object({
   templateId: TemplateId,
 })
+
+// ─── Image picker (Phase 1, Bug B) ───────────────────────────────────────────
+
+/**
+ * Input to the LLM vision image-picker. `candidateUrls` is the post-Stage-A
+ * filtered list (deduped, junk-stripped, capped at 12) — the picker chooses
+ * 1-3 indices from it. `productName` and `category` ground the picker so it
+ * prefers product-on-clean-background over lifestyle / logo / social cards.
+ *
+ * No `wrapUntrusted` here — `productName` is short and the picker prompt is
+ * vision-led; the text is a reinforcing hint, not the primary signal.
+ */
+export const ImagePickInputSchema = z.object({
+  candidateUrls: z.array(z.url()).min(1).max(12),
+  productName: z.string().min(1),
+  category: InterestCategory,
+})
+
+export type ImagePickInput = z.infer<typeof ImagePickInputSchema>
+
+/**
+ * Output of the LLM vision image-picker. `selectedIndices` references
+ * positions in the input `candidateUrls` array. Call site validates each
+ * index is in range; out-of-range entries collapse the run to fallback.
+ */
+export const ImagePickResultSchema = z.object({
+  selectedIndices: z.array(z.int().nonnegative()).min(1).max(3),
+})
+
+export type ImagePickResult = z.infer<typeof ImagePickResultSchema>
 
 // ─── Whisper / transcription ─────────────────────────────────────────────────
 

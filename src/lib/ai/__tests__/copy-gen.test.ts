@@ -151,6 +151,57 @@ describe("runPostCheck", () => {
     const violations = runPostCheck(candidate)
     expect(violations.some((v) => v.reason.startsWith("LENGTH_VIOLATION"))).toBe(true)
   })
+
+  test("flags DIGIT_HALLUCINATION on numbers absent from whitelist", () => {
+    // Whitelist mirrors a product priced 45 / bundle2 80 / bundle3 113 →
+    // savings2=10, savings3=22. Plus quantity literals 1/2/3.
+    const whitelist = [
+      "45",
+      "45.00",
+      "80",
+      "80.00",
+      "113",
+      "113.00",
+      "10",
+      "10.00",
+      "22",
+      "22.00",
+      "1",
+      "2",
+      "3",
+    ]
+    const candidate: CopyContent = {
+      primaryText: "Llévate 2 a 80 soles y ahorra 27 hoy.",
+      headline: "Pack 2 a 80",
+      description: "Llega a tu puerta",
+    }
+    const violations = runPostCheck(candidate, whitelist)
+    const offending = violations.filter((v) => v.reason.startsWith("DIGIT_HALLUCINATION"))
+    expect(offending.length).toBeGreaterThan(0)
+    expect(offending[0]?.reason).toContain("27")
+  })
+
+  test("accepts comma-decimal forms equivalent to whitelist (80,00 ≡ 80.00)", () => {
+    const whitelist = ["45", "45.00", "80", "80.00", "1", "2", "3"]
+    const candidate: CopyContent = {
+      primaryText: "Llévate 2 packs a 80,00 soles hoy mismo.",
+      headline: "Pack 2 a 80",
+      description: "Sin recargo",
+    }
+    const violations = runPostCheck(candidate, whitelist)
+    const offending = violations.filter((v) => v.reason.startsWith("DIGIT_HALLUCINATION"))
+    expect(offending).toEqual([])
+  })
+
+  test("empty whitelist disables digit check (back-compat for pre-Fix-4 callers)", () => {
+    const candidate: CopyContent = {
+      primaryText: "Llévate 2 a 999 soles hoy.",
+      headline: "Pack a 999",
+      description: "Sin recargo",
+    }
+    const violations = runPostCheck(candidate)
+    expect(violations.some((v) => v.reason.startsWith("DIGIT_HALLUCINATION"))).toBe(false)
+  })
 })
 
 // ─── Mock dep factory ────────────────────────────────────────────────────────
@@ -292,7 +343,8 @@ describe("generateCopy — explicit semantics", () => {
       userId: "11111111-1111-4111-8111-000000000065",
       sourceUrl: "https://shop.example.com/p/1",
       name: "Producto X",
-      imageUrl: "https://cdn.example.com/x.jpg",
+      imageUrls: ["https://cdn.example.com/x.jpg"],
+      brand: null,
       category: "kitchen",
       pricingCents: 5000,
       bundle2PricingCents: 9000,

@@ -22,17 +22,18 @@ import { withTiming } from "@/lib/observability/log.ts"
 // ─── System prompt ────────────────────────────────────────────────────────────
 
 /**
- * System prompt prose token-matches templates/{1,2,3}.json per §8 snapshot
+ * System prompt prose token-matches templates/blocks.ts per §8 snapshot
  * contract. Discriminating tokens per template:
  *
  * Template 1 — "Clean Classic": clean, classic, minimal, professional,
  *   "Calidad garantizada", "Pedido contra entrega", neutral trust signals.
  *
  * Template 2 — "Urgency / Sales": urgency, sales, "OFERTA LIMITADA", stock,
- *   "solo hoy", "Quedan pocas unidades", scarcity, discount, "más popular".
+ *   "solo hoy", scarcity, discount, "máximo ahorro", red accent.
  *
  * Template 3 — "Lifestyle": lifestyle, warm, aspirational, "estilo de vida",
- *   "Para mí", "Para compartir", "Para regalar", emotional, "Quiero el mío".
+ *   "Para mí", "Para compartir", "Para regalar", emotional, "Quiero el mío",
+ *   serif typography, soft gradient.
  */
 export const TEMPLATE_PICK_SYSTEM_PROMPT = `You are a CRO expert specializing in COD landing pages for LATAM markets.
 
@@ -42,7 +43,7 @@ Analyze the product hero image together with the product name, category, descrip
 
 ## Template 1 — Clean Classic
 A clean, classic, minimal, and professional layout that builds trust through simplicity.
-Subheading tone: "Calidad garantizada. Entrega contra entrega." — neutral, reassuring.
+Subheading tone: "Calidad garantizada. Entrega contra reembolso." — neutral, reassuring.
 Pricing labels: "1 unidad", "2 pack", "3 pack" — plain, no urgency language.
 Order form heading: "Pedido contra entrega" — calm, institutional.
 Best for: household utilities, gadgets, tools, health appliances, kitchen equipment,
@@ -51,18 +52,20 @@ credibility and clarity close the sale.
 
 ## Template 2 — Urgency / Sales
 An urgency-driven, sales-aggressive layout that highlights scarcity and discounts.
-Hero heading prefix: "OFERTA LIMITADA:" — all-caps, high-impact.
+Hero heading prefix: "OFERTA LIMITADA:" — all-caps, high-impact, red accent (#c9472f).
 Subheading: "Stock limitado — solo hoy con descuento exclusivo." — scarcity signal.
-Pricing extras: "más popular", "máximo ahorro", urgency_text "Quedan pocas unidades en stock".
-CTA button: "¡QUIERO MI OFERTA!" — exclamatory, impulse-driven.
+Pricing extras: "máximo ahorro" on the third tier; featured-card badge "Más popular".
+Order form subtitle: "Oferta válida solo por hoy" — countdown framing.
+CTA button: "¡Quiero mi oferta!" — exclamatory, impulse-driven.
 Best for: beauty products, fashion accessories, supplements, impulse purchases, and any
 product with a promotional angle. Hero image shows before/after, transformation, or
 a heavily styled "sale" visual.
 
 ## Template 3 — Lifestyle
 A warm, aspirational, lifestyle-oriented layout with emotional connection.
+Visual mood: serif typography, soft warm gradient hero background — evokes a slow,
+considered, lifestyle feel. Tone descriptor: "warm".
 Subheading: "Hecho para tu estilo de vida. Disfrútalo desde el primer día." — lifestyle, warm.
-lifestyle_mood: warm — CSS mood is warm and welcoming.
 Pricing labels: "Para mí", "Para compartir", "Para regalar" — relational, gift-oriented.
 CTA button: "Quiero el mío" — soft desire, personal ownership.
 Best for: home décor, gifts, pet products, wellness, aromatherapy, aspirational lifestyle
