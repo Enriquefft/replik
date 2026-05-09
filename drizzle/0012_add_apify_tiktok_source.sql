@@ -1,0 +1,1 @@
+ALTER TYPE "public"."creative_source" ADD VALUE 'apify_tiktok';

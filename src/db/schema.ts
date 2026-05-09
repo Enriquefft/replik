@@ -37,7 +37,7 @@ export const productStatusEnum = pgEnum("product_status", [
   "FAILED",
 ])
 
-export const creativeSourceEnum = pgEnum("creative_source", ["apify_fb"])
+export const creativeSourceEnum = pgEnum("creative_source", ["apify_fb", "apify_tiktok"])
 
 export const assetOwnerTypeEnum = pgEnum("asset_owner_type", ["creative", "product"])
 
