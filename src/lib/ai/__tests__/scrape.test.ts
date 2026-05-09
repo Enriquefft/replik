@@ -537,3 +537,92 @@ describe("scrapeProductInfo — brand-clean post-validate", () => {
     }
   })
 })
+
+// ─── Non-PDP image picker passthrough ────────────────────────────────────────
+
+describe("scrapeProductInfo — non-PDP picker passthrough", () => {
+  // Homepage with 3 in-DOM <img> tags + og:image banner. On non-PDP the
+  // collector deprioritizes og:image / twitter:image (those are usually
+  // brand logos or seasonal hero banners on homepages) and puts body imgs
+  // first. Resulting candidate order:
+  //   [0] photo1.jpg, [1] photo2.jpg, [2] photo3.jpg, [3] banner.jpg
+  const bannerUrl = "https://cdn.shop.example.com/banner.jpg"
+  const photo1Url = "https://cdn.shop.example.com/photo1.jpg"
+  const photo2Url = "https://cdn.shop.example.com/photo2.jpg"
+  const photo3Url = "https://cdn.shop.example.com/photo3.jpg"
+  const homepageHtml = [
+    "<html><head>",
+    "<title>Shop — flores</title>",
+    `<meta property="og:image" content="${bannerUrl}" />`,
+    "</head><body>",
+    `<img src="${photo1Url}"/>`,
+    `<img src="${photo2Url}"/>`,
+    `<img src="${photo3Url}"/>`,
+    "</body></html>",
+  ].join("")
+
+  test("non-PDP forwards full candidate set to the vision picker", async () => {
+    // Stage C picks the banner (1 in-candidate-set URL). On the old
+    // (pre-passthrough) code path the picker would receive only [bannerUrl]
+    // — picker output would be the banner. On the new path the picker
+    // receives all 4 candidates, so index 2 resolves to photo3Url, proving
+    // the picker saw the full body-img set.
+    const stageCOutput = {
+      imageUrls: [bannerUrl],
+      productName: "Ramo de flores premium",
+      category: "home_garden" as const,
+      brand: null,
+      description: "Arreglos artesanales.",
+      keywords: {
+        broad: ["flores", "ramos", "delivery"],
+        narrow: [
+          "ramo de flores premium lima",
+          "delivery de rosas en lima",
+          "arreglo floral para regalo",
+        ],
+      },
+    }
+    const imagePickOutput = { selectedIndices: [2] }
+    const result = await scrapeProductInfo(
+      { url: "https://shop.example.com/", html: homepageHtml },
+      {
+        primaryModel: modelSequence([stageCOutput, imagePickOutput]),
+        bumpedModel: modelSequence([stageCOutput, imagePickOutput]),
+      },
+    )
+    expect(result.status).toBe("READY")
+    if (result.status === "READY") {
+      expect(result.product.imageUrls[0]).toBe(photo3Url)
+    }
+  })
+
+  test("non-PDP no longer trips image-hallucination — picker output is SSOT", async () => {
+    const hallucinated = {
+      imageUrls: ["https://hallucinated.example.com/x.jpg"],
+      productName: "Ramo de flores premium",
+      category: "home_garden" as const,
+      brand: null,
+      description: "Arreglos artesanales.",
+      keywords: {
+        broad: ["flores", "ramos", "delivery"],
+        narrow: [
+          "ramo de flores premium lima",
+          "delivery de rosas en lima",
+          "arreglo floral para regalo",
+        ],
+      },
+    }
+    const imagePickOutput = { selectedIndices: [1] }
+    const result = await scrapeProductInfo(
+      { url: "https://shop.example.com/", html: homepageHtml },
+      {
+        primaryModel: modelSequence([hallucinated, imagePickOutput]),
+        bumpedModel: modelSequence([hallucinated, imagePickOutput]),
+      },
+    )
+    expect(result.status).toBe("READY")
+    if (result.status === "READY") {
+      expect(result.product.imageUrls[0]).toBe(photo2Url)
+    }
+  })
+})

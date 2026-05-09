@@ -605,6 +605,7 @@ function collectImageCandidates(input: {
   jsonLdProducts: JsonLdProduct[]
   meta: Map<string, string>
   micro: Map<string, string>
+  shape: "pdp" | "non_pdp"
 }): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -622,19 +623,40 @@ function collectImageCandidates(input: {
     out.push(resolved)
   }
 
-  // 1. JSON-LD images (strongest signal).
-  for (const p of input.jsonLdProducts) {
-    for (const img of jsonLdImages(p)) push(img)
-    if (out.length >= MAX_IMAGE_CANDIDATES) break
+  const pushJsonLd = () => {
+    for (const p of input.jsonLdProducts) {
+      for (const img of jsonLdImages(p)) push(img)
+      if (out.length >= MAX_IMAGE_CANDIDATES) break
+    }
   }
-  // 2. og:image / twitter:image / microdata image.
-  push(input.meta.get("og:image"))
-  push(input.meta.get("twitter:image"))
-  push(input.micro.get("image"))
-  // 3. Every <img src> in the body.
-  for (const m of input.html.matchAll(HERO_IMG_REGEX_GLOBAL)) {
-    if (out.length >= MAX_IMAGE_CANDIDATES) break
-    push(m[1])
+  const pushMeta = () => {
+    push(input.meta.get("og:image"))
+    push(input.meta.get("twitter:image"))
+    push(input.micro.get("image"))
+  }
+  const pushBody = () => {
+    for (const m of input.html.matchAll(HERO_IMG_REGEX_GLOBAL)) {
+      if (out.length >= MAX_IMAGE_CANDIDATES) break
+      push(m[1])
+    }
+  }
+
+  if (input.shape === "pdp") {
+    // PDP order: JSON-LD `image[0]` is the canonical hero, og:image is the
+    // social-share product photo, body imgs round out the list.
+    pushJsonLd()
+    pushMeta()
+    pushBody()
+  } else {
+    // Non-PDP (homepage / collection): og:image and twitter:image are
+    // empirically brand logos or seasonal promo banners — they win the
+    // index-0 anchoring bias and starve the vision picker. Body `<img>`
+    // tags catch the product grid, which is the actual signal we want.
+    // JSON-LD on a non-PDP rarely exists, but if it does (e.g. an embedded
+    // Product schema for a featured item) it stays first.
+    pushJsonLd()
+    pushBody()
+    pushMeta()
   }
   return out
 }
@@ -784,6 +806,7 @@ export function extractStageA(input: { url: string; html: string }): ProductPart
     jsonLdProducts,
     meta,
     micro,
+    shape,
   })
 
   const priceText = nonEmpty(
@@ -1288,12 +1311,13 @@ export async function scrapeProductInfo(
     }
   }
 
-  // Post-validate Stage C against the candidate set: the LLM must pick
-  // ONLY from the image URLs we showed it. Hallucinations land us in
-  // SCRAPE_PARTIAL — better safe than serving a 404 hero.
+  // Post-validate Stage C against the candidate set. On PDP the LLM must
+  // pick ONLY from URLs we showed it — hallucinations land us in
+  // SCRAPE_PARTIAL. On non-PDP Stage C is text-only and its picks are
+  // advisory; the vision picker sees the full candidate set and is SSOT.
   const candidateSet = new Set(partial.imageUrls)
   const validLlmImages = llm.imageUrls.filter((u) => candidateSet.has(u))
-  if (validLlmImages.length === 0) {
+  if (shape === "pdp" && validLlmImages.length === 0) {
     logEvent("ai.scrape.image-hallucination", {
       url: input.url,
       llmImages: llm.imageUrls.length,
@@ -1306,14 +1330,25 @@ export async function scrapeProductInfo(
     }
   }
 
+  const pickerCandidates = shape === "pdp" ? validLlmImages : partial.imageUrls
+
+  if (shape === "non_pdp") {
+    logEvent("ai.scrape.non_pdp_image_pick", {
+      url: input.url,
+      candidates: pickerCandidates.length,
+      stageCPicked: validLlmImages.length,
+    })
+  }
+
   // ── Vision-pick the best 1-3 product images ────────────────────────────────
   let pickedImages: string[]
   try {
     pickedImages = await pickProductImages(
       {
-        candidateUrls: validLlmImages,
+        candidateUrls: pickerCandidates,
         productName: llm.productName,
         category: llm.category,
+        shape,
       },
       { primaryModel, bumpedModel },
     )
@@ -1322,9 +1357,7 @@ export async function scrapeProductInfo(
       url: input.url,
       reason: err instanceof Error ? err.message : "image-pick-failed",
     })
-    // Picker has its own retry+fallback (returns [first]); a thrown error
-    // here is unexpected but degrade-safe by handing back the LLM list.
-    pickedImages = validLlmImages.slice(0, 3)
+    pickedImages = pickerCandidates.slice(0, 3)
   }
 
   if (pickedImages.length === 0) {

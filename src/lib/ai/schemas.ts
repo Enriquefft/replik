@@ -213,6 +213,7 @@ export const ImagePickInputSchema = z.object({
   candidateUrls: z.array(z.url()).min(1).max(12),
   productName: z.string().min(1),
   category: InterestCategory,
+  shape: z.enum(["pdp", "non_pdp"]),
 })
 
 export type ImagePickInput = z.infer<typeof ImagePickInputSchema>

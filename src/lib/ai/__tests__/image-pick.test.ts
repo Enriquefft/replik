@@ -23,7 +23,7 @@ import { MockLanguageModelV3 } from "ai/test"
 
 import {
   buildImagePickPrompt,
-  IMAGE_PICK_SYSTEM_PROMPT,
+  imagePickSystemPrompt,
   pickProductImages,
 } from "@/lib/ai/image-pick.ts"
 import type { ImagePickInput } from "@/lib/ai/schemas.ts"
@@ -69,21 +69,36 @@ const sampleInput: ImagePickInput = {
   ],
   productName: "Set de ollas antiadherentes",
   category: "kitchen",
+  shape: "pdp",
 }
 
 // ─── Prompt + system contract ────────────────────────────────────────────────
 
-describe("IMAGE_PICK_SYSTEM_PROMPT contract", () => {
-  test("instructs the model to return a JSON with selectedIndices", () => {
-    expect(IMAGE_PICK_SYSTEM_PROMPT).toContain("selectedIndices")
+describe("imagePickSystemPrompt contract", () => {
+  test("PDP variant instructs the model to return JSON with selectedIndices", () => {
+    expect(imagePickSystemPrompt("pdp")).toContain("selectedIndices")
   })
 
-  test("warns against logos / brand promo squares", () => {
-    expect(IMAGE_PICK_SYSTEM_PROMPT.toLowerCase()).toContain("logo")
+  test("non-PDP variant instructs the model to return JSON with selectedIndices", () => {
+    expect(imagePickSystemPrompt("non_pdp")).toContain("selectedIndices")
   })
 
-  test("warns against lifestyle / influencer crops", () => {
-    expect(IMAGE_PICK_SYSTEM_PROMPT.toLowerCase()).toContain("lifestyle")
+  test("both variants warn against logos / brand promo", () => {
+    expect(imagePickSystemPrompt("pdp").toLowerCase()).toContain("logo")
+    expect(imagePickSystemPrompt("non_pdp").toLowerCase()).toContain("logo")
+  })
+
+  test("PDP variant rejects lifestyle distantes (the strict criterion)", () => {
+    expect(imagePickSystemPrompt("pdp").toLowerCase()).toContain("lifestyle distantes")
+  })
+
+  test("non-PDP variant accepts lifestyle frames where product is the subject", () => {
+    expect(imagePickSystemPrompt("non_pdp").toLowerCase()).toContain("lifestyle")
+    expect(imagePickSystemPrompt("non_pdp")).toContain("Acepta fondos lifestyle")
+  })
+
+  test("non-PDP variant rejects text-overlay promo banners", () => {
+    expect(imagePickSystemPrompt("non_pdp").toLowerCase()).toContain("texto sobreimpreso")
   })
 })
 

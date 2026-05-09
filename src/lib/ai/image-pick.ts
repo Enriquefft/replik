@@ -24,7 +24,7 @@ import { generateText, Output } from "ai"
 import { defaultTemperature, MODELS } from "@/lib/ai/models.ts"
 import { withRetry } from "@/lib/ai/retry.ts"
 import { type ImagePickInput, ImagePickResultSchema } from "@/lib/ai/schemas.ts"
-import { withTiming } from "@/lib/observability/log.ts"
+import { logEvent, withTiming } from "@/lib/observability/log.ts"
 
 // ─── System prompt ───────────────────────────────────────────────────────────
 
@@ -33,28 +33,62 @@ import { withTiming } from "@/lib/observability/log.ts"
  * decides on the rendered images. Spanish is intentional — Replik targets
  * es-PE / es-LATAM creatives and Sonnet's Spanish grounding is stronger
  * when prompts stay in-locale.
+ *
+ * Shape branches the criteria. PDP candidates come from a product detail
+ * page where studio shots dominate, so we hold a high bar (clean bg,
+ * product-only). Non-PDP candidates come from homepages / collections
+ * where the only product photos are in-context lifestyle shots; rejecting
+ * lifestyle there leaves the picker with logos and banners — exactly the
+ * regression we hit on floreriabloom.com. On non-PDP the picker accepts
+ * lifestyle frames where the product is the subject and explicitly
+ * rejects text-heavy promo banners (which are common homepage hero tiles).
  */
-export const IMAGE_PICK_SYSTEM_PROMPT = [
-  "Eres un curador visual para landings de e-commerce.",
-  "Recibes 1 a 12 imágenes candidatas (numeradas 0..N-1) y la ficha de un producto (nombre + categoría).",
-  "Tu tarea es escoger 1 a 3 índices que correspondan a la MEJOR fotografía del producto en sí.",
-  "",
-  "Criterios de selección (preferir):",
-  "- Producto solo, fondo limpio (blanco / gris suave / liso).",
-  "- Producto bien iluminado, en foco, ocupando >40% del cuadro.",
-  "- Vista frontal o tres-cuartos del producto físico.",
-  "",
-  "Rechazar (NO seleccionar):",
-  "- Logos de la tienda, isotipos, banners de marca.",
-  "- Fotos de modelos / influencers donde el producto no es el sujeto.",
-  "- Lifestyle distantes, escenas de uso donde el producto se pierde.",
-  "- Tiles de categoría, carteles promocionales, capturas de redes sociales.",
-  "- Renders abstractos o ilustraciones que no muestran el producto real.",
-  "",
-  "Ordena los índices del MEJOR al menos bueno.",
-  'Devuelve EXACTAMENTE un JSON con la forma {"selectedIndices": [<int>...]}.',
-  "Los índices deben ser enteros no negativos < número de candidatas.",
-].join("\n")
+export function imagePickSystemPrompt(shape: "pdp" | "non_pdp"): string {
+  const preferCriteria =
+    shape === "pdp"
+      ? [
+          "- Producto solo, fondo limpio (blanco / gris suave / liso).",
+          "- Producto bien iluminado, en foco, ocupando >40% del cuadro.",
+          "- Vista frontal o tres-cuartos del producto físico.",
+        ]
+      : [
+          "- Producto físico claramente visible, en foco, ocupando >40% del cuadro.",
+          "- Acepta fondos lifestyle si el producto es el sujeto principal (caja de flores sobre mesa, arreglo en escena de regalo, set de cocina en uso).",
+          "- Vista frontal, lateral o tres-cuartos del producto físico.",
+          "- Prefiere imágenes con poco o nada de texto sobreimpreso.",
+        ]
+
+  const distantRejection =
+    shape === "pdp"
+      ? "- Lifestyle distantes, escenas de uso donde el producto se pierde."
+      : "- Escenas distantes donde el producto se pierde o es secundario al fondo."
+
+  const rejectCriteria = [
+    "- Logos de la tienda, isotipos, banners de marca, marcas de agua.",
+    "- Fotos de modelos / influencers donde el producto no es el sujeto.",
+    distantRejection,
+    "- Tiles de categoría, carteles promocionales, capturas de redes sociales.",
+    "- Imágenes con texto sobreimpreso prominente (precios, ofertas, fechas, nombres de campañas).",
+    "- Renders abstractos o ilustraciones que no muestran el producto real.",
+  ]
+
+  return [
+    "Eres un curador visual para landings de e-commerce.",
+    "Recibes 1 a 12 imágenes candidatas (numeradas 0..N-1) y la ficha de un producto (nombre + categoría).",
+    "Antes de cada imagen verás una línea `[idx N] archivo: <slug>`. El slug del archivo es una pista importante: nombres como `logo-*`, `log-*`, `brand-*`, `isotipo-*`, `marca-*` casi siempre son logos. Nombres como `portada-*`, `hero-*`, `banner-*`, `pack-*`, `cuotas-*`, `oferta-*`, `descuento-*`, `dia-de-*`, `promocion-*` casi siempre son banners promocionales. Nombres descriptivos del producto (`box-rosas-rojas`, `arreglo-girasoles`, `ramo-aniversario`, `pack-de-ollas`, `set-cocina`) casi siempre son fotos del producto. Combina la pista del slug con lo que ves en la imagen.",
+    "Tu tarea es escoger 1 a 3 índices que correspondan a la MEJOR fotografía del producto en sí.",
+    "",
+    "Criterios de selección (preferir):",
+    ...preferCriteria,
+    "",
+    "Rechazar (NO seleccionar):",
+    ...rejectCriteria,
+    "",
+    "Ordena los índices del MEJOR al menos bueno.",
+    'Devuelve EXACTAMENTE un JSON con la forma {"selectedIndices": [<int>...]}.',
+    "Los índices deben ser enteros no negativos < número de candidatas.",
+  ].join("\n")
+}
 
 // ─── Prompt builder ──────────────────────────────────────────────────────────
 
@@ -85,18 +119,44 @@ interface TextContentPart {
 }
 type UserContent = (ImageContentPart | TextContentPart)[]
 
+/**
+ * Extract the URL's last path segment, decoded, lower-cased, with the
+ * extension preserved. Used as a per-image hint so the vision model can
+ * read the filename alongside the pixels — slug-based heuristics catch
+ * brand-logo files (`Log-Bloom.png`) that pass `isViableImageCandidate`'s
+ * substring check ("logo" doesn't match "log-bloom").
+ */
+export function extractCandidateSlug(rawUrl: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    return rawUrl
+  }
+  const segments = parsed.pathname.split("/").filter(Boolean)
+  const last = segments.length > 0 ? segments[segments.length - 1] : ""
+  if (!last) return parsed.hostname.toLowerCase()
+  try {
+    return decodeURIComponent(last).toLowerCase()
+  } catch {
+    return last.toLowerCase()
+  }
+}
+
 function buildUserMessage(input: ImagePickInput): {
   role: "user"
   content: UserContent
 } {
-  const imageParts: ImageContentPart[] = input.candidateUrls.map((u) => ({
-    type: "image",
-    image: new URL(u),
-  }))
-  return {
-    role: "user",
-    content: [...imageParts, { type: "text", text: buildImagePickPrompt(input) }],
+  const interleaved: UserContent = []
+  for (let i = 0; i < input.candidateUrls.length; i += 1) {
+    const url = input.candidateUrls[i]
+    if (!url) continue
+    const slug = extractCandidateSlug(url)
+    interleaved.push({ type: "text", text: `[idx ${i.toString()}] archivo: ${slug}` })
+    interleaved.push({ type: "image", image: new URL(url) })
   }
+  interleaved.push({ type: "text", text: buildImagePickPrompt(input) })
+  return { role: "user", content: interleaved }
 }
 
 // ─── LLM calls ───────────────────────────────────────────────────────────────
@@ -106,7 +166,7 @@ async function callPrimary(input: ImagePickInput, model: LanguageModel): Promise
     model,
     output: Output.json(),
     temperature: defaultTemperature,
-    system: IMAGE_PICK_SYSTEM_PROMPT,
+    system: imagePickSystemPrompt(input.shape),
     messages: [buildUserMessage(input)],
   })
   return result.output
@@ -121,7 +181,7 @@ async function callBumped(
     model: bumpedModel,
     output: Output.json(),
     temperature: defaultTemperature,
-    system: IMAGE_PICK_SYSTEM_PROMPT,
+    system: imagePickSystemPrompt(input.shape),
     messages: [
       buildUserMessage(input),
       {
@@ -229,6 +289,13 @@ export async function pickProductImages(
 
   const parsed = ImagePickResultSchema.safeParse(raw)
   if (!parsed.success) {
+    logEvent("ai.image_pick.decision", {
+      shape: input.shape,
+      candidates: input.candidateUrls,
+      selectedIndices: null,
+      output: [fallbackUrl],
+      reason: "schema-fallback",
+    })
     return [fallbackUrl]
   }
 
@@ -241,6 +308,22 @@ export async function pickProductImages(
     const url = input.candidateUrls[idx]
     if (url) out.push(url)
   }
-  if (out.length === 0) return [fallbackUrl]
+  if (out.length === 0) {
+    logEvent("ai.image_pick.decision", {
+      shape: input.shape,
+      candidates: input.candidateUrls,
+      selectedIndices: parsed.data.selectedIndices,
+      output: [fallbackUrl],
+      reason: "empty-after-dedup-fallback",
+    })
+    return [fallbackUrl]
+  }
+  logEvent("ai.image_pick.decision", {
+    shape: input.shape,
+    candidates: input.candidateUrls,
+    selectedIndices: parsed.data.selectedIndices,
+    output: out,
+    reason: "ok",
+  })
   return out
 }
