@@ -232,6 +232,107 @@ describe("classifyRelevance — fail-open", () => {
   })
 })
 
+describe("classifyRelevance — brand-match bypass (P2.1)", () => {
+  test("page_name matches brand → auto-relevant, NOT sent to LLM", async () => {
+    let llmCalls = 0
+
+    const ads = [
+      { id: "a1", page_name: "JoySpring", ad_text: "Sleep tonight." },
+      { id: "a2", page_name: "JoySpring Inc.", ad_text: "Best for sleep." },
+      { id: "a3", page_name: "Random Drama Co.", ad_text: "Drama show." },
+    ]
+
+    // Model would mark all three as `relevant: false` if called — bypass should
+    // ensure a1 + a2 never reach it. Only a3 should be sent.
+    const denyAll = makeClassification([{ adId: "a3", relevant: false, reason: "off-topic" }])
+
+    const result = await classifyRelevance(
+      {
+        product: { ...PRODUCT, brands: ["JoySpring"] },
+        ads,
+      },
+      {
+        primaryModel: () =>
+          new MockLanguageModelV3({
+            doGenerate: async (options: LanguageModelV3CallOptions) => {
+              llmCalls += 1
+              const prompt = JSON.stringify(options.prompt)
+              expect(prompt).toContain("a3")
+              expect(prompt).not.toContain("a1")
+              expect(prompt).not.toContain("a2")
+              return makeGenerateResult(denyAll)
+            },
+          }),
+      },
+    )
+
+    expect(llmCalls).toBe(1)
+    expect(result.verdicts).toHaveLength(3)
+    const v1 = result.verdicts.find((v) => v.adId === "a1")
+    const v2 = result.verdicts.find((v) => v.adId === "a2")
+    const v3 = result.verdicts.find((v) => v.adId === "a3")
+    expect(v1?.relevant).toBe(true)
+    expect(v1?.reason).toBe("brand_match:joyspring")
+    expect(v2?.relevant).toBe(true)
+    expect(v2?.reason).toBe("brand_match:joyspring")
+    expect(v3?.relevant).toBe(false)
+  })
+
+  test("all ads brand-match → LLM is never invoked", async () => {
+    let llmCalls = 0
+
+    const ads = [
+      { id: "a1", page_name: "JoySpring", ad_text: "" },
+      { id: "a2", page_name: "JoySpring Official Store", ad_text: "" },
+    ]
+
+    const result = await classifyRelevance(
+      { product: { ...PRODUCT, brands: ["JoySpring"] }, ads },
+      {
+        primaryModel: () =>
+          new MockLanguageModelV3({
+            doGenerate: async () => {
+              llmCalls += 1
+              return makeGenerateResult(makeClassification([]))
+            },
+          }),
+      },
+    )
+
+    expect(llmCalls).toBe(0)
+    expect(result.verdicts).toHaveLength(2)
+    for (const v of result.verdicts) {
+      expect(v.relevant).toBe(true)
+      expect(v.reason.startsWith("brand_match:")).toBe(true)
+    }
+  })
+
+  test("no brands provided → all ads sent to LLM (back-compat)", async () => {
+    let llmCalls = 0
+
+    const ads = [{ id: "a1", page_name: "JoySpring", ad_text: "" }]
+
+    const result = await classifyRelevance(
+      { product: PRODUCT, ads },
+      {
+        primaryModel: () =>
+          new MockLanguageModelV3({
+            doGenerate: async () => {
+              llmCalls += 1
+              return makeGenerateResult(
+                makeClassification([{ adId: "a1", relevant: false, reason: "no brand context" }]),
+              )
+            },
+          }),
+      },
+    )
+
+    expect(llmCalls).toBe(1)
+    expect(result.verdicts).toHaveLength(1)
+    expect(result.verdicts[0]?.relevant).toBe(false)
+  })
+})
+
 describe("classifyRelevance — UNTRUSTED wrapping", () => {
   test("page_name and ad_text wrapped in <UNTRUSTED>", async () => {
     let capturedPrompt: LanguageModelV3CallOptions["prompt"] | undefined

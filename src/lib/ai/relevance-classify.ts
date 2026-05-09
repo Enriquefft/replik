@@ -31,6 +31,7 @@ import type { RelevanceClassification } from "@/lib/ai/schemas.ts"
 import { RelevanceClassificationSchema } from "@/lib/ai/schemas.ts"
 import { InterestCategory } from "@/lib/ai/taxonomies.ts"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
+import { buildBrandKeySet, matchBrandKey } from "@/lib/scrape-brand-match.ts"
 
 // ─── Input schema ─────────────────────────────────────────────────────────────
 
@@ -39,6 +40,12 @@ export const RelevanceClassifyInputSchema = z.object({
     name: z.string(),
     category: InterestCategory.nullable(),
     keywords: z.array(z.string().min(1)),
+    /**
+     * Raw brand strings (canonical brand, raw brand, brand tokens). Ads whose
+     * `page_name` contains any of these (after diacritic/suffix normalization)
+     * are auto-marked relevant pre-LLM. Optional for back-compat.
+     */
+    brands: z.array(z.string().min(1)).optional(),
   }),
   ads: z
     .array(
@@ -178,10 +185,50 @@ export async function classifyRelevance(
   options: ClassifyRelevanceOptions = {},
 ): Promise<RelevanceClassification> {
   if (input.ads.length === 0) return { verdicts: [] }
+
+  // Pre-LLM brand-match bypass. Ads whose page_name contains any of the
+  // configured brand keys are auto-relevant. Customer's manual workflow
+  // never second-guesses on-brand ads, and the LLM gate has dropped them
+  // when ad_text is sparse — so we short-circuit deterministically.
+  const brandKeys = buildBrandKeySet(input.product.brands ?? [])
+  const bypassVerdicts: RelevanceClassification["verdicts"] = []
+  const remainingAds: RelevanceClassifyInput["ads"] = []
+  if (brandKeys.size > 0) {
+    for (const ad of input.ads) {
+      const matched = matchBrandKey(ad.page_name, brandKeys)
+      if (matched !== null) {
+        bypassVerdicts.push({
+          adId: ad.id,
+          relevant: true,
+          reason: `brand_match:${matched}`,
+        })
+      } else {
+        remainingAds.push(ad)
+      }
+    }
+  } else {
+    remainingAds.push(...input.ads)
+  }
+  logEvent("ai.classify_relevance.brand_match", {
+    inputAds: input.ads.length,
+    brandKeys: brandKeys.size,
+    bypassed: bypassVerdicts.length,
+    sentToLlm: remainingAds.length,
+  })
+
+  if (remainingAds.length === 0) {
+    return { verdicts: bypassVerdicts }
+  }
+
   const primaryFactory = options.primaryModel ?? (() => anthropic(MODELS.CLASSIFIER))
   const bumpedFactory = options.bumpedModel ?? (() => anthropic(MODELS.CREATIVE))
 
-  return withTiming(
+  const llmInput: RelevanceClassifyInput = {
+    product: input.product,
+    ads: remainingAds,
+  }
+
+  const llmResult = await withTiming(
     "ai.classify_relevance",
     () =>
       withRetry<RelevanceClassifyInput, RelevanceClassification>(
@@ -195,10 +242,12 @@ export async function classifyRelevance(
               reason: "fallback",
             })),
           }),
-          validate: (output) => validate(input, output),
+          validate: (output) => validate(llmInput, output),
         },
-        input,
+        llmInput,
       ),
-    { count: input.ads.length },
+    { count: remainingAds.length },
   )
+
+  return { verdicts: [...bypassVerdicts, ...llmResult.verdicts] }
 }

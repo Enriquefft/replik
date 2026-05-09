@@ -729,6 +729,9 @@ export const scrapeProduct = task({
                 name: productView.productName ?? "",
                 category: productView.category,
                 keywords: adKeywords,
+                brands: [canonicalBrand, productView.brand].filter(
+                  (b): b is string => b !== null && b.length > 0,
+                ),
               },
               ads: afterBlocklist.map((a) => ({
                 id: a.ad_id,
