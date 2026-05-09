@@ -63,9 +63,9 @@ export function rankByAngleDiversity<T extends AngleRankable>(rows: readonly T[]
   for (let depth = 0; depth < maxDepth; depth += 1) {
     for (const key of angleKeys) {
       const list = buckets.get(key)
-      if (list && depth < list.length) {
-        interleaved.push(list[depth] as T)
-      }
+      if (!list) continue
+      const item = list[depth]
+      if (item !== undefined) interleaved.push(item)
     }
   }
 
