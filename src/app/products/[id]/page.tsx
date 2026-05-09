@@ -1,5 +1,5 @@
 import { auth } from "@trigger.dev/sdk"
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
@@ -67,12 +67,22 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   // Render order: classified creatives first (they have transcripts and a
-  // sales angle), then everything else by insertion order.
+  // sales angle), then everything else by insertion order. Null-transcript
+  // rows are persistent transcribe failures (oversize, fetch_failed,
+  // whisper_failed) — hide them so the user can't pick one and crash the
+  // downstream burn pipeline, which dereferences `transcriptText` directly.
+  // Music-only ads transcribe to "" (empty string), not null, so they pass.
   const creativeRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
-      .where(and(eq(creatives.productId, productId), eq(creatives.userId, userId)))
+      .where(
+        and(
+          eq(creatives.productId, productId),
+          eq(creatives.userId, userId),
+          isNotNull(creatives.transcriptText),
+        ),
+      )
       .orderBy(desc(sql`${creatives.angle} IS NOT NULL`), asc(creatives.scrapedAt))
   })
 

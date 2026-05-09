@@ -38,6 +38,7 @@ import { isBlocked } from "@/lib/scrape-blocklist.ts"
 import { MAX_ADS, MAX_ADS_FETCH } from "@/lib/scrape-limits.ts"
 import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
 import { uploadSrt } from "@/lib/video"
+import { normalizeVideoUrl } from "@/lib/video-url.ts"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
@@ -46,7 +47,7 @@ const TASK_ID = "scrape-product"
 // Apify calls are metered (~$0.116 per 20-ad run worst case). Fanning out 5
 // broad-first terms keeps recall high without runaway cost.
 const META_MAX_KEYWORDS = 5
-const APIFY_MAX_KEYWORDS = 2
+const APIFY_MAX_KEYWORDS = 4
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
 const TRANSCRIBE_CONCURRENCY = 10
 const IDEMPOTENCY_TTL_DAYS = 7
@@ -107,8 +108,9 @@ function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[]
  *      reached or `META_MAX_KEYWORDS` keywords tried.
  *   2. If Meta produced any ads, return them tagged `meta_ad_library`.
  *   3. Otherwise fall back to Apify on the first `APIFY_MAX_KEYWORDS` broad
- *      keywords (Apify is metered per dataset item, so we cap aggressively).
- *      Same per-keyword loop + de-dup.
+ *      keywords. Same per-keyword loop + de-dup, same `MAX_ADS_FETCH` cap.
+ *      Apify is the de-facto primary path today (Meta OAuth permanently
+ *      broken), so the over-fetch optimization applies symmetrically.
  *
  * Joining broad+narrow into one whitespace-delimited query (the previous
  * behaviour) over-specified Meta's substring matcher and silently returned 0
@@ -169,13 +171,17 @@ async function findAds(
   }
 
   // ---------- Apify fallback ----------
-  // Apify is metered per dataset item (~$0.0058/ad) — keep fetch tight at
-  // MAX_ADS so spend stays bounded. The relevance gate still runs on Apify
-  // results; over-fetch is a Meta-only optimization.
+  // Apify is metered per dataset item (~$0.0058/ad) and is the de-facto
+  // primary path: the Meta Ad Library OAuth token is permanently broken at
+  // the integration level, so the Meta loop above always returns 0 and we
+  // fall through here on every run. We over-fetch to MAX_ADS_FETCH (50) so
+  // the blocklist + LLM relevance gate + URL dedup downstream have headroom
+  // to trim back to MAX_ADS (20) without starving the grid. Worst-case
+  // spend is bounded by APIFY_MAX_KEYWORDS × per-keyword actor cap.
   const apifyAds = new Map<string, FoundAd>()
   const apifyTried = keywords.slice(0, APIFY_MAX_KEYWORDS)
   for (const keyword of apifyTried) {
-    if (apifyAds.size >= MAX_ADS) break
+    if (apifyAds.size >= MAX_ADS_FETCH) break
     try {
       const batch = await apify.searchFBAdsByKeyword(keyword)
       let added = 0
@@ -191,7 +197,7 @@ async function findAds(
         if (ad.ad_text !== undefined && ad.ad_text.length > 0) found.ad_text = ad.ad_text
         apifyAds.set(ad.ad_id, found)
         added++
-        if (apifyAds.size >= MAX_ADS) break
+        if (apifyAds.size >= MAX_ADS_FETCH) break
       }
       logger.info("apify_keyword", {
         keyword,
@@ -696,8 +702,23 @@ export const scrapeProduct = task({
           })
         }
         const relevantIds = new Set(verdict.verdicts.filter((v) => v.relevant).map((v) => v.adId))
-        finalAds = afterBlocklist.filter((a) => relevantIds.has(a.ad_id)).slice(0, MAX_ADS)
-        metadata.set("relevance.dropped_by_llm", afterBlocklist.length - finalAds.length)
+        const afterRelevance = afterBlocklist.filter((a) => relevantIds.has(a.ad_id))
+        // Collapse rows that share a normalized video URL — same advertiser
+        // running one video across multiple placements gets a fresh `ad_id`
+        // per placement, so ad_id-only dedup in `findAds` lets duplicates
+        // through. Run this AFTER the relevance gate: the gate's prompt
+        // judges each ad's `ad_text`/`page_name`, so it needs all variants.
+        const seenUrls = new Set<string>()
+        const unique: FoundAd[] = []
+        for (const ad of afterRelevance) {
+          const key = normalizeVideoUrl(ad.scrape_url)
+          if (seenUrls.has(key)) continue
+          seenUrls.add(key)
+          unique.push(ad)
+        }
+        finalAds = unique.slice(0, MAX_ADS)
+        metadata.set("relevance.dropped_by_llm", afterBlocklist.length - afterRelevance.length)
+        metadata.set("relevance.dedup_dropped", afterRelevance.length - unique.length)
         metadata.set("relevance.kept", finalAds.length)
       }
 
