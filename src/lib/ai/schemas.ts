@@ -227,8 +227,6 @@ export const ImagePickResultSchema = z.object({
   selectedIndices: z.array(z.int().nonnegative()).min(1).max(3),
 })
 
-export type ImagePickResult = z.infer<typeof ImagePickResultSchema>
-
 // ─── Whisper / transcription ─────────────────────────────────────────────────
 
 /**

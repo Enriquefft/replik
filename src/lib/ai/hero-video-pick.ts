@@ -58,8 +58,6 @@ export const HeroVideoPickResultSchema = z.object({
   pickedCreativeId: z.string().min(1),
 })
 
-export type HeroVideoPickResult = z.infer<typeof HeroVideoPickResultSchema>
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Per-candidate transcript char cap (keeps the prompt within budget). */
