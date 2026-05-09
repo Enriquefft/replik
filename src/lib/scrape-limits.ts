@@ -7,12 +7,11 @@
 export const MAX_ADS = 20
 
 /**
- * Pre-filter ceiling for ad discovery. Both Meta Ad Library substring
- * matching and Apify keyword search surface unrelated mass spenders
- * (DramaBox-class), so we over-fetch and let the blocklist + LLM
- * relevance gate + URL dedup trim back to `MAX_ADS`. Apify is the
- * de-facto primary path (Meta OAuth token broken at the integration
- * level), so this ceiling effectively governs Apify accumulation across
- * `APIFY_MAX_KEYWORDS` keyword calls.
+ * Pre-filter ceiling for ad discovery. Apify keyword search surfaces
+ * unrelated mass spenders (DramaBox-class), so we over-fetch and let the
+ * blocklist + LLM relevance gate + URL dedup trim back to `MAX_ADS`. Apify
+ * is the sole creative source today; this ceiling governs accumulation
+ * across `APIFY_MAX_QUERIES` ladder steps and is the circuit-breaker
+ * threshold (the ladder stops walking tiers once we hit it).
  */
 export const MAX_ADS_FETCH = 50

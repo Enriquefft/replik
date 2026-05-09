@@ -89,6 +89,7 @@ export const products = pgTable("products", {
   name: text("name"),
   imageUrls: text("image_urls").array().notNull().default([]),
   brand: text("brand"),
+  canonicalBrand: text("canonical_brand"),
   category: text("category").$type<InterestCategoryT | null>(),
   pricingCents: integer("pricing_cents"),
   bundle2PricingCents: integer("bundle_2_pricing_cents"),

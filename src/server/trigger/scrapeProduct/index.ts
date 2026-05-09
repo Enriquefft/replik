@@ -27,6 +27,7 @@ import { and, eq } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { classifyAngle } from "@/lib/ai/angle-classify.ts"
+import { canonicalizeBrand } from "@/lib/ai/canonicalize-brand.ts"
 import { imperativeVerbCheck } from "@/lib/ai/guards.ts"
 import { classifyRelevance } from "@/lib/ai/relevance-classify.ts"
 import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
@@ -42,9 +43,12 @@ import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
 // Apify Facebook Ads scraper is the sole creative source. Calls are metered
-// (~$0.116 per 20-ad run worst case); fanning out 4 broad-first terms keeps
-// recall high without runaway cost.
-const APIFY_MAX_KEYWORDS = 4
+// (~$0.116 per 20-ad run worst case); the query ladder fans out across at
+// most APIFY_MAX_QUERIES distinct queries (brand-first → broad keywords).
+// Worst-case spend per scrape is therefore ~6 × $0.116 ≈ $0.70, but the
+// circuit breaker (MAX_ADS_FETCH=50) typically halts the ladder after 2-3
+// brand-tier calls when the brand actually advertises.
+const APIFY_MAX_QUERIES = 6
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
 const TRANSCRIBE_CONCURRENCY = 10
 const IDEMPOTENCY_TTL_DAYS = 7
@@ -68,28 +72,69 @@ interface FoundAd {
 }
 
 /**
- * Order keyword tiers broad-first and dedupe (case-insensitive). Broad tier
- * (1-2 word generic terms) drives category recall; narrow tier (3-6 word
- * long-tail buyer-intent phrases) is a fallback for niches where broad terms
- * are saturated. Empty entries are dropped.
+ * One step in the query ladder. `tier` is operator-facing telemetry only —
+ * the Apify call doesn't see it.
  */
-function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[] {
-  const out: string[] = []
+interface LadderQuery {
+  tier: "canonical_brand" | "raw_brand" | "brand_plus_name" | "broad_keyword" | "narrow_keyword"
+  keyword: string
+}
+
+/**
+ * Build an ordered query ladder (most specific → category fallback) from
+ * the brand identity + scraped keyword tiers. Customer flow §0: real
+ * operators query brand-first, then fall back to category terms only when
+ * brand exhausts. Tiers, in order:
+ *
+ *   1. canonicalBrand alone (e.g. "JoySpring") — highest signal-to-noise.
+ *   2. rawBrand alone (only if differs from canonicalBrand).
+ *   3. (rawBrand|canonicalBrand) + productName — pinpoints the SKU's own
+ *      ads even when the brand runs many products.
+ *   4. broad keywords (1-2 word category terms).
+ *   5. narrow keywords (3-6 word long-tail buyer-intent phrases) — last
+ *      because category-style products on Apify return 0 for over-specified
+ *      substrings.
+ *
+ * Dedupe is case-insensitive. Empty entries are dropped. Caller still caps
+ * to `APIFY_MAX_QUERIES` and can short-circuit on `MAX_ADS_FETCH`.
+ */
+export function buildQueryLadder(input: {
+  rawBrand: string | null
+  canonicalBrand: string | null
+  productName: string | null
+  broadKeywords: string[]
+  narrowKeywords: string[]
+}): LadderQuery[] {
+  const out: LadderQuery[] = []
   const seen = new Set<string>()
-  for (const kw of [...input.broad, ...input.narrow]) {
-    const trimmed = kw.trim()
-    if (trimmed.length === 0) continue
+  const push = (tier: LadderQuery["tier"], keyword: string) => {
+    const trimmed = keyword.trim()
+    if (trimmed.length === 0) return
     const key = trimmed.toLowerCase()
-    if (seen.has(key)) continue
+    if (seen.has(key)) return
     seen.add(key)
-    out.push(trimmed)
+    out.push({ tier, keyword: trimmed })
   }
+
+  if (input.canonicalBrand !== null) push("canonical_brand", input.canonicalBrand)
+  if (input.rawBrand !== null) push("raw_brand", input.rawBrand)
+  if (input.productName !== null) {
+    if (input.canonicalBrand !== null) {
+      push("brand_plus_name", `${input.canonicalBrand} ${input.productName}`)
+    }
+    if (input.rawBrand !== null && input.rawBrand !== input.canonicalBrand) {
+      push("brand_plus_name", `${input.rawBrand} ${input.productName}`)
+    }
+  }
+  for (const kw of input.broadKeywords) push("broad_keyword", kw)
+  for (const kw of input.narrowKeywords) push("narrow_keyword", kw)
+
   return out
 }
 
 /**
- * Discover up to `MAX_ADS_FETCH` distinct video ads for the supplied
- * broad-first keyword list via the Apify Facebook Ads scraper.
+ * Discover up to `MAX_ADS_FETCH` distinct video ads via the Apify Facebook
+ * Ads scraper, walking the brand-first query ladder.
  *
  * The pre-filter ceiling is `MAX_ADS_FETCH` (50), not `MAX_ADS` (20). The
  * downstream blocklist + LLM relevance gate trim back to `MAX_ADS` before
@@ -97,26 +142,30 @@ function orderedKeywords(input: { broad: string[]; narrow: string[] }): string[]
  * (DramaBox-class spam, marketplace ads tagging every category) without
  * starving the creative grid.
  *
- * Algorithm: iterate the broad-first keyword list, call Apify per-keyword,
- * accumulate de-duped ads keyed by `ad_id`. Stop once `MAX_ADS_FETCH` reached
- * or `APIFY_MAX_KEYWORDS` keywords tried. Worst-case spend bounded by
- * APIFY_MAX_KEYWORDS × per-keyword actor cap.
+ * Hard cap: `APIFY_MAX_QUERIES` Apify calls. Circuit breaker: stop the
+ * ladder as soon as accumulated ads reach `MAX_ADS_FETCH` — paying for
+ * extra tiers when the brand call already filled the bucket is waste.
  *
- * Joining broad+narrow into one whitespace-delimited query over-specifies the
- * substring matcher and silently returns 0 for category-style products.
- * Iterating per-keyword is the recall fix.
+ * Worst-case spend: APIFY_MAX_QUERIES × per-keyword actor cap.
  */
 async function findAds(
-  keywords: string[],
+  ladder: LadderQuery[],
 ): Promise<{ ads: FoundAd[]; source: "apify_fb" | "none" }> {
-  if (keywords.length === 0) return { ads: [], source: "none" }
+  if (ladder.length === 0) return { ads: [], source: "none" }
 
   const apifyAds = new Map<string, FoundAd>()
-  const apifyTried = keywords.slice(0, APIFY_MAX_KEYWORDS)
-  for (const keyword of apifyTried) {
-    if (apifyAds.size >= MAX_ADS_FETCH) break
+  const tried = ladder.slice(0, APIFY_MAX_QUERIES)
+  for (const step of tried) {
+    if (apifyAds.size >= MAX_ADS_FETCH) {
+      logger.info("apify_ladder_circuit_break", {
+        nextTier: step.tier,
+        nextKeyword: step.keyword,
+        total: apifyAds.size,
+      })
+      break
+    }
     try {
-      const batch = await apify.searchFBAdsByKeyword(keyword)
+      const batch = await apify.searchFBAdsByKeyword(step.keyword)
       let added = 0
       for (const ad of batch) {
         if (apifyAds.has(ad.ad_id)) continue
@@ -132,15 +181,17 @@ async function findAds(
         added++
         if (apifyAds.size >= MAX_ADS_FETCH) break
       }
-      logger.info("apify_keyword", {
-        keyword,
+      logger.info("apify_ladder_step", {
+        tier: step.tier,
+        keyword: step.keyword,
         rawCount: batch.length,
         added,
         total: apifyAds.size,
       })
     } catch (err) {
-      logger.warn("apify_failed", {
-        keyword,
+      logger.warn("apify_ladder_failed", {
+        tier: step.tier,
+        keyword: step.keyword,
         error: err instanceof Error ? err.message : String(err),
       })
     }
@@ -427,23 +478,70 @@ export const scrapeProduct = task({
             description: scrapeResult.partial.description,
             brand: scrapeResult.partial.brand,
           }
-      // Broad-first ordering: `findAds` fans out per-keyword, and broad terms
-      // (e.g. "flores", "ramos") drive category recall on Meta Ad Library /
-      // Apify. Narrow long-tail phrases come last as a fallback for niches
-      // where broad terms are saturated. `orderedKeywords` also dedupes the
-      // tiers (case-insensitive) since the LLM occasionally repeats a phrase
-      // across buckets.
-      const adKeywords = isReady ? orderedKeywords(scrapeResult.product.keywords) : []
+      const broadKeywords = isReady ? scrapeResult.product.keywords.broad : []
+      const narrowKeywords = isReady ? scrapeResult.product.keywords.narrow : []
+      // Flat keyword list (broad → narrow, deduped) — only used to (a) gate
+      // "no keywords at all" early-exit, (b) feed the relevance classifier
+      // its product-context array, and (c) persist on `products.keywords`
+      // for the dashboard. The Apify ladder is built separately below from
+      // brand identity + tiered buckets.
+      const adKeywords: string[] = []
+      const seen = new Set<string>()
+      for (const kw of [...broadKeywords, ...narrowKeywords]) {
+        const trimmed = kw.trim()
+        if (trimmed.length === 0) continue
+        const key = trimmed.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        adKeywords.push(trimmed)
+      }
 
       if (isReady) {
         logger.info("scrape_done", {
           productName: productView.productName,
           category: productView.category,
-          broadCount: scrapeResult.product.keywords.broad.length,
-          narrowCount: scrapeResult.product.keywords.narrow.length,
+          broadCount: broadKeywords.length,
+          narrowCount: narrowKeywords.length,
         })
       } else {
         logger.warn("scrape_partial", { reason: scrapeResult.reason })
+      }
+
+      // ---------- Step 1.5 — canonicalizeBrand (Phase P1.1) ----------
+      // The page's brand string (og:site_name / JSON-LD `brand.name`) is
+      // what the storefront declares — it can drift from the canonical
+      // brand identifier the company actually advertises under on
+      // Facebook (e.g. "Lingolib" vs parent "JoySpring"). Resolve once,
+      // persist alongside the raw brand, and feed BOTH into the query
+      // ladder. Fail-open: missing rawBrand or LLM error → null
+      // canonicalBrand and the ladder falls back to whatever it has.
+      let canonicalBrand: string | null = null
+      const rawBrand = productView.brand
+      if (rawBrand !== null && rawBrand.length > 0) {
+        try {
+          const result = await withTiming(
+            "task.scrape.canonicalize_brand",
+            () =>
+              canonicalizeBrand({
+                rawBrand,
+                productName: productView.productName,
+                category: productView.category,
+                entryUrl: competitorUrl,
+              }),
+            { rawBrand },
+          )
+          canonicalBrand = result.canonicalBrand
+          logger.info("canonicalize_brand_done", {
+            rawBrand,
+            canonicalBrand,
+            rationale: result.rationale,
+          })
+        } catch (err) {
+          logger.warn("canonicalize_brand_failed", {
+            rawBrand,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
 
       // Best-effort backfill of product metadata. Only writes columns the user
@@ -496,8 +594,12 @@ export const scrapeProduct = task({
           // Brand: persist whatever Stage C emitted (or null on non-PDP
           // pages without a detectable brand). Brand-tokens mirror the
           // brand string deterministically — keeps SRT-translate's
-          // brandTokens API contract intact.
+          // brandTokens API contract intact. `canonicalBrand` is the
+          // web-search-resolved name we query Facebook Ad Library with;
+          // null when canonicalize-brand failed or rawBrand was already
+          // canonical (caller substitutes rawBrand at the ladder).
           updates.brand = productView.brand
+          updates.canonicalBrand = canonicalBrand
           updates.brandTokens = deriveBrandTokens(productView.brand)
           await db
             .update(products)
@@ -554,10 +656,25 @@ export const scrapeProduct = task({
       }
 
       // ---------- Step 2 — findAds ----------
+      // Brand-first query ladder (Phase P1.2): canonicalBrand → rawBrand →
+      // brand+name → broad keywords → narrow keywords. Hard-capped at
+      // APIFY_MAX_QUERIES Apify calls; circuit-breaks once MAX_ADS_FETCH ads
+      // accumulate.
       metadata.set("phase", "finding_ads" satisfies ScrapePhase)
-      logger.info("find_ads_started", { keywordCount: adKeywords.length })
-      const { ads, source } = await withTiming("task.scrape.find_ads", () => findAds(adKeywords), {
-        keywordCount: adKeywords.length,
+      const ladder = buildQueryLadder({
+        rawBrand: productView.brand,
+        canonicalBrand,
+        productName: productView.productName,
+        broadKeywords,
+        narrowKeywords,
+      })
+      logger.info("find_ads_started", {
+        ladderSize: ladder.length,
+        capped: Math.min(ladder.length, APIFY_MAX_QUERIES),
+        tiers: ladder.slice(0, APIFY_MAX_QUERIES).map((s) => s.tier),
+      })
+      const { ads, source } = await withTiming("task.scrape.find_ads", () => findAds(ladder), {
+        ladderSize: ladder.length,
       })
       logger.info("find_ads_done", { count: ads.length, source })
       metadata.set("ads_fetched", ads.length)

@@ -66,6 +66,7 @@ const baseInput: LandingBodyInput = {
     name: "Set de ollas antiadherentes",
     imageUrls: ["https://cdn.example.com/x.jpg"],
     brand: null,
+    canonicalBrand: null,
     category: "kitchen",
     pricingCents: 4500,
     bundle2PricingCents: 8000,

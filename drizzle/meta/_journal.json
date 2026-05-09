@@ -78,6 +78,13 @@
       "when": 1778361905796,
       "tag": "0010_worried_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1778363000019,
+      "tag": "0011_add_canonical_brand",
+      "breakpoints": true
     }
   ]
 }

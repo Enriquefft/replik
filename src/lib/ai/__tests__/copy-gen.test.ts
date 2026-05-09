@@ -345,6 +345,7 @@ describe("generateCopy — explicit semantics", () => {
       name: "Producto X",
       imageUrls: ["https://cdn.example.com/x.jpg"],
       brand: null,
+      canonicalBrand: null,
       category: "kitchen",
       pricingCents: 5000,
       bundle2PricingCents: 9000,
