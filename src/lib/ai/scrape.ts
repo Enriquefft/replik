@@ -34,6 +34,7 @@ import { withRetry } from "@/lib/ai/retry.ts"
 import {
   type ProductFinal,
   type ProductFinalLLM,
+  ProductFinalLLMOutputSchema,
   ProductFinalLLMSchema,
   type ProductPartial,
   ProductPartialSchema,
@@ -1048,7 +1049,7 @@ async function callStageCPrimary(
   const result = await generateText({
     model,
     system: SYSTEM_PROMPT,
-    output: Output.object({ schema: ProductFinalLLMSchema }),
+    output: Output.object({ schema: ProductFinalLLMOutputSchema }),
     tools: { fetchUrl: fetchUrlTool },
     stopWhen: stepCountIs(MAX_TOOL_STEPS),
     temperature: defaultTemperature,
@@ -1066,7 +1067,7 @@ async function callStageCBumped(
   const result = await generateText({
     model,
     system: SYSTEM_PROMPT,
-    output: Output.object({ schema: ProductFinalLLMSchema }),
+    output: Output.object({ schema: ProductFinalLLMOutputSchema }),
     tools: { fetchUrl: fetchUrlTool },
     stopWhen: stepCountIs(MAX_TOOL_STEPS),
     temperature: defaultTemperature,

@@ -99,6 +99,21 @@ export const ProductFinalLLMSchema = z.object({
 export type ProductFinalLLM = z.infer<typeof ProductFinalLLMSchema>
 
 /**
+ * LLM-facing variant of `ProductFinalLLMSchema`. Drops `.min/.max` on
+ * `imageUrls` so the generated JSON Schema omits `minItems`/`maxItems`,
+ * which Anthropic structured outputs reject. The call-site validator in
+ * `scrape.ts` enforces the 1-3 bound post-parse via `ProductFinalLLMSchema`.
+ */
+export const ProductFinalLLMOutputSchema = z.object({
+  imageUrls: z.array(z.url()),
+  productName: z.string(),
+  category: InterestCategory,
+  brand: z.string().nullable(),
+  description: z.string().nullable(),
+  keywords: ProductKeywordsSchema,
+})
+
+/**
  * Fully-resolved product after Stage C LLM gap-fill + Stage D merge (§7).
  * Mandatory: imageUrls (1-3), productName, category, keywords. Carry-forward
  * fields (priceText, description, locale) are nullable because Stage A may
