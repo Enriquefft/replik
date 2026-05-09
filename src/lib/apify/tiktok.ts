@@ -23,9 +23,13 @@ const DEFAULT_COUNTRY = "PE"
 const RUN_TIMEOUT_SECS = 300
 const RESULT_CAP = 20
 // Hard upper bound on per-run spend. clockworks/tiktok-scraper bills per
-// dataset item; the 20-result cap × per-item charge is bounded below this
-// ceiling. The SDK forwards `maxTotalChargeUsd` to the actor process.
-const MAX_TOTAL_CHARGE_USD = 0.15
+// dataset item and rejects any input below its $0.50 platform floor with
+// "Maximum cost per run is less than the allowed minimum of $0.50".
+// Actual spend is still bounded by `RESULT_CAP × per-item rate`, which at
+// the published rate (~$4 / 1k items) is ~$0.08 for a 20-item call —
+// well under the floor. The floor is a platform safety net, not a
+// per-call expectation.
+const MAX_TOTAL_CHARGE_USD = 0.5
 
 const NonEmpty = z.string().min(1)
 
