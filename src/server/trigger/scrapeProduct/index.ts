@@ -38,7 +38,7 @@ import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log
 import { isBlocked } from "@/lib/scrape-blocklist.ts"
 import { MAX_ADS, MAX_ADS_FETCH } from "@/lib/scrape-limits.ts"
 import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
-import { type OriginalUploadInput, uploadOriginalsFromUrl, uploadSrt } from "@/lib/video"
+import { uploadSrt } from "@/lib/video"
 import { normalizeVideoUrl } from "@/lib/video-url.ts"
 import type { ScrapePhase } from "./metadata.ts"
 
@@ -53,28 +53,6 @@ const APIFY_MAX_QUERIES = 6
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
 const TRANSCRIBE_CONCURRENCY = 10
 const IDEMPOTENCY_TTL_DAYS = 7
-
-const APIFY_KV_HOST = "api.apify.com"
-
-function isApifyKvUrl(url: string): boolean {
-  try {
-    return new URL(url).hostname === APIFY_KV_HOST
-  } catch {
-    return false
-  }
-}
-
-function appendApifyToken(rawUrl: string): string | null {
-  const token = process.env.APIFY_TOKEN
-  if (!token) return null
-  try {
-    const u = new URL(rawUrl)
-    u.searchParams.set("token", token)
-    return u.toString()
-  } catch {
-    return null
-  }
-}
 
 type CreativeSource = "apify_fb" | "apify_tiktok"
 
@@ -885,91 +863,6 @@ export const scrapeProduct = task({
           .values(rows)
           .returning({ id: creatives.id, scrapeUrl: creatives.scrapeUrl })
       })
-
-      // ---------- Step 2.5 — pre-rehost private-host creatives ----------
-      // TikTok creatives surface as Apify Key-Value Store URLs
-      // (api.apify.com/v2/key-value-stores/.../records/...mp4) which require
-      // an APIFY_TOKEN to fetch — they 403 anonymously. Persisting the raw
-      // URL would break both transcribe (server fetch) and UI preview (browser
-      // fetch with no token), so we rehost to UploadThing here. The token
-      // travels in-process only (suffixed onto the URL passed to UploadThing's
-      // server-side fetcher) and is never persisted. On success we insert
-      // an `original_video` asset row, which makes the user-triggered
-      // `rehostCreatives` task a no-op for these creatives.
-      const rehostInputs: OriginalUploadInput[] = []
-      const rehostByCreativeId = new Map<string, { scrapeUrl: string }>()
-      for (const c of insertedCreatives) {
-        if (!isApifyKvUrl(c.scrapeUrl)) continue
-        const tokenisedUrl = appendApifyToken(c.scrapeUrl)
-        if (tokenisedUrl === null) continue
-        rehostInputs.push({ url: tokenisedUrl, customId: c.id })
-        rehostByCreativeId.set(c.id, { scrapeUrl: c.scrapeUrl })
-      }
-
-      if (rehostInputs.length > 0) {
-        logger.info("prerehost_started", { count: rehostInputs.length })
-        const outcomes = await uploadOriginalsFromUrl(rehostInputs)
-        const successful: Array<{ creativeId: string; url: string; bytes: number; mime: string }> =
-          []
-        let failedCount = 0
-        for (const outcome of outcomes) {
-          if (!rehostByCreativeId.has(outcome.customId)) continue
-          if (outcome.ok) {
-            successful.push({
-              creativeId: outcome.customId,
-              url: outcome.url,
-              bytes: outcome.bytes,
-              mime: outcome.mime,
-            })
-          } else {
-            failedCount += 1
-            logger.warn("prerehost_failed", {
-              creativeId: outcome.customId,
-              error: outcome.error,
-            })
-          }
-        }
-        if (successful.length > 0) {
-          await withUser(userId, async (db) => {
-            await db
-              .insert(assets)
-              .values(
-                successful.map((s) => ({
-                  ownerType: "creative" as const,
-                  ownerId: s.creativeId,
-                  kind: "original_video" as const,
-                  url: s.url,
-                  bytes: s.bytes,
-                  mime: s.mime,
-                })),
-              )
-              .onConflictDoNothing({
-                target: [assets.ownerType, assets.ownerId, assets.kind],
-              })
-            // Update creatives.scrapeUrl per-row so the in-memory
-            // `insertedCreatives` (used below for transcribe) matches DB
-            // state and downstream code never sees the private KV URL.
-            await Promise.all(
-              successful.map((s) =>
-                db
-                  .update(creatives)
-                  .set({ scrapeUrl: s.url })
-                  .where(and(eq(creatives.id, s.creativeId), eq(creatives.userId, userId))),
-              ),
-            )
-          })
-          const successById = new Map(successful.map((s) => [s.creativeId, s.url] as const))
-          for (const c of insertedCreatives) {
-            const next = successById.get(c.id)
-            if (next !== undefined) c.scrapeUrl = next
-          }
-        }
-        logger.info("prerehost_done", {
-          requested: rehostInputs.length,
-          rehosted: successful.length,
-          failed: failedCount,
-        })
-      }
 
       // ---------- Step 3 — transcribeAds ----------
       metadata.set("phase", "transcribing" satisfies ScrapePhase)
