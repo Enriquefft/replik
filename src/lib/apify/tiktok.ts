@@ -110,7 +110,7 @@ export async function searchTikTokByKeyword(keyword: string): Promise<RawCreativ
       searchQueries: [keyword],
       resultsPerPage: RESULT_CAP,
       searchSection: "/video",
-      videoSearchSorting: "relevance",
+      videoSearchSorting: "MOST_RELEVANT",
       proxyCountryCode: DEFAULT_COUNTRY,
       shouldDownloadVideos: false,
       shouldDownloadCovers: false,
