@@ -1,8 +1,10 @@
+import { auth } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products } from "@/db/schema"
+import { productTag } from "@/lib/trigger-tags.ts"
+import { toProductId } from "@/lib/types/ids.ts"
 import { EditPageClient } from "./edit-page-client.tsx"
 
 interface PageProps {
@@ -10,14 +12,15 @@ interface PageProps {
 }
 
 export default async function EditPage({ params }: PageProps) {
-  const { id } = await params
+  const { id: rawId } = await params
+  const productId = toProductId(rawId)
   const { userId } = await requireUser()
 
   const productData = await withUser(userId, async (db) => {
     const rows = await db
       .select()
       .from(products)
-      .where(and(eq(products.id, id), eq(products.userId, userId)))
+      .where(and(eq(products.id, productId), eq(products.userId, userId)))
       .limit(1)
     return rows[0] ?? null
   })
@@ -26,14 +29,13 @@ export default async function EditPage({ params }: PageProps) {
     notFound()
   }
 
-  // Fetch selected creatives with their assets
   const creativeRows = await withUser(userId, async (db) => {
     return db
       .select()
       .from(creatives)
       .where(
         and(
-          eq(creatives.productId, id),
+          eq(creatives.productId, productId),
           eq(creatives.userId, userId),
           eq(creatives.selectedBool, true),
         ),
@@ -52,6 +54,14 @@ export default async function EditPage({ params }: PageProps) {
     }),
   )
 
+  // Realtime read scope is the same `productTag` already used by the scrape
+  // pipeline — rehostCreatives + every translateAndBurnSubs run is tagged
+  // with it, so one subscription covers all per-creative work.
+  const accessToken = await auth.createPublicToken({
+    scopes: { read: { tags: [productTag(productId)] } },
+    expirationTime: "1h",
+  })
+
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-8">
       <div className="mx-auto max-w-4xl flex flex-col gap-6">
@@ -62,21 +72,15 @@ export default async function EditPage({ params }: PageProps) {
           <h2 className="text-title">Traduciendo y quemando subtítulos</h2>
           <p className="text-body text-fg-2 mt-1">
             Los videos seleccionados están siendo procesados con subtítulos en español. Cuando
-            terminen, podrás continuar a la landing.
+            terminen, podrás descargarlos y continuar a la landing.
           </p>
         </div>
 
-        <EditPageClient productId={id} creatives={creativesWithAssets} />
-
-        {/* Continue button — enabled when all done */}
-        <div className="flex justify-end mt-4">
-          <Link
-            href={`/products/${id}/landing`}
-            className="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
-          >
-            Continuar → Landing
-          </Link>
-        </div>
+        <EditPageClient
+          productId={productId}
+          creatives={creativesWithAssets}
+          accessToken={accessToken}
+        />
       </div>
     </div>
   )

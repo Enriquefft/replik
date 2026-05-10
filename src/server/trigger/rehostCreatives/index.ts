@@ -6,6 +6,8 @@ import { withUser } from "@/db/client"
 import { assets, creatives } from "@/db/schema"
 import { withApifyTokenIfKv } from "@/lib/apify/auth.ts"
 import { logEvent } from "@/lib/observability/log.ts"
+import { productTag } from "@/lib/trigger-tags.ts"
+import { toProductId } from "@/lib/types/ids.ts"
 import { type OriginalUploadInput, uploadOriginalsFromUrl } from "@/lib/video"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 
@@ -26,6 +28,10 @@ import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurn
 const RehostCreativesPayloadSchema = z.object({
   creativeIds: z.array(z.uuid()).min(1),
   userId: z.uuid(),
+  /** Used solely to tag the rehost run + every child burn run with
+   *  `productTag(productId)` so the Paso 3 realtime UI can subscribe
+   *  by product and see all per-creative work in one stream. */
+  productId: z.uuid(),
 })
 
 type RehostCreativesPayload = z.infer<typeof RehostCreativesPayloadSchema>
@@ -50,8 +56,9 @@ export const rehostCreativesTask = task({
   machine: { preset: "small-1x" },
   run: async (rawPayload: RehostCreativesPayload): Promise<RehostSummary> => {
     const payload = RehostCreativesPayloadSchema.parse(rawPayload)
-    const { creativeIds, userId } = payload
+    const { creativeIds, userId, productId } = payload
     const startedAt = Date.now()
+    const burnTag = productTag(toProductId(productId))
 
     logger.info("rehost.start", { count: creativeIds.length })
 
@@ -178,6 +185,7 @@ export const rehostCreativesTask = task({
         "translateAndBurnSubs",
         [...burnIds].map((creativeId) => ({
           payload: { creativeId, userId, attempt: 1 },
+          options: { tags: [burnTag] },
         })),
       )
       for (const run of burnBatch.runs) {

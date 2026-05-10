@@ -264,6 +264,7 @@ async function cmdSelect(args: ParsedArgs): Promise<void> {
   await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
     creativeIds: ids,
     userId,
+    productId,
   })
   console.log(`selected=${ids.length} ids=${ids.join(",")}`)
 }

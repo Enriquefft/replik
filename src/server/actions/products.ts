@@ -334,10 +334,11 @@ export async function selectCreatives(
           )
 
         try {
-          await tasks.trigger<typeof rehostCreativesTask>("rehostCreatives", {
-            creativeIds,
-            userId,
-          })
+          await tasks.trigger<typeof rehostCreativesTask>(
+            "rehostCreatives",
+            { creativeIds, userId, productId },
+            { tags: [productTag(toProductId(productId))] },
+          )
         } catch (err) {
           const reason =
             err instanceof Error ? err.message : "Error al iniciar la edición de video."
