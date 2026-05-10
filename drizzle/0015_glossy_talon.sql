@@ -1,0 +1,1 @@
+ALTER TABLE "creatives" ADD COLUMN "brand_matched" boolean DEFAULT false NOT NULL;

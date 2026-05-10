@@ -6,7 +6,7 @@ import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products } from "@/db/schema"
-import { rankByAngleDiversity } from "@/lib/rank/angle-diversity.ts"
+import { rankByComposite } from "@/lib/rank/composite.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { toProductId } from "@/lib/types/ids.ts"
 import {
@@ -77,8 +77,9 @@ export default async function ProductPage({ params }: PageProps) {
   // Null-transcript rows are still hidden from the selectable grid because
   // the burn pipeline dereferences `transcriptText` directly — letting users
   // select would crash. Music-only ads transcribe to "" (not null), so they
-  // pass. Ordering of the selectable subset is delegated to
-  // `rankByAngleDiversity` (round-robin across sales-angle buckets).
+  // pass. Ordering uses `rankByComposite` — score = brand-match × engagement
+  // × recency, then round-robin across angle buckets so the top-N spans
+  // different hooks before doubling up on a single angle.
   const allCreativeRows = await withUser(userId, async (db) => {
     return db
       .select()
@@ -87,7 +88,7 @@ export default async function ProductPage({ params }: PageProps) {
   })
 
   const transcribedRows = allCreativeRows.filter((row) => row.transcriptText !== null)
-  const selectableRows = rankByAngleDiversity(transcribedRows)
+  const selectableRows = rankByComposite(transcribedRows)
   const counts: CreativeCounts = {
     total: allCreativeRows.length,
     withTranscript: selectableRows.length,

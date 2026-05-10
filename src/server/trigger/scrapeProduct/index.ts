@@ -80,6 +80,10 @@ interface FoundAd {
    *  FB startDate/isActive/totalActiveTime, etc). Forwarded verbatim from
    *  the apify wrapper into the creatives insert. */
   engagement?: EngagementSignals
+  /** Set true when the relevance gate auto-passed this ad via brand-name
+   *  match (verdict.reason starts with "brand_match:"). Persisted as
+   *  `creatives.brandMatched` for the composite ranker's brand boost. */
+  brandMatched?: boolean
 }
 
 /**
@@ -506,6 +510,7 @@ function buildCreativeInsertRow(
     scrapeUrl: ad.scrape_url,
     advertiserName: ad.page_name ?? null,
     selectedBool: false,
+    brandMatched: ad.brandMatched ?? false,
   }
   const e = ad.engagement
   if (e === undefined) return base
@@ -526,6 +531,8 @@ function buildCreativeInsertRow(
   base.engagementJson = e
   return base
 }
+
+const BRAND_MATCH_REASON_PREFIX = "brand_match:"
 
 interface ScrapePayload {
   productId: string
@@ -900,6 +907,16 @@ export const scrapeProduct = task({
           { count: afterBlocklist.length },
         )
         const adById = new Map(afterBlocklist.map((a) => [a.ad_id, a] as const))
+        // Capture brand-match verdicts so we can persist them on the row.
+        // The relevance gate already runs `matchBrandKey` per ad and stamps
+        // `reason: "brand_match:<key>"` on bypassed verdicts; we just lift
+        // that boolean back onto the FoundAd. Used by the composite ranker
+        // as a hard boost (own-brand ads sort to the top of their tier).
+        const brandMatchedIds = new Set(
+          verdict.verdicts
+            .filter((v) => v.reason.startsWith(BRAND_MATCH_REASON_PREFIX))
+            .map((v) => v.adId),
+        )
         for (const v of verdict.verdicts) {
           const ad = adById.get(v.adId)
           logger.info("relevance_verdict", {
@@ -910,7 +927,9 @@ export const scrapeProduct = task({
           })
         }
         const relevantIds = new Set(verdict.verdicts.filter((v) => v.relevant).map((v) => v.adId))
-        const afterRelevance = afterBlocklist.filter((a) => relevantIds.has(a.ad_id))
+        const afterRelevance = afterBlocklist
+          .filter((a) => relevantIds.has(a.ad_id))
+          .map((a) => ({ ...a, brandMatched: brandMatchedIds.has(a.ad_id) }))
         // Collapse rows that share a normalized video URL — same advertiser
         // running one video across multiple placements gets a fresh `ad_id`
         // per placement, so ad_id-only dedup in `findAds` lets duplicates

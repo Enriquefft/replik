@@ -152,6 +152,11 @@ export const creatives = pgTable(
     /** Brand-match score (0.000–1.000) populated by the P2 ranker.
      *  Nullable until the ranker has scored the row. */
     brandMatchScore: numeric("brand_match_score", { precision: 4, scale: 3 }),
+    /** Deterministic brand match — true when the advertiser page_name
+     *  contained any normalized brand key at the relevance gate
+     *  (`scrape-brand-match.matchBrandKey`). Used by the composite ranker
+     *  as a hard boost: own-brand ads sort to the top of their tier. */
+    brandMatched: boolean("brand_matched").notNull().default(false),
     engagementJson: jsonb("engagement_json").$type<EngagementSignals>(),
   },
   (t) => [index("creatives_play_count_idx").on(t.productId, sql`${t.playCount} DESC NULLS LAST`)],
