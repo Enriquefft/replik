@@ -44,12 +44,27 @@ export type CreativeWithVideo = Creative & {
   srtUrl: string | null
 }
 
+/**
+ * Aggregate counts surfaced server-side so the client renders an honest
+ * header without re-deriving on every render. `total` is every creative
+ * row scraped for this product; `withTranscript` is the subset the user
+ * can actually pick (downstream burn dereferences `transcriptText`
+ * directly, so null-transcript rows are suppressed from the grid);
+ * `hiddenNoTranscript = total - withTranscript`.
+ */
+export interface CreativeCounts {
+  total: number
+  withTranscript: number
+  hiddenNoTranscript: number
+}
+
 interface CreativesClientProps {
   productId: string
   creatives: CreativeWithVideo[]
+  counts: CreativeCounts
 }
 
-export function CreativesClient({ productId, creatives }: CreativesClientProps) {
+export function CreativesClient({ productId, creatives, counts }: CreativesClientProps) {
   const router = useRouter()
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = React.useState(false)
@@ -83,6 +98,24 @@ export function CreativesClient({ productId, creatives }: CreativesClientProps) 
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Honest header — disclose silent suppression of null-transcript rows.
+          The grid only renders selectable rows, but the user paid for the
+          scrape and deserves to see how many we held back and why. */}
+      <p className="text-caption text-fg-3">
+        Mostrando{" "}
+        <span className="font-semibold tabular-nums text-fg-2">
+          {counts.withTranscript.toString()}
+        </span>{" "}
+        de <span className="font-semibold tabular-nums text-fg-2">{counts.total.toString()}</span>
+        {counts.hiddenNoTranscript > 0 ? (
+          <>
+            {" · "}
+            <span className="text-fg-3">
+              {counts.hiddenNoTranscript.toString()} ocultos sin transcripción
+            </span>
+          </>
+        ) : null}
+      </p>
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
         {creatives.map((creative) => (
