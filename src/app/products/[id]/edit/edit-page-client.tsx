@@ -42,9 +42,6 @@ const PHASE_PROGRESS: Record<BurnPhase, number> = {
   upload: 92,
 }
 
-// run.payload is typed via the hook generic but the runtime value still
-// goes through trigger.dev's serialization layer. Parse defensively so a
-// shape change can't crash the page.
 const BurnPayloadSchema = z.object({ creativeId: z.string() })
 
 function getCreativeIdFromRun(run: BurnRun): string | null {
@@ -59,10 +56,6 @@ function progressForRun(status: RunStatus | undefined, phase: BurnPhase | undefi
   if (status === "COMPLETED") return 100
   if (phase) return PHASE_PROGRESS[phase]
   return 18
-}
-
-function pickLatestRun(a: BurnRun, b: BurnRun): BurnRun {
-  return new Date(b.createdAt).getTime() > new Date(a.createdAt).getTime() ? b : a
 }
 
 function downloadFilename(creative: CreativeWithAssets): string {
@@ -88,7 +81,11 @@ export function EditPageClient({ productId, creatives, accessToken }: EditPageCl
       const cid = getCreativeIdFromRun(run)
       if (cid === null) continue
       const existing = map.get(cid)
-      map.set(cid, existing ? pickLatestRun(existing, run) : run)
+      const winner =
+        existing && new Date(existing.createdAt).getTime() > new Date(run.createdAt).getTime()
+          ? existing
+          : run
+      map.set(cid, winner)
     }
     return map
   }, [runs])

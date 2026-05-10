@@ -277,7 +277,6 @@ export const translateAndBurnSubsTask = task({
         () => burnSubs({ videoUrl: originalAsset.url, srt: finalSrt }),
         { creativeId },
       )
-      metadata.set("bytes", burned.buffer.byteLength)
       logger.info("burn_done", {
         creativeId,
         bytes: burned.buffer.byteLength,

@@ -28,9 +28,7 @@ import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurn
 const RehostCreativesPayloadSchema = z.object({
   creativeIds: z.array(z.uuid()).min(1),
   userId: z.uuid(),
-  /** Used solely to tag the rehost run + every child burn run with
-   *  `productTag(productId)` so the Paso 3 realtime UI can subscribe
-   *  by product and see all per-creative work in one stream. */
+  /** Tag scope for realtime UI subscription. */
   productId: z.uuid(),
 })
 
