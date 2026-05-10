@@ -120,9 +120,9 @@ describe("runPostCheck", () => {
     expect(runPostCheck(ok)).toEqual([])
   })
 
-  test("flags META_POLICY_MEDICAL on primaryText", () => {
+  test("flags META_POLICY_BEFORE_AFTER on primaryText", () => {
     const candidate: CopyContent = {
-      primaryText: "Cura el dolor en una semana, garantizado por especialistas.",
+      primaryText: "Mira el antes y después en una semana.",
       headline: "Hoy ahorras plata",
       description: "Llega a tu puerta",
     }
@@ -396,8 +396,8 @@ describe("generateCopy — explicit semantics", () => {
 
   test("post-check failure triggers ONE regenerate; merges only failed fields", async () => {
     const violatingWinner: CopyContent = {
-      primaryText: "Cura el dolor en una semana, garantizado por especialistas.",
-      headline: "Resultado garantizado",
+      primaryText: "Mira el antes y después en una semana, sin esfuerzo extra.",
+      headline: "Antes y después claro",
       description: "Sin riesgos",
     }
     const candidates: readonly CopyContent[] = [c0, violatingWinner, c2, c3, c4]
@@ -454,12 +454,12 @@ describe("generateCopy — explicit semantics", () => {
 
   test("regenerate output still failing → onUnresolvedViolations called with merged candidate", async () => {
     const violatingWinner: CopyContent = {
-      primaryText: "Cura el insomnio en una noche sin esfuerzo extra.",
+      primaryText: "Mira el antes y después en una noche sin esfuerzo extra.",
       headline: "Hoy ahorras plata",
       description: "Sin riesgos",
     }
     const stillBad: CopyContent = {
-      primaryText: "Cura insomnio garantizado, comprobado por todos.",
+      primaryText: "Mira el antes y después comprobado por todos los clientes.",
       headline: "Hoy ahorras plata",
       description: "Sin riesgos",
     }

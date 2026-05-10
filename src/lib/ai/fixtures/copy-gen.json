@@ -2070,7 +2070,7 @@
           "description": "Llega a tu puerta"
         },
         {
-          "primaryText": "Cura el dolor en una semana, garantizado por especialistas locales.",
+          "primaryText": "Mira el antes y después en una semana, sin promesas exageradas.",
           "headline": "50 soles menos hoy",
           "description": "Bundle de dos"
         },
@@ -2098,7 +2098,7 @@
         "description": "Bundle de dos"
       },
       "expectedPostCheck": {
-        "metaPolicy": "fail:META_POLICY_MEDICAL",
+        "metaPolicy": "fail:META_POLICY_BEFORE_AFTER",
         "aiSpeak": "ok",
         "lengthCheck": "ok"
       }
@@ -2144,7 +2144,7 @@
           "description": "Llega a tu puerta"
         },
         {
-          "primaryText": "¿Sufres de dolor de espalda todos los días al levantarte? Esto te ayuda.",
+          "primaryText": "Baja 5 kg en una semana sin esfuerzo extra al levantarte.",
           "headline": "50 soles menos hoy",
           "description": "Bundle de dos"
         },
@@ -2172,7 +2172,7 @@
         "description": "Bundle de dos"
       },
       "expectedPostCheck": {
-        "metaPolicy": "fail:META_POLICY_PERSONAL_ATTR",
+        "metaPolicy": "fail:META_POLICY_BEFORE_AFTER",
         "aiSpeak": "ok",
         "lengthCheck": "ok"
       }

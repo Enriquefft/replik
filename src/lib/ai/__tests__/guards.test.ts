@@ -57,23 +57,15 @@ describe("aiSpeak — existing rules do not regress", () => {
   })
 })
 
-// ─── metaPolicy — smoke-check existing 3 rules ───────────────────────────────
-
-describe("metaPolicy — existing rules smoke-check", () => {
-  test("META_POLICY_MEDICAL — 'cura' triggers fail", () => {
-    const result = metaPolicy("Este producto cura el dolor de espalda.")
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.reason).toBe("META_POLICY_MEDICAL")
-  })
-
-  test("META_POLICY_PERSONAL_ATTR — '¿sufres' triggers fail", () => {
-    const result = metaPolicy("¿sufres de dolor articular?")
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.reason).toBe("META_POLICY_PERSONAL_ATTR")
-  })
-
+describe("metaPolicy — before/after rule", () => {
   test("META_POLICY_BEFORE_AFTER — 'antes y después' triggers fail", () => {
     const result = metaPolicy("Mira el antes y después del tratamiento.")
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toBe("META_POLICY_BEFORE_AFTER")
+  })
+
+  test("META_POLICY_BEFORE_AFTER — 'baja N kg' triggers fail", () => {
+    const result = metaPolicy("Baja 5 kg en una semana.")
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.reason).toBe("META_POLICY_BEFORE_AFTER")
   })
@@ -82,22 +74,27 @@ describe("metaPolicy — existing rules smoke-check", () => {
     const result = metaPolicy("Tres ollas a 89 soles. Mismo material, sin pagar la marquita.")
     expect(result.ok).toBe(true)
   })
+
+  test("legitimate FAQ '¿Tienes dudas?' passes (was false-positive under PERSONAL_ATTR)", () => {
+    const result = metaPolicy("¿Tienes dudas sobre la entrega?")
+    expect(result.ok).toBe(true)
+  })
+
+  test("legitimate cleaner copy 'elimina manchas' passes (was false-positive under MEDICAL)", () => {
+    const result = metaPolicy("Elimina manchas difíciles en segundos.")
+    expect(result.ok).toBe(true)
+  })
+
+  test("legitimate logistics 'envío garantizado' passes (was false-positive under MEDICAL)", () => {
+    const result = metaPolicy("Envío garantizado en 48 horas.")
+    expect(result.ok).toBe(true)
+  })
 })
 
 // ─── imperativeVerbCheck — starter-verb screen (§5 Stage D) ──────────────────
 
 describe("imperativeVerbCheck — starter verbs trigger fail", () => {
-  const starterVerbs = [
-    "compra",
-    "descubre",
-    "prueba",
-    "consigue",
-    "ordena",
-    "haz",
-    "llama",
-    "visita",
-    "aprovecha",
-  ] as const
+  const starterVerbs = ["descubre", "consigue", "aprovecha"] as const
 
   for (const verb of starterVerbs) {
     test(`'${verb}' at start triggers fail (lowercase)`, () => {
@@ -115,15 +112,33 @@ describe("imperativeVerbCheck — starter verbs trigger fail", () => {
   }
 })
 
+describe("imperativeVerbCheck — noun-collision verbs no longer fail", () => {
+  test("'Compra inteligente' (noun) passes", () => {
+    expect(imperativeVerbCheck("Compra inteligente del mes").ok).toBe(true)
+  })
+
+  test("'Prueba de sabor' (noun) passes", () => {
+    expect(imperativeVerbCheck("Prueba de sabor mango").ok).toBe(true)
+  })
+
+  test("'Visita guiada' (noun) passes", () => {
+    expect(imperativeVerbCheck("Visita guiada al taller").ok).toBe(true)
+  })
+
+  test("'Llama 3kg' (noun, animal) passes", () => {
+    expect(imperativeVerbCheck("Llama de peluche grande").ok).toBe(true)
+  })
+})
+
 describe("imperativeVerbCheck — leading whitespace is trimmed", () => {
   test("leading spaces before starter verb triggers fail", () => {
-    const result = imperativeVerbCheck("   compra este producto")
+    const result = imperativeVerbCheck("   descubre este producto")
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.reason).toBe("IMPERATIVE_VERB")
   })
 
   test("leading tab before starter verb triggers fail", () => {
-    const result = imperativeVerbCheck("\tvisita la tienda")
+    const result = imperativeVerbCheck("\taprovecha la oferta")
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.reason).toBe("IMPERATIVE_VERB")
   })

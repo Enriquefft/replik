@@ -43,6 +43,7 @@ import {
 } from "@/lib/ai/schemas.ts"
 import { InterestCategory, Locale } from "@/lib/ai/taxonomies.ts"
 import { logError, logEvent, withTiming } from "@/lib/observability/log.ts"
+import { buildBrandKeySet, matchBrandKey } from "@/lib/scrape-brand-match.ts"
 
 // ─── Constants (§7) ──────────────────────────────────────────────────────────
 
@@ -1378,9 +1379,8 @@ export async function scrapeProductInfo(
   // synthesised a productName that contains the brand substring, fail and
   // fall through to manual fill — Bug A guard rail.
   if (shape === "non_pdp" && llmFinal.brand) {
-    const nameLower = llmFinal.productName.toLowerCase()
-    const brandLower = llmFinal.brand.toLowerCase()
-    if (nameLower.includes(brandLower)) {
+    const matched = matchBrandKey(llmFinal.productName, buildBrandKeySet([llmFinal.brand]))
+    if (matched !== null) {
       logEvent("ai.scrape.brand-leak", {
         url: input.url,
         productName: llmFinal.productName,

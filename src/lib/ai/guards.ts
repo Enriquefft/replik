@@ -16,12 +16,6 @@ const AI_SPEAK_EXCLAMATION_CHAIN = /!{2,}/
 
 // ─── Meta policy ban list (§5) ────────────────────────────────────────────────
 
-/** Medical/miracle claims prohibited by Meta ad policies. */
-const META_POLICY_MEDICAL = /(cura|elimina|milagroso|garantizado|adelgaza|previene)/i
-
-/** Personal-attribute questions that imply targeting by characteristic. */
-const META_POLICY_PERSONAL_ATTR = /¿(sufres|tienes|eres|estás)\b/i
-
 /** Before/after framing or weight-loss quantity claims. */
 const META_POLICY_BEFORE_AFTER = /(antes\s+y\s+después|baja\s+\d+\s*kg)/i
 
@@ -29,10 +23,12 @@ const META_POLICY_BEFORE_AFTER = /(antes\s+y\s+después|baja\s+\d+\s*kg)/i
 
 /**
  * Imperative verbs that signal AI-generated marketing copy when they appear at
- * the start of a product name or description (§5). Trim leading whitespace
- * before matching.
+ * the start of a product name or description. Trim leading whitespace before
+ * matching. Limited to verbs without noun collisions — `compra`/`prueba`/
+ * `visita`/`haz`/`llama` are common Spanish nouns and would false-positive on
+ * legit names like "Compra inteligente" or "Prueba de sabor".
  */
-const IMPERATIVE_VERB = /^(compra|descubre|prueba|consigue|ordena|haz|llama|visita|aprovecha)/i
+const IMPERATIVE_VERB = /^(descubre|consigue|aprovecha)/i
 
 // ─── Guard result type ────────────────────────────────────────────────────────
 
@@ -73,12 +69,6 @@ export function aiSpeak(text: string): GuardResult {
  * Pure function — no I/O.
  */
 export function metaPolicy(text: string): GuardResult {
-  if (META_POLICY_MEDICAL.test(text)) {
-    return { ok: false, reason: "META_POLICY_MEDICAL" }
-  }
-  if (META_POLICY_PERSONAL_ATTR.test(text)) {
-    return { ok: false, reason: "META_POLICY_PERSONAL_ATTR" }
-  }
   if (META_POLICY_BEFORE_AFTER.test(text)) {
     return { ok: false, reason: "META_POLICY_BEFORE_AFTER" }
   }

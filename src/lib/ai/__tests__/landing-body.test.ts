@@ -160,7 +160,7 @@ describe("generateLandingBody", () => {
     const policyViolation: LandingBody = {
       ...validBody,
       benefits: [
-        { title: "Cura todo dolor", body: "Resultado garantizado en cada uso, sin excepciones." },
+        { title: "Antes y después", body: "Mira el antes y después en cada uso, sin excepciones." },
         benefit2,
         benefit3,
       ],
@@ -178,7 +178,7 @@ describe("generateLandingBody", () => {
     const policyViolation: LandingBody = {
       ...validBody,
       benefits: [
-        { title: "Cura todo dolor", body: "Resultado garantizado en cada uso, sin excepciones." },
+        { title: "Antes y después", body: "Mira el antes y después en cada uso, sin excepciones." },
         benefit2,
         benefit3,
       ],
