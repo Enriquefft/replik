@@ -3,7 +3,6 @@ import {
   bigint,
   boolean,
   customType,
-  index,
   integer,
   jsonb,
   numeric,
@@ -109,58 +108,44 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const creatives = pgTable(
-  "creatives",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    source: creativeSourceEnum("source").notNull(),
-    scrapeUrl: text("scrape_url").notNull(),
-    advertiserName: text("advertiser_name"),
-    angle: text("angle").$type<SalesAngleT | null>(),
-    transcriptText: text("transcript_text"),
-    language: text("language"),
-    selectedBool: boolean("selected_bool").notNull().default(false),
-    translated: boolean("translated"),
-    scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
-    // Engagement signals — projected from RawCreative.engagement at the
-    // scrape insert site. Nullable: not every source emits every field
-    // (FB has no playCount; TikTok has no euTotalReach). `engagementJson`
-    // is the raw, future-proof copy used for cohort backfills when we
-    // add a new typed column without re-scraping. Counts are `bigint`
-    // because viral TikToks exceed int32 (2.1B); `mode: "number"` is
-    // safe since Number.MAX_SAFE_INTEGER (9e15) dwarfs any conceivable
-    // view count.
-    playCount: bigint("play_count", { mode: "number" }),
-    likeCount: bigint("like_count", { mode: "number" }),
-    shareCount: bigint("share_count", { mode: "number" }),
-    commentCount: bigint("comment_count", { mode: "number" }),
-    collectCount: bigint("collect_count", { mode: "number" }),
-    postedAt: timestamp("posted_at", { withTimezone: true, mode: "date" }),
-    isActive: boolean("is_active"),
-    activeDays: integer("active_days"),
-    euTotalReach: bigint("eu_total_reach", { mode: "number" }),
-    hashtags: text("hashtags").array().notNull().default(sql`'{}'::text[]`),
-    authorHandle: text("author_handle"),
-    authorFans: bigint("author_fans", { mode: "number" }),
-    authorVerified: boolean("author_verified"),
-    /** Brand-match score (0.000–1.000) populated by the P2 ranker.
-     *  Nullable until the ranker has scored the row. */
-    brandMatchScore: numeric("brand_match_score", { precision: 4, scale: 3 }),
-    /** Deterministic brand match — true when the advertiser page_name
-     *  contained any normalized brand key at the relevance gate
-     *  (`scrape-brand-match.matchBrandKey`). Used by the composite ranker
-     *  as a hard boost: own-brand ads sort to the top of their tier. */
-    brandMatched: boolean("brand_matched").notNull().default(false),
-    engagementJson: jsonb("engagement_json").$type<EngagementSignals>(),
-  },
-  (t) => [index("creatives_play_count_idx").on(t.productId, sql`${t.playCount} DESC NULLS LAST`)],
-)
+export const creatives = pgTable("creatives", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  source: creativeSourceEnum("source").notNull(),
+  scrapeUrl: text("scrape_url").notNull(),
+  advertiserName: text("advertiser_name"),
+  angle: text("angle").$type<SalesAngleT | null>(),
+  transcriptText: text("transcript_text"),
+  language: text("language"),
+  selectedBool: boolean("selected_bool").notNull().default(false),
+  translated: boolean("translated"),
+  scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
+  // Engagement signals — projected from RawCreative.engagement at the
+  // scrape insert site. Counts are `bigint` because viral TikToks
+  // exceed int32 (2.1B); `mode: "number"` is safe since
+  // Number.MAX_SAFE_INTEGER (9e15) dwarfs any conceivable view count.
+  // `engagementJson` mirrors the raw block as a future-proof debugging
+  // copy (cheap jsonb storage, used for ad-hoc DB inspection).
+  playCount: bigint("play_count", { mode: "number" }),
+  likeCount: bigint("like_count", { mode: "number" }),
+  shareCount: bigint("share_count", { mode: "number" }),
+  commentCount: bigint("comment_count", { mode: "number" }),
+  postedAt: timestamp("posted_at", { withTimezone: true, mode: "date" }),
+  hashtags: text("hashtags").array().notNull().default(sql`'{}'::text[]`),
+  authorHandle: text("author_handle"),
+  authorVerified: boolean("author_verified"),
+  /** Deterministic brand match — true when the advertiser page_name
+   *  contained any normalized brand key at the relevance gate
+   *  (`scrape-brand-match.matchBrandKey`). Used by the composite ranker
+   *  as a hard boost: own-brand ads sort to the top of their tier. */
+  brandMatched: boolean("brand_matched").notNull().default(false),
+  engagementJson: jsonb("engagement_json").$type<EngagementSignals>(),
+})
 
 export const assets = pgTable(
   "assets",

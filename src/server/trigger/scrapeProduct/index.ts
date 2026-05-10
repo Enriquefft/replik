@@ -77,8 +77,8 @@ interface FoundAd {
   /** Apify body text (FB) or video caption (TikTok). Consumed by the relevance gate. */
   ad_text?: string
   /** Optional cross-source engagement signals (TikTok playCount/diggCount,
-   *  FB startDate/isActive/totalActiveTime, etc). Forwarded verbatim from
-   *  the apify wrapper into the creatives insert. */
+   *  FB startDate, etc). Forwarded verbatim from the apify wrapper into
+   *  the creatives insert. */
   engagement?: EngagementSignals
   /** Set true when the relevance gate auto-passed this ad via brand-name
    *  match (verdict.reason starts with "brand_match:"). Persisted as
@@ -518,13 +518,8 @@ function buildCreativeInsertRow(
   if (e.likeCount !== undefined) base.likeCount = e.likeCount
   if (e.shareCount !== undefined) base.shareCount = e.shareCount
   if (e.commentCount !== undefined) base.commentCount = e.commentCount
-  if (e.collectCount !== undefined) base.collectCount = e.collectCount
-  if (e.isActive !== undefined) base.isActive = e.isActive
-  if (e.activeDays !== undefined) base.activeDays = e.activeDays
-  if (e.euTotalReach !== undefined) base.euTotalReach = e.euTotalReach
   if (e.hashtags !== undefined && e.hashtags.length > 0) base.hashtags = e.hashtags
   if (e.authorHandle !== undefined) base.authorHandle = e.authorHandle
-  if (e.authorFans !== undefined) base.authorFans = e.authorFans
   if (e.authorVerified !== undefined) base.authorVerified = e.authorVerified
   const posted = safeParseIsoDate(e.postedAt)
   if (posted !== null) base.postedAt = posted

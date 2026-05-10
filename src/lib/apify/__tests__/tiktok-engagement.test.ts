@@ -18,7 +18,6 @@ describe("normaliseTikTok engagement extraction", () => {
       diggCount: 5_400,
       shareCount: 800,
       commentCount: 230,
-      collectCount: 45,
       createTimeISO: "2025-04-01T12:34:56.000Z",
     })
     expect(out?.engagement).toEqual({
@@ -26,7 +25,6 @@ describe("normaliseTikTok engagement extraction", () => {
       likeCount: 5_400,
       shareCount: 800,
       commentCount: 230,
-      collectCount: 45,
       postedAt: "2025-04-01T12:34:56.000Z",
     })
   })
@@ -53,7 +51,7 @@ describe("normaliseTikTok engagement extraction", () => {
     expect(out?.engagement?.hashtags).toEqual(["skincare", "perú"])
   })
 
-  test("captures authorMeta (uniqueId, fans, verified)", () => {
+  test("captures authorMeta (uniqueId, verified)", () => {
     const out = normaliseTikTok({
       id: "7531000000000000004",
       videoMeta: { downloadAddr: "https://tiktok.cdn/abc.mp4" },
@@ -61,12 +59,10 @@ describe("normaliseTikTok engagement extraction", () => {
         name: "joyspring_pe",
         nickName: "JoySpring Perú",
         uniqueId: "joyspring_pe",
-        fans: "1.5M",
         verified: true,
       },
     })
     expect(out?.engagement?.authorHandle).toBe("joyspring_pe")
-    expect(out?.engagement?.authorFans).toBe(1_500_000)
     expect(out?.engagement?.authorVerified).toBe(true)
   })
 

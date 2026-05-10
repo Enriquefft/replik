@@ -54,7 +54,6 @@ const AuthorMetaSchema = z.object({
   name: NonEmpty.optional(),
   nickName: NonEmpty.optional(),
   uniqueId: NonEmpty.optional(),
-  fans: numericCount.optional(),
   verified: z.boolean().optional(),
 })
 
@@ -73,7 +72,6 @@ const TikTokItemSchema = z
     diggCount: numericCount.optional(),
     shareCount: numericCount.optional(),
     commentCount: numericCount.optional(),
-    collectCount: numericCount.optional(),
     createTimeISO: NonEmpty.optional(),
     hashtags: z.array(HashtagSchema).optional(),
   })
@@ -114,24 +112,22 @@ export function normaliseTikTok(raw: unknown): RawCreative | null {
   if (author) out.page_name = author
   if (item.text) out.ad_text = item.text
 
-  // Build the cross-source engagement block. clockworks-specific field
-  // names (diggCount, collectCount) project onto the canonical schema
-  // (likeCount, collectCount). authorHandle prefers `uniqueId` (stable
-  // @handle) over the display name. Hashtags collapse to a string[] of
-  // names — the burn pipeline doesn't need IDs/coverUrls.
+  // Build the cross-source engagement block. clockworks-specific
+  // `diggCount` projects onto the canonical `likeCount`. authorHandle
+  // prefers `uniqueId` (stable @handle) over the display name. Hashtags
+  // collapse to a string[] of names — the burn pipeline doesn't need
+  // IDs/coverUrls.
   const engagement: EngagementSignals = {}
   if (item.playCount !== undefined) engagement.playCount = item.playCount
   if (item.diggCount !== undefined) engagement.likeCount = item.diggCount
   if (item.shareCount !== undefined) engagement.shareCount = item.shareCount
   if (item.commentCount !== undefined) engagement.commentCount = item.commentCount
-  if (item.collectCount !== undefined) engagement.collectCount = item.collectCount
   if (item.createTimeISO) engagement.postedAt = item.createTimeISO
   if (item.hashtags && item.hashtags.length > 0) {
     engagement.hashtags = item.hashtags.map((h) => h.name)
   }
   const handle = item.authorMeta?.uniqueId ?? item.authorMeta?.name
   if (handle) engagement.authorHandle = handle
-  if (item.authorMeta?.fans !== undefined) engagement.authorFans = item.authorMeta.fans
   if (item.authorMeta?.verified !== undefined) {
     engagement.authorVerified = item.authorMeta.verified
   }
