@@ -1,6 +1,6 @@
 "use client"
 
-import { ImageOff, Play } from "lucide-react"
+import { BadgeCheck, Eye, ImageOff, Play } from "lucide-react"
 import * as React from "react"
 import { CreativeLightbox } from "@/components/creative-lightbox.tsx"
 import { Badge } from "@/components/ui/badge.tsx"
@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox.tsx"
 import type { Creative } from "@/db/schema"
 import { useInViewAutoplay } from "@/hooks/use-in-view-autoplay.ts"
 import type { SalesAngle } from "@/lib/ai/taxonomies.ts"
+import { formatCount, formatRelativeTimeEs } from "@/lib/format-engagement.ts"
 import { cn } from "@/lib/utils.ts"
 
 // Reuses the 5 mode tokens declared in globals.css; multiple angles share a
@@ -177,6 +178,7 @@ export function CreativeCard({
           ) : (
             <p className="text-caption text-fg-3 italic">Sin transcripción</p>
           )}
+          <EngagementRow creative={creative} />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {creative.angle ? (
               <span
@@ -209,5 +211,67 @@ export function CreativeCard({
         onToggleSelect={onToggle}
       />
     </>
+  )
+}
+
+/**
+ * Compact engagement metrics row. Renders only the fields TikTok actually
+ * supplied for this creative — every chunk is conditionally hidden so an
+ * empty Meta-sourced row collapses to nothing rather than printing zeros.
+ *
+ * Layout: [views] [posted ago] [@handle ✓] [#tag #tag]
+ *  - The hashtag chunk is on a separate line beneath the primary metrics so
+ *    long tags can truncate without pushing views off-card.
+ */
+function EngagementRow({ creative }: { creative: Creative }) {
+  const showPlay = creative.playCount !== null && creative.playCount > 0
+  const showPosted = creative.postedAt !== null
+  const showHandle = creative.authorHandle !== null
+  const tags = creative.hashtags.slice(0, 2)
+  const showTags = tags.length > 0
+
+  if (!showPlay && !showPosted && !showHandle && !showTags) return null
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      {(showPlay || showPosted || showHandle) && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-fg-3">
+          {showPlay && creative.playCount !== null && (
+            <span className="inline-flex items-center gap-1" title="Reproducciones">
+              <Eye className="size-3" strokeWidth={2} aria-hidden />
+              <span className="tabular-nums font-medium text-fg-2">
+                {formatCount(creative.playCount)}
+              </span>
+            </span>
+          )}
+          {showPosted && creative.postedAt !== null && (
+            <span className="tabular-nums" title={creative.postedAt.toISOString()}>
+              {formatRelativeTimeEs(creative.postedAt)}
+            </span>
+          )}
+          {showHandle && creative.authorHandle !== null && (
+            <span className="inline-flex items-center gap-0.5 truncate max-w-[140px]">
+              <span className="truncate">@{creative.authorHandle}</span>
+              {creative.authorVerified === true && (
+                <BadgeCheck
+                  className="size-3 text-mode-creative shrink-0"
+                  strokeWidth={2.25}
+                  aria-label="Cuenta verificada"
+                />
+              )}
+            </span>
+          )}
+        </div>
+      )}
+      {showTags && (
+        <div className="flex items-center gap-1 text-[11px] text-fg-3 truncate">
+          {tags.map((tag) => (
+            <span key={tag} className="truncate">
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

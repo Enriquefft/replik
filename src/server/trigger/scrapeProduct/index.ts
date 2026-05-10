@@ -258,9 +258,56 @@ interface CreativeRow {
   scrapeUrl: string
 }
 
+/**
+ * Build the Whisper `prompt` vocabulary string for a product.
+ *
+ * Canonical brand is prepended (highest priority) and case-insensitively
+ * deduped against the keyword list, then the remaining keywords are joined
+ * comma-separated. Returns `undefined` when both inputs are empty so the
+ * caller can omit the prompt field entirely (passing an empty string would
+ * still consume Whisper's prompt budget for nothing).
+ *
+ * Hard-capped at 800 chars — Whisper's prompt accepts ~224 tokens, and
+ * comma-separated brand/keyword vocab averages ≈3.5 chars/token, leaving
+ * a ~14% safety margin against the 1024-char API limit. Keywords past the
+ * cap are dropped (the brand is preserved first).
+ */
+const VOCABULARY_MAX_CHARS = 800
+
+export function buildVocabulary(
+  canonicalBrand: string | null,
+  keywords: readonly string[],
+): string | undefined {
+  const seen = new Set<string>()
+  const parts: string[] = []
+  const push = (raw: string): void => {
+    const trimmed = raw.trim()
+    if (trimmed.length === 0) return
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    parts.push(trimmed)
+  }
+  if (canonicalBrand !== null) push(canonicalBrand)
+  for (const kw of keywords) push(kw)
+  if (parts.length === 0) return undefined
+
+  // Greedy assemble: append entries while joined length stays ≤ cap. Always
+  // keep the first entry (brand) even if it alone exceeds the cap — better
+  // to overshoot slightly than to drop the brand we explicitly canonicalized.
+  const kept: string[] = []
+  for (const part of parts) {
+    const candidate = kept.length === 0 ? part : `${kept.join(", ")}, ${part}`
+    if (kept.length > 0 && candidate.length > VOCABULARY_MAX_CHARS) break
+    kept.push(part)
+  }
+  return kept.join(", ")
+}
+
 async function transcribeOne(
   creative: CreativeRow,
   userId: string,
+  vocabulary: string | undefined,
 ): Promise<{ transcribed: boolean; reason?: string }> {
   let response: Response
   try {
@@ -307,7 +354,13 @@ async function transcribeOne(
   let language: string
   let srt: string | null
   try {
-    const result = await transcribe({ mode: "srt", audio: buffer })
+    // Pass `vocabulary` only when defined so transcribe() omits Whisper's
+    // `prompt` field entirely (an empty string would still consume budget).
+    const result = await transcribe(
+      vocabulary !== undefined
+        ? { mode: "srt", audio: buffer, vocabulary }
+        : { mode: "srt", audio: buffer },
+    )
     transcriptText = result.transcriptText
     language = result.language
     srt = result.srt
@@ -921,14 +974,24 @@ export const scrapeProduct = task({
       })
 
       // ---------- Step 3 — transcribeAds ----------
+      // Build the Whisper vocabulary biasing string ONCE for the whole batch
+      // — same for every creative, no per-row re-computation. Coaxes Whisper
+      // into spelling brand names + product keywords correctly (fixes
+      // "Lingolid" / "joyspring" misspellings). Omitted when both
+      // canonicalBrand and adKeywords are empty (transcribe() then drops
+      // OpenAI's `prompt` field entirely).
+      const vocabulary = buildVocabulary(canonicalBrand, adKeywords)
       metadata.set("phase", "transcribing" satisfies ScrapePhase)
       metadata.set("transcribed", 0)
-      logger.info("transcribe_started", { count: insertedCreatives.length })
+      logger.info("transcribe_started", {
+        count: insertedCreatives.length,
+        vocabularyChars: vocabulary?.length ?? 0,
+      })
       const transcriptionResults = await runWithConcurrency(
         insertedCreatives,
         TRANSCRIBE_CONCURRENCY,
         async (creative) => {
-          const res = await transcribeOne(creative, userId)
+          const res = await transcribeOne(creative, userId, vocabulary)
           if (res.transcribed) {
             metadata.increment("transcribed", 1)
           }

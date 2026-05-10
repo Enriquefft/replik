@@ -39,11 +39,22 @@ export const TranscribeInputSchema = z.discriminatedUnion("mode", [
     mode: z.literal("text"),
     audio: z.instanceof(Buffer),
     language: z.string().optional(),
+    /**
+     * Optional vocabulary biasing string forwarded to OpenAI's
+     * `audio.transcriptions.create({ prompt })`. Used to coax Whisper into
+     * spelling brand names + product keywords correctly. Plain natural
+     * language, not structured (e.g. `"JoySpring, LingoLeap, suplemento"`).
+     * The OpenAI API truncates after ~224 tokens; callers should cap to
+     * ~800 chars with safety margin.
+     */
+    vocabulary: z.string().optional(),
   }),
   z.object({
     mode: z.literal("srt"),
     audio: z.instanceof(Buffer),
     language: z.string().optional(),
+    /** See `vocabulary` on the "text" branch — same semantics. */
+    vocabulary: z.string().optional(),
   }),
 ])
 
@@ -112,20 +123,22 @@ export async function transcribe(input: TranscribeInput): Promise<TranscribeResu
   let detectedLanguage = language
   const textParts: string[] = []
 
+  const vocabulary = parsed.vocabulary
   for (const chunk of chunks) {
     if (parsed.mode === "text") {
       const result = await withTiming(
         "ai.transcribe",
-        () => transcribeText(chunk.audio, language),
+        () => transcribeText(chunk.audio, language, vocabulary),
         { mode: "text", chunkBytes: chunk.audio.byteLength },
       )
       detectedLanguage = result.language || detectedLanguage
       textParts.push(result.text)
     } else {
-      const result = await withTiming("ai.transcribe", () => transcribeSrt(chunk.audio, language), {
-        mode: "srt",
-        chunkBytes: chunk.audio.byteLength,
-      })
+      const result = await withTiming(
+        "ai.transcribe",
+        () => transcribeSrt(chunk.audio, language, vocabulary),
+        { mode: "srt", chunkBytes: chunk.audio.byteLength },
+      )
       detectedLanguage = result.language || detectedLanguage
       for (const seg of result.segments) {
         segments.push({
@@ -219,20 +232,31 @@ interface SrtResult {
   segments: TranscribedSegment[]
 }
 
-async function transcribeText(audio: Buffer, language: string): Promise<TextResult> {
+async function transcribeText(
+  audio: Buffer,
+  language: string,
+  vocabulary: string | undefined,
+): Promise<TextResult> {
   // gpt-4o-transcribe does not return verbose_json — it returns plain JSON
   // with `text`. Language detection is implicit; we echo the input locale.
   const file = bufferToFile(audio, "audio.ogg", "audio/ogg")
+  // Omit `prompt` entirely when no vocabulary supplied — passing an empty
+  // string would still consume Whisper's prompt budget for nothing.
   const response = await client().audio.transcriptions.create({
     file,
     model: MODELS.WHISPER_TEXT,
     language,
     response_format: "json",
+    ...(vocabulary !== undefined && vocabulary.length > 0 ? { prompt: vocabulary } : {}),
   })
   return { text: response.text, language }
 }
 
-async function transcribeSrt(audio: Buffer, language: string): Promise<SrtResult> {
+async function transcribeSrt(
+  audio: Buffer,
+  language: string,
+  vocabulary: string | undefined,
+): Promise<SrtResult> {
   const file = bufferToFile(audio, "audio.ogg", "audio/ogg")
   const verbose = await client().audio.transcriptions.create({
     file,
@@ -240,6 +264,7 @@ async function transcribeSrt(audio: Buffer, language: string): Promise<SrtResult
     language,
     response_format: "verbose_json",
     timestamp_granularities: ["segment"],
+    ...(vocabulary !== undefined && vocabulary.length > 0 ? { prompt: vocabulary } : {}),
   })
   const segments: TranscribedSegment[] = []
   for (const seg of verbose.segments ?? []) {
