@@ -6,6 +6,7 @@ import { CreativeLightbox } from "@/components/creative-lightbox.tsx"
 import { Badge } from "@/components/ui/badge.tsx"
 import { Checkbox } from "@/components/ui/checkbox.tsx"
 import type { Creative } from "@/db/schema"
+import { useInViewAutoplay } from "@/hooks/use-in-view-autoplay.ts"
 import type { SalesAngle } from "@/lib/ai/taxonomies.ts"
 import { cn } from "@/lib/utils.ts"
 
@@ -69,7 +70,8 @@ export function CreativeCard({
   // Hover-driven autoplay polish on desktop. The video element is always
   // mounted (so the still frame renders for touch users), but we only call
   // `play()` while hovered; on unhover we pause and reset to the first frame
-  // so the next hover restarts cleanly.
+  // so the next hover restarts cleanly. Touch devices never fire hover, so
+  // this branch is dormant there — `useInViewAutoplay` covers them instead.
   React.useEffect(() => {
     const el = videoRef.current
     if (el === null || errored) return
@@ -83,6 +85,12 @@ export function CreativeCard({
       el.currentTime = 0
     }
   }, [hovering, errored])
+
+  // Mobile-first autoplay: on touch devices the hook installs an
+  // IntersectionObserver and plays whichever cards the user is looking at,
+  // capped at 3 concurrent. No-op on hover-capable devices, where the
+  // pointer-driven branch above is the better UX (lets desktop scrub fast).
+  useInViewAutoplay(videoRef, { disabled: errored })
 
   function openLightbox() {
     setLightboxOpen(true)
