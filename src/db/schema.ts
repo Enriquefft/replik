@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm"
 import {
+  bigint,
   boolean,
   customType,
   index,
@@ -131,19 +132,22 @@ export const creatives = pgTable(
     // scrape insert site. Nullable: not every source emits every field
     // (FB has no playCount; TikTok has no euTotalReach). `engagementJson`
     // is the raw, future-proof copy used for cohort backfills when we
-    // add a new typed column without re-scraping.
-    playCount: integer("play_count"),
-    likeCount: integer("like_count"),
-    shareCount: integer("share_count"),
-    commentCount: integer("comment_count"),
-    collectCount: integer("collect_count"),
+    // add a new typed column without re-scraping. Counts are `bigint`
+    // because viral TikToks exceed int32 (2.1B); `mode: "number"` is
+    // safe since Number.MAX_SAFE_INTEGER (9e15) dwarfs any conceivable
+    // view count.
+    playCount: bigint("play_count", { mode: "number" }),
+    likeCount: bigint("like_count", { mode: "number" }),
+    shareCount: bigint("share_count", { mode: "number" }),
+    commentCount: bigint("comment_count", { mode: "number" }),
+    collectCount: bigint("collect_count", { mode: "number" }),
     postedAt: timestamp("posted_at", { withTimezone: true, mode: "date" }),
     isActive: boolean("is_active"),
     activeDays: integer("active_days"),
-    euTotalReach: integer("eu_total_reach"),
+    euTotalReach: bigint("eu_total_reach", { mode: "number" }),
     hashtags: text("hashtags").array().notNull().default(sql`'{}'::text[]`),
     authorHandle: text("author_handle"),
-    authorFans: integer("author_fans"),
+    authorFans: bigint("author_fans", { mode: "number" }),
     authorVerified: boolean("author_verified"),
     /** Brand-match score (0.000–1.000) populated by the P2 ranker.
      *  Nullable until the ranker has scored the row. */

@@ -999,7 +999,13 @@ export const scrapeProduct = task({
       logEvent("task.scrape.done", { ...summary })
       return summary
     } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err)
+      // Drizzle wraps PG errors and stashes the original on `.cause`. The
+      // wrapper's `.message` is the SQL+params (often truncated by the
+      // trigger trace), so the real "value out of range" / "invalid input"
+      // string lives one hop deeper. Concatenate when present.
+      const top = err instanceof Error ? err.message : String(err)
+      const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : null
+      const reason = cause ? `${top} | cause: ${cause}` : top
       await markProductFailed(userId, productId, reason, "task-crashed")
       throw err
     }
