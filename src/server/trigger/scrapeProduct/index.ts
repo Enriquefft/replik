@@ -34,6 +34,7 @@ import { scrapeProductInfo } from "@/lib/ai/scrape.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import * as apify from "@/lib/apify"
 import { withApifyTokenIfKv } from "@/lib/apify/auth.ts"
+import type { EngagementSignals } from "@/lib/apify/engagement.ts"
 import * as tiktokApify from "@/lib/apify/tiktok.ts"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { isBlocked } from "@/lib/scrape-blocklist.ts"
@@ -75,6 +76,10 @@ interface FoundAd {
   page_name?: string
   /** Apify body text (FB) or video caption (TikTok). Consumed by the relevance gate. */
   ad_text?: string
+  /** Optional cross-source engagement signals (TikTok playCount/diggCount,
+   *  FB startDate/isActive/totalActiveTime, etc). Forwarded verbatim from
+   *  the apify wrapper into the creatives insert. */
+  engagement?: EngagementSignals
 }
 
 /**
@@ -220,6 +225,7 @@ async function findAds(ladder: LadderQuery[]): Promise<{ ads: FoundAd[]; source:
       }
       if (raw.page_name !== undefined) found.page_name = raw.page_name
       if (raw.ad_text !== undefined && raw.ad_text.length > 0) found.ad_text = raw.ad_text
+      if (raw.engagement !== undefined) found.engagement = raw.engagement
       apifyAds.set(key, found)
       return true
     }
@@ -414,6 +420,58 @@ function deriveBrandTokens(brand: string | null): string[] {
     .map((t) => t.trim())
     .filter((t) => t.length >= 3)
   return [...new Set(tokens)]
+}
+
+/**
+ * Convert an ISO timestamp string to a Date, tolerating malformed input
+ * by returning null. `creatives.postedAt` is nullable, so a bad ISO from
+ * Apify never crashes the row insert.
+ */
+function safeParseIsoDate(iso: string | undefined): Date | null {
+  if (iso === undefined || iso.length === 0) return null
+  const ms = Date.parse(iso)
+  if (!Number.isFinite(ms)) return null
+  return new Date(ms)
+}
+
+/**
+ * Project a `FoundAd` into the typed `creatives` insert row, including
+ * engagement signals when present. When the ad has no engagement block
+ * the engagement-derived columns stay null and `engagementJson` is
+ * omitted entirely (rather than `{}`) so downstream consumers can
+ * branch on `IS NULL`.
+ */
+function buildCreativeInsertRow(
+  ad: FoundAd,
+  productId: string,
+  userId: string,
+): typeof creatives.$inferInsert {
+  const base: typeof creatives.$inferInsert = {
+    productId,
+    userId,
+    source: ad.source,
+    scrapeUrl: ad.scrape_url,
+    advertiserName: ad.page_name ?? null,
+    selectedBool: false,
+  }
+  const e = ad.engagement
+  if (e === undefined) return base
+  if (e.playCount !== undefined) base.playCount = e.playCount
+  if (e.likeCount !== undefined) base.likeCount = e.likeCount
+  if (e.shareCount !== undefined) base.shareCount = e.shareCount
+  if (e.commentCount !== undefined) base.commentCount = e.commentCount
+  if (e.collectCount !== undefined) base.collectCount = e.collectCount
+  if (e.isActive !== undefined) base.isActive = e.isActive
+  if (e.activeDays !== undefined) base.activeDays = e.activeDays
+  if (e.euTotalReach !== undefined) base.euTotalReach = e.euTotalReach
+  if (e.hashtags !== undefined && e.hashtags.length > 0) base.hashtags = e.hashtags
+  if (e.authorHandle !== undefined) base.authorHandle = e.authorHandle
+  if (e.authorFans !== undefined) base.authorFans = e.authorFans
+  if (e.authorVerified !== undefined) base.authorVerified = e.authorVerified
+  const posted = safeParseIsoDate(e.postedAt)
+  if (posted !== null) base.postedAt = posted
+  base.engagementJson = e
+  return base
 }
 
 interface ScrapePayload {
@@ -850,15 +908,12 @@ export const scrapeProduct = task({
       // Insert creative rows. `advertiserName` (page_name from Apify) is
       // persisted so downstream phases (P2 brand-match boost, P4 angle
       // diversity grouping) can read advertiser identity without re-scraping.
+      // Engagement fields project from the per-ad EngagementSignals block
+      // when present; the raw block is mirrored to `engagementJson` so
+      // future cohort backfills can derive new typed columns without a
+      // re-scrape.
       const insertedCreatives = await withUser(userId, async (db) => {
-        const rows = finalAds.map((ad) => ({
-          productId,
-          userId,
-          source: ad.source,
-          scrapeUrl: ad.scrape_url,
-          advertiserName: ad.page_name ?? null,
-          selectedBool: false,
-        }))
+        const rows = finalAds.map((ad) => buildCreativeInsertRow(ad, productId, userId))
         return await db
           .insert(creatives)
           .values(rows)

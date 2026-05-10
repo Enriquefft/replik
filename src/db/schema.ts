@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm"
 import {
   boolean,
   customType,
+  index,
   integer,
   jsonb,
   numeric,
@@ -15,6 +17,7 @@ import type { z } from "zod"
 
 import type { CopyContent } from "@/lib/ai/copy-schema.ts"
 import type { InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
+import type { EngagementSignals } from "@/lib/apify/engagement.ts"
 
 type SalesAngleT = z.infer<typeof SalesAngle>
 type InterestCategoryT = z.infer<typeof InterestCategory>
@@ -105,24 +108,50 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const creatives = pgTable("creatives", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  source: creativeSourceEnum("source").notNull(),
-  scrapeUrl: text("scrape_url").notNull(),
-  advertiserName: text("advertiser_name"),
-  angle: text("angle").$type<SalesAngleT | null>(),
-  transcriptText: text("transcript_text"),
-  language: text("language"),
-  selectedBool: boolean("selected_bool").notNull().default(false),
-  translated: boolean("translated"),
-  scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
-})
+export const creatives = pgTable(
+  "creatives",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    source: creativeSourceEnum("source").notNull(),
+    scrapeUrl: text("scrape_url").notNull(),
+    advertiserName: text("advertiser_name"),
+    angle: text("angle").$type<SalesAngleT | null>(),
+    transcriptText: text("transcript_text"),
+    language: text("language"),
+    selectedBool: boolean("selected_bool").notNull().default(false),
+    translated: boolean("translated"),
+    scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
+    // Engagement signals — projected from RawCreative.engagement at the
+    // scrape insert site. Nullable: not every source emits every field
+    // (FB has no playCount; TikTok has no euTotalReach). `engagementJson`
+    // is the raw, future-proof copy used for cohort backfills when we
+    // add a new typed column without re-scraping.
+    playCount: integer("play_count"),
+    likeCount: integer("like_count"),
+    shareCount: integer("share_count"),
+    commentCount: integer("comment_count"),
+    collectCount: integer("collect_count"),
+    postedAt: timestamp("posted_at", { withTimezone: true, mode: "date" }),
+    isActive: boolean("is_active"),
+    activeDays: integer("active_days"),
+    euTotalReach: integer("eu_total_reach"),
+    hashtags: text("hashtags").array().notNull().default(sql`'{}'::text[]`),
+    authorHandle: text("author_handle"),
+    authorFans: integer("author_fans"),
+    authorVerified: boolean("author_verified"),
+    /** Brand-match score (0.000–1.000) populated by the P2 ranker.
+     *  Nullable until the ranker has scored the row. */
+    brandMatchScore: numeric("brand_match_score", { precision: 4, scale: 3 }),
+    engagementJson: jsonb("engagement_json").$type<EngagementSignals>(),
+  },
+  (t) => [index("creatives_play_count_idx").on(t.productId, sql`${t.playCount} DESC NULLS LAST`)],
+)
 
 export const assets = pgTable(
   "assets",

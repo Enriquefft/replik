@@ -20,12 +20,14 @@ describe("normaliseTikTok", () => {
         nickName: "JoySpring Perú",
       },
     })
-    expect(out).toEqual({
-      ad_id: "7531000000000000000",
-      video_url: "https://tiktok.cdn/abc.mp4",
-      page_name: "JoySpring Perú",
-      ad_text: "Mira este suplemento para niños 💪",
-    })
+    // authorHandle falls back to authorMeta.name when uniqueId is absent —
+    // dedicated coverage in `tiktok-engagement.test.ts`. Assert each
+    // top-level field individually so this test stays focused on
+    // base-mapping rules and additive engagement growth doesn't break it.
+    expect(out?.ad_id).toBe("7531000000000000000")
+    expect(out?.video_url).toBe("https://tiktok.cdn/abc.mp4")
+    expect(out?.page_name).toBe("JoySpring Perú")
+    expect(out?.ad_text).toBe("Mira este suplemento para niños 💪")
   })
 
   test("falls back to playAddr when downloadAddr missing", () => {

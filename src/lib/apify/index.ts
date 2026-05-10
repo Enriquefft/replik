@@ -15,6 +15,12 @@ import "server-only"
 import { ApifyClient } from "apify-client"
 import { z } from "zod"
 
+import {
+  type EngagementSignals,
+  EngagementSignalsSchema,
+  toActiveDays,
+} from "@/lib/apify/engagement.ts"
+
 const ACTOR_ID = "apify/facebook-ads-scraper"
 const DEFAULT_COUNTRY = "PE"
 const RUN_TIMEOUT_SECS = 300
@@ -30,6 +36,10 @@ export interface RawCreative {
   page_name?: string
   video_url?: string
   ad_text?: string
+  /** Optional engagement signals (TikTok playCount/diggCount, FB
+   *  startDate/isActive/totalActiveTime, etc). Persisted into typed
+   *  columns + raw `engagementJson` at the creative insert site. */
+  engagement?: EngagementSignals
 }
 
 const NonEmpty = z.string().min(1)
@@ -55,6 +65,16 @@ const ApifyAdItemSchema = z
     adArchiveID: NonEmpty.optional(),
     pageName: NonEmpty.optional(),
     snapshot: SnapshotSchema.optional(),
+    // FB Ad Library longevity + reach signals. `startDate`/`endDate`
+    // sometimes arrive as ISO strings, sometimes as null. `isActive`
+    // mirrors FB's "is_active" boolean. `totalActiveTime` is seconds
+    // (FB's denormalized lifetime counter). `eu_total_reach` only
+    // appears for ads served in the EU.
+    startDate: z.union([z.string(), z.null()]).optional(),
+    endDate: z.union([z.string(), z.null()]).optional(),
+    isActive: z.boolean().optional(),
+    totalActiveTime: z.number().int().nonnegative().optional(),
+    eu_total_reach: z.number().int().optional(),
   })
   .passthrough()
 
@@ -97,6 +117,22 @@ export function normalise(raw: unknown): RawCreative | null {
   const body = item.snapshot?.body
   const adText = body?.text ?? body?.markup
   if (adText) out.ad_text = adText
+
+  // Cross-source engagement projection. FB doesn't surface play/like
+  // counts at the Ad Library boundary, but it does emit longevity
+  // (startDate, totalActiveTime, isActive) and EU reach — those map
+  // 1:1 onto the canonical schema. `activeDays` is derived from
+  // seconds via toActiveDays (returns null on 0/missing → omitted).
+  const engagement: EngagementSignals = {}
+  if (item.startDate) engagement.postedAt = item.startDate
+  if (item.isActive !== undefined) engagement.isActive = item.isActive
+  const activeDays = toActiveDays(item.totalActiveTime)
+  if (activeDays !== null) engagement.activeDays = activeDays
+  if (item.eu_total_reach !== undefined) engagement.euTotalReach = item.eu_total_reach
+  const checked = EngagementSignalsSchema.safeParse(engagement)
+  if (checked.success && Object.keys(checked.data).length > 0) {
+    out.engagement = checked.data
+  }
   return out
 }
 

@@ -17,6 +17,8 @@ import { ApifyClient } from "apify-client"
 import { z } from "zod"
 
 import type { RawCreative } from "@/lib/apify"
+import { type EngagementSignals, EngagementSignalsSchema } from "@/lib/apify/engagement.ts"
+import { parseHumanInt } from "@/lib/apify/parse-human-int.ts"
 
 const ACTOR_ID = "clockworks/tiktok-scraper"
 const DEFAULT_COUNTRY = "PE"
@@ -32,6 +34,17 @@ const MAX_TOTAL_CHARGE_USD = 1.0
 
 const NonEmpty = z.string().min(1)
 
+// clockworks/tiktok-scraper emits engagement counters as either raw
+// numbers (`playCount: 1234567`) or compact human-formatted strings
+// ("1.2M") depending on field + actor build. Accept both at the parse
+// boundary; downstream consumers see numbers only. `parseHumanInt`
+// throws on garbage — Zod converts the throw into a rejected union
+// branch and the row is dropped if no other branch matches.
+const numericCount = z.union([
+  z.number().int().nonnegative(),
+  z.string().transform((s) => parseHumanInt(s)),
+])
+
 const VideoMetaSchema = z.object({
   downloadAddr: NonEmpty.optional(),
   playAddr: NonEmpty.optional(),
@@ -40,6 +53,13 @@ const VideoMetaSchema = z.object({
 const AuthorMetaSchema = z.object({
   name: NonEmpty.optional(),
   nickName: NonEmpty.optional(),
+  uniqueId: NonEmpty.optional(),
+  fans: numericCount.optional(),
+  verified: z.boolean().optional(),
+})
+
+const HashtagSchema = z.object({
+  name: NonEmpty,
 })
 
 const TikTokItemSchema = z
@@ -49,6 +69,13 @@ const TikTokItemSchema = z
     webVideoUrl: NonEmpty.optional(),
     videoMeta: VideoMetaSchema.optional(),
     authorMeta: AuthorMetaSchema.optional(),
+    playCount: numericCount.optional(),
+    diggCount: numericCount.optional(),
+    shareCount: numericCount.optional(),
+    commentCount: numericCount.optional(),
+    collectCount: numericCount.optional(),
+    createTimeISO: NonEmpty.optional(),
+    hashtags: z.array(HashtagSchema).optional(),
   })
   .passthrough()
 
@@ -86,6 +113,36 @@ export function normaliseTikTok(raw: unknown): RawCreative | null {
   const author = item.authorMeta?.nickName ?? item.authorMeta?.name
   if (author) out.page_name = author
   if (item.text) out.ad_text = item.text
+
+  // Build the cross-source engagement block. clockworks-specific field
+  // names (diggCount, collectCount) project onto the canonical schema
+  // (likeCount, collectCount). authorHandle prefers `uniqueId` (stable
+  // @handle) over the display name. Hashtags collapse to a string[] of
+  // names — the burn pipeline doesn't need IDs/coverUrls.
+  const engagement: EngagementSignals = {}
+  if (item.playCount !== undefined) engagement.playCount = item.playCount
+  if (item.diggCount !== undefined) engagement.likeCount = item.diggCount
+  if (item.shareCount !== undefined) engagement.shareCount = item.shareCount
+  if (item.commentCount !== undefined) engagement.commentCount = item.commentCount
+  if (item.collectCount !== undefined) engagement.collectCount = item.collectCount
+  if (item.createTimeISO) engagement.postedAt = item.createTimeISO
+  if (item.hashtags && item.hashtags.length > 0) {
+    engagement.hashtags = item.hashtags.map((h) => h.name)
+  }
+  const handle = item.authorMeta?.uniqueId ?? item.authorMeta?.name
+  if (handle) engagement.authorHandle = handle
+  if (item.authorMeta?.fans !== undefined) engagement.authorFans = item.authorMeta.fans
+  if (item.authorMeta?.verified !== undefined) {
+    engagement.authorVerified = item.authorMeta.verified
+  }
+  // Re-validate via the canonical schema so we keep the SSOT contract
+  // intact (and so any future field with stricter rules surfaces the
+  // mismatch here rather than at insert time). On failure we degrade
+  // gracefully by attaching nothing.
+  const checked = EngagementSignalsSchema.safeParse(engagement)
+  if (checked.success && Object.keys(checked.data).length > 0) {
+    out.engagement = checked.data
+  }
   return out
 }
 
