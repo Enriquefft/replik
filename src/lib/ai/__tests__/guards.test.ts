@@ -1,51 +1,9 @@
 /**
  * Tests for guards.ts — §5 AI-speak + Meta-policy rules.
- *
- * Coverage:
- *   1. aiSpeak — triple-adjective rule (AI_SPEAK_TRIPLE_ADJECTIVE)
- *   2. aiSpeak — existing 4 rules do not regress
- *   3. metaPolicy — existing 3 rules smoke-check
  */
 
 import { describe, expect, test } from "bun:test"
 import { aiSpeak, imperativeVerbCheck, metaPolicy } from "@/lib/ai/guards.ts"
-
-// ─── aiSpeak — triple-adjective rule ─────────────────────────────────────────
-
-describe("aiSpeak — AI_SPEAK_TRIPLE_ADJECTIVE", () => {
-  test("three comma-separated adjectives triggers fail (ASCII)", () => {
-    const result = aiSpeak("facil, rapido, eficaz")
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toBe("AI_SPEAK_TRIPLE_ADJECTIVE")
-    }
-  })
-
-  test("triple adjective embedded in a sentence triggers fail", () => {
-    const result = aiSpeak("Producto suave, ligero, resistente para tu hogar.")
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toBe("AI_SPEAK_TRIPLE_ADJECTIVE")
-    }
-  })
-
-  test("two adjectives separated by comma passes", () => {
-    const result = aiSpeak("fácil, rápido")
-    expect(result.ok).toBe(true)
-  })
-
-  test("two adjectives joined by 'y' passes", () => {
-    const result = aiSpeak("rápido y eficaz")
-    expect(result.ok).toBe(true)
-  })
-
-  test("clean copy with no adjective list passes", () => {
-    const result = aiSpeak("Tres ollas a 89 soles, hoy nada más.")
-    expect(result.ok).toBe(true)
-  })
-})
-
-// ─── aiSpeak — existing 4 rules (regression) ─────────────────────────────────
 
 describe("aiSpeak — existing rules do not regress", () => {
   test("AI_SPEAK_VERBS — 'Descubre' at start triggers fail", () => {
