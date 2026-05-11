@@ -116,7 +116,7 @@ export function MarketingHome({ signedIn }: MarketingHomeProps) {
               className="flex items-center gap-2 text-fg-1 transition-opacity hover:opacity-75"
             >
               <Sparkles className="size-5 text-mode-live" strokeWidth={1.8} />
-              <span className="text-headline font-semibold tracking-tight">Replik.ai</span>
+              <span className="text-headline font-semibold tracking-tight">Replik AI</span>
             </Link>
 
             <Link
@@ -320,7 +320,7 @@ export function MarketingHome({ signedIn }: MarketingHomeProps) {
 
         {/* Footer */}
         <footer className="flex flex-col items-start justify-between gap-3 py-[30px] pb-[50px] text-[12px] text-fg-3 sm:flex-row sm:items-center">
-          <span>© 2026 Replik.ai · Lima, Perú</span>
+          <span>© 2026 Replik AI · Lima, Perú</span>
           <span className="flex gap-[18px]">
             <span>Términos</span>
             <Link href="/privacy" className="transition-colors hover:text-fg-1">

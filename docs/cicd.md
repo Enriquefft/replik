@@ -1,4 +1,4 @@
-# CI/CD Setup — Replik.ai
+# CI/CD Setup — Replik AI
 
 ## Overview
 

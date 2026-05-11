@@ -52,7 +52,7 @@ const FETCH_TIMEOUT_MS = 15_000
 const MAX_TOOL_STEPS = 6
 
 const FETCH_HEADERS: Record<string, string> = {
-  "User-Agent": "Mozilla/5.0 (compatible; ReplikScraper/1.0; +https://replik.ai)",
+  "User-Agent": "Mozilla/5.0 (compatible; ReplikScraper/1.0; +https://usereplik.com)",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 

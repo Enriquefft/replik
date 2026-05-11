@@ -24,7 +24,7 @@ export function Nav() {
           className="flex items-center gap-2 text-fg-1 transition-opacity hover:opacity-75"
         >
           <Sparkles className="size-5 text-mode-live" strokeWidth={1.8} />
-          <span className="text-headline font-semibold tracking-tight">Replik.ai</span>
+          <span className="text-headline font-semibold tracking-tight">Replik AI</span>
         </Link>
 
         {/* Nav links */}

@@ -12,7 +12,7 @@ import type { ScrapeReasonCode } from "@/lib/scrape-reason.ts"
 const PROBE_TIMEOUT_MS = 6_000
 
 const PROBE_HEADERS: Record<string, string> = {
-  "User-Agent": "Mozilla/5.0 (compatible; ReplikScraper/1.0; +https://replik.ai)",
+  "User-Agent": "Mozilla/5.0 (compatible; ReplikScraper/1.0; +https://usereplik.com)",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 

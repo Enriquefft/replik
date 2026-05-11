@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner.tsx"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Replik.ai",
+  title: "Replik AI",
   description: "Automated dropshipping product testing — LATAM, Perú-first.",
 }
 

@@ -5,8 +5,8 @@ const SECTIONS = [
   {
     heading: "1. Quiénes somos",
     body: [
-      "Replik.ai es una plataforma SaaS dirigida a emprendedores de dropshipping en Latinoamérica para automatizar el testeo de productos. A partir de la URL de un competidor, Replik analiza anuncios públicos de Meta Ad Library, genera páginas de aterrizaje en la tienda Shopify del usuario y prepara campañas borrador en su cuenta de Meta Ads.",
-      "Esta política describe cómo recopilamos, usamos y protegemos la información personal de quienes interactúan con replik.ai y con la aplicación, incluyendo a quienes acceden a través de anuncios en Facebook e Instagram.",
+      "Replik AI es una plataforma SaaS dirigida a emprendedores de dropshipping en Latinoamérica para automatizar el testeo de productos. A partir de la URL de un competidor, Replik analiza anuncios públicos de Meta Ad Library, genera páginas de aterrizaje en la tienda Shopify del usuario y prepara campañas borrador en su cuenta de Meta Ads.",
+      "Esta política describe cómo recopilamos, usamos y protegemos la información personal de quienes interactúan con usereplik.com y con la aplicación, incluyendo a quienes acceden a través de anuncios en Facebook e Instagram.",
       {
         type: "p-with-link",
         prefix: "Para consultas relacionadas con esta política, puedes contactarnos en: ",
@@ -363,9 +363,9 @@ function renderBody(block: BodyBlock, key: number) {
 }
 
 export const metadata = {
-  title: "Política de Privacidad — Replik.ai",
+  title: "Política de Privacidad — Replik AI",
   description:
-    "Cómo Replik.ai recopila, usa y protege tu información personal, incluyendo el uso del Píxel de Meta y la API de Conversiones.",
+    "Cómo Replik AI recopila, usa y protege tu información personal, incluyendo el uso del Píxel de Meta y la API de Conversiones.",
 }
 
 export default function PrivacyPage() {
@@ -378,7 +378,7 @@ export default function PrivacyPage() {
             className="flex items-center gap-2 text-fg-1 transition-opacity hover:opacity-75"
           >
             <Sparkles className="size-5 text-mode-live" strokeWidth={1.8} />
-            <span className="text-headline font-semibold tracking-tight">Replik.ai</span>
+            <span className="text-headline font-semibold tracking-tight">Replik AI</span>
           </Link>
           <Link
             href="/"
@@ -434,7 +434,7 @@ export default function PrivacyPage() {
                 personales, puedes contactarnos en:
               </p>
               <div className="rounded-card border border-border bg-surface-solid px-6 py-5 text-[15px] leading-[1.7] text-fg-2 shadow-tight">
-                <p className="font-semibold text-fg-1">Replik.ai</p>
+                <p className="font-semibold text-fg-1">Replik AI</p>
                 <a
                   href="mailto:hello@usereplik.com"
                   className="text-mode-live underline decoration-mode-live/30 underline-offset-4 transition-colors hover:decoration-mode-live"
@@ -447,7 +447,7 @@ export default function PrivacyPage() {
         </article>
 
         <footer className="flex flex-col items-start justify-between gap-3 py-[30px] pb-[50px] text-[12px] text-fg-3 sm:flex-row sm:items-center">
-          <span>© 2026 Replik.ai · Lima, Perú</span>
+          <span>© 2026 Replik AI · Lima, Perú</span>
           <span className="flex gap-[18px]">
             <span>Términos</span>
             <Link href="/privacy" className="text-fg-2 transition-colors hover:text-fg-1">

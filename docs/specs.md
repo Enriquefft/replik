@@ -1,4 +1,4 @@
-# Replik.ai — Specs
+# Replik AI — Specs
 
 ## 1. Producto
 

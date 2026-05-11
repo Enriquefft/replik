@@ -1,4 +1,4 @@
-# Replik.ai — Arquitectura
+# Replik AI — Arquitectura
 
 ## 1. Stack
 

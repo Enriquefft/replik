@@ -1,4 +1,4 @@
-# Replik.ai — Roadmap
+# Replik AI — Roadmap
 
 ## Async kickoff (día 0, paralelo a P0)
 
