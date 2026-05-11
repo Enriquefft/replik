@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { getDashboard } from "@/server/actions/dashboard.ts"
 import { DashboardClient } from "./dashboard-client.tsx"
 
@@ -17,7 +18,13 @@ export default async function DashboardPage() {
           <p className="text-body text-fg-2 mt-1">Métricas de tus campañas activas y pedidos.</p>
         </div>
 
-        <DashboardClient initialData={initialData} />
+        {/* `DashboardClient` calls `useSearchParams` to honor the
+            `?reconnect=<provider>` deep link emitted by `<PhaseProgress>`
+            failure cards — Next.js App Router requires the consumer to live
+            below a Suspense boundary so the page can stream. */}
+        <Suspense fallback={null}>
+          <DashboardClient initialData={initialData} />
+        </Suspense>
       </div>
     </div>
   )

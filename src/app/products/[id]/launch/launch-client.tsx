@@ -7,7 +7,7 @@ import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { CredentialsModal } from "@/components/credentials-modal.tsx"
-import { TaskProgress } from "@/components/task-progress.tsx"
+import { PhaseProgress } from "@/components/phase-progress.tsx"
 import { Badge } from "@/components/ui/badge.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import {
@@ -22,6 +22,13 @@ import {
 import { Input } from "@/components/ui/input.tsx"
 import { SolesToCentsSchema } from "@/lib/pricing.ts"
 import { launchCampaign } from "@/server/actions/launch.ts"
+import {
+  LAUNCH_PHASE_LABELS_ES,
+  LAUNCH_PHASE_WEIGHTS,
+  LAUNCH_PHASES,
+  type LaunchProgressMetadata,
+  LaunchProgressMetadataSchema,
+} from "@/server/trigger/launchCampaign/metadata.ts"
 
 const LaunchSchema = z.object({
   budget_daily: SolesToCentsSchema,
@@ -88,8 +95,10 @@ export function LaunchClient({
       return
     }
 
+    // Submit-receipt: fire BEFORE the wait surface mounts. See
+    // `src/components/wait/README.md`.
+    toast.success("Lanzando campaña…")
     setRunHandle({ runId: result.data.runId, accessToken: result.data.accessToken })
-    toast.success("¡Campaña creada en Meta!")
   }
 
   function handleCredSaved() {
@@ -222,11 +231,34 @@ export function LaunchClient({
             </div>
 
             {runHandle ? (
-              <TaskProgress
+              <PhaseProgress<(typeof LAUNCH_PHASES)[number], LaunchProgressMetadata>
                 runId={runHandle.runId}
                 accessToken={runHandle.accessToken}
-                step="Lanzando campaña en Meta Ads…"
-                detail="Video upload → Creative → Campaign → AdSet → Ads"
+                phases={LAUNCH_PHASES}
+                phaseWeights={LAUNCH_PHASE_WEIGHTS}
+                phaseLabels={LAUNCH_PHASE_LABELS_ES}
+                metadataSchema={LaunchProgressMetadataSchema}
+                taskKind="launch_campaign"
+                currentPhaseFromMeta={(m) => m.phase ?? null}
+                onRetry={() => {
+                  // Unmount the failed PhaseProgress before resubmitting so
+                  // the next runHandle mounts a fresh subscription with a
+                  // clean elapsed timer + lastUpdateAt.
+                  setRunHandle(null)
+                  void form.handleSubmit(onSubmit)()
+                }}
+                detailSlot={(meta) =>
+                  meta?.adsManagerUrl !== undefined ? (
+                    <a
+                      href={meta.adsManagerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg border border-border bg-surface text-sm font-medium text-fg-1 hover:bg-surface-muted transition-colors"
+                    >
+                      Ver en Ads Manager <ExternalLink className="size-3.5" />
+                    </a>
+                  ) : null
+                }
               />
             ) : (
               <Button
@@ -240,17 +272,6 @@ export function LaunchClient({
                 ) : null}
                 Lanzar campaña (PAUSED)
               </Button>
-            )}
-
-            {runHandle && (
-              <a
-                href="https://business.facebook.com/adsmanager/manage/campaigns"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-lg border border-border bg-surface text-sm font-medium text-fg-1 hover:bg-surface-muted transition-colors"
-              >
-                Ver en Ads Manager <ExternalLink className="size-3.5" />
-              </a>
             )}
 
             <p className="text-caption text-fg-3 text-center">

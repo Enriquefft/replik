@@ -25,6 +25,7 @@ import { withUser } from "@/db/client"
 import { ads, assets, campaigns, creatives, idempotencyKeys, products } from "@/db/schema"
 import { generateCopy } from "@/lib/ai/copy-gen.ts"
 import { InterestCategory } from "@/lib/ai/taxonomies.ts"
+import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import {
   adCreate,
   adsetCreate,
@@ -35,9 +36,27 @@ import {
   videoUploadResumable,
 } from "@/lib/meta"
 import { interestsFor } from "@/lib/meta/interests"
+import { MetaError } from "@/lib/meta/types"
 import { logError, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { getIntegration, requireIntegration } from "@/server/integrations"
-import type { LaunchPhase } from "./metadata.ts"
+import { launchError } from "./errors.ts"
+import type { LaunchErrorCode, LaunchPhase } from "./metadata.ts"
+
+/**
+ * Map a thrown `MetaError` to one of our `LaunchErrorCode` values. Meta's
+ * numeric error codes are the canonical reference: 190 = OAuth token
+ * expired, 4/17/32/613 = rate / throttling, 1487* family = ad policy.
+ * Anything else falls through to the caller's contextual code (e.g.
+ * `meta_video_upload`).
+ */
+function metaErrorToLaunchCode(err: MetaError, contextual: LaunchErrorCode): LaunchErrorCode {
+  if (err.code === 190) return "meta_token_expired"
+  if (err.code === 4 || err.code === 17 || err.code === 32 || err.code === 613) {
+    return "meta_quota"
+  }
+  if (err.code >= 1487000 && err.code < 1488000) return "meta_policy"
+  return contextual
+}
 
 const Payload = z.object({
   productId: z.string().min(1),
@@ -58,32 +77,21 @@ function asInterestCategory(category: string | null): InterestCategory | null {
   return parsed.success ? parsed.data : null
 }
 
-interface FriendlyError {
-  friendly: string
-  cause: unknown
-}
-
-function toFriendly(err: unknown, fallback: string): FriendlyError {
-  if (err && typeof err === "object" && "friendly" in err) {
-    const f = (err as { friendly?: unknown }).friendly
-    if (typeof f === "string" && f.length > 0) {
-      return { friendly: f, cause: err }
-    }
+/**
+ * Wrap any `unknown` thrown by a Meta call into a structured `taskError`.
+ * `MetaError` instances route through `metaErrorToLaunchCode` so token /
+ * quota / policy failures hit the deterministic translator path; non-Meta
+ * exceptions surface as `contextual` (e.g. `meta_video_upload`) with the
+ * raw message preserved for the LLM fallback when the contextual code is
+ * itself `generic_fallback`.
+ */
+function throwLaunchError(err: unknown, contextual: LaunchErrorCode, fallback: string): never {
+  if (err instanceof MetaError) {
+    const code = metaErrorToLaunchCode(err, contextual)
+    launchError(code, err.friendly.length > 0 ? err.friendly : err.message)
   }
-  if (err instanceof Error && err.message) {
-    return { friendly: err.message, cause: err }
-  }
-  return { friendly: fallback, cause: err }
-}
-
-class LaunchError extends Error {
-  constructor(friendly: string, cause?: unknown) {
-    super(friendly)
-    this.name = "LaunchError"
-    if (cause !== undefined) {
-      ;(this as { cause?: unknown }).cause = cause
-    }
-  }
+  const message = err instanceof Error && err.message.length > 0 ? err.message : fallback
+  launchError(contextual, message)
 }
 
 export const launchCampaign = schemaTask({
@@ -139,7 +147,8 @@ export const launchCampaign = schemaTask({
         // Idempotency row exists but the campaign row doesn't yet — a previous
         // attempt crashed mid-flight. Surface a friendly error: a fresh attempt
         // (incremented `attempt`) is the safe path forward.
-        throw new LaunchError(
+        launchError(
+          "generic_fallback",
           "Lanzamiento previo quedó incompleto. Reintenta para crear un nuevo intento.",
         )
       }
@@ -181,22 +190,22 @@ export const launchCampaign = schemaTask({
         return { product, creatives: creativeRows }
       })
       if (!loaded) {
-        throw new LaunchError("Producto no encontrado.")
+        launchError("generic_fallback", "Producto no encontrado.")
       }
       const { product, creatives: selected } = loaded
       if (selected.length === 0) {
-        throw new LaunchError("No hay creativos editados listos.")
+        launchError("missing_creatives", "No hay creativos editados listos.")
       }
       const productImageUrl = product.imageUrls[0]
       if (!productImageUrl) {
-        throw new LaunchError("El producto no tiene imagen para el thumbnail.")
+        launchError("missing_creatives", "El producto no tiene imagen para el thumbnail.")
       }
       const productName = product.name ?? "Producto"
 
       // 3. Build creds (Meta required, Shopify optional but expected).
       const metaIntegration = await requireIntegration(userId, "meta")
       if (metaIntegration.extra.provider !== "meta" || !metaIntegration.extra.pixel_id) {
-        throw new LaunchError("Integración Meta incompleta (falta pixel).")
+        launchError("integration_incomplete", "Integración Meta incompleta (falta pixel).")
       }
       const creds: MetaCreds = {
         token: metaIntegration.token,
@@ -219,7 +228,7 @@ export const launchCampaign = schemaTask({
           : null
       const pageHandle = product.shopifyPageHandle
       if (!pageHandle) {
-        throw new LaunchError("Publica la landing antes de lanzar la campaña.")
+        launchError("landing_not_published", "Publica la landing antes de lanzar la campaña.")
       }
       const landingUrl = shopDomain
         ? `https://${shopDomain}/pages/${pageHandle}`
@@ -285,8 +294,7 @@ export const launchCampaign = schemaTask({
             total: selected.length,
           })
         } catch (err) {
-          const f = toFriendly(err, "Falló la subida de video a Meta.")
-          throw new LaunchError(f.friendly, f.cause)
+          throwLaunchError(err, "meta_video_upload", "Falló la subida de video a Meta.")
         }
       }
 
@@ -302,8 +310,7 @@ export const launchCampaign = schemaTask({
         imageHash = result.image_hash
         logger.info("image_upload_done", { imageHash })
       } catch (err) {
-        const f = toFriendly(err, "Falló la subida del thumbnail a Meta.")
-        throw new LaunchError(f.friendly, f.cause)
+        throwLaunchError(err, "meta_image_upload", "Falló la subida del thumbnail a Meta.")
       }
 
       // 7. Campaign create + persist row.
@@ -324,8 +331,7 @@ export const launchCampaign = schemaTask({
         )
         metaCampaignId = result.id
       } catch (err) {
-        const f = toFriendly(err, "Falló la creación de la campaña en Meta.")
-        throw new LaunchError(f.friendly, f.cause)
+        throwLaunchError(err, "generic_fallback", "Falló la creación de la campaña en Meta.")
       }
       const campaignRow = await withUser(userId, async (db) => {
         const inserted = await db
@@ -343,7 +349,7 @@ export const launchCampaign = schemaTask({
           .returning({ id: campaigns.id })
         const row = inserted[0]
         if (!row) {
-          throw new LaunchError("No se pudo persistir la campaña.")
+          launchError("generic_fallback", "No se pudo persistir la campaña.")
         }
         return row
       })
@@ -412,12 +418,11 @@ export const launchCampaign = schemaTask({
           })
         }
       } catch (err) {
-        const f = toFriendly(err, "Falló la creación del ad set en Meta.")
-        throw new LaunchError(f.friendly, f.cause)
+        throwLaunchError(err, "generic_fallback", "Falló la creación del ad set en Meta.")
       }
       const broadAdsetId = adsetIds[0]
       if (!broadAdsetId) {
-        throw new LaunchError("No se creó ningún ad set.")
+        launchError("generic_fallback", "No se creó ningún ad set.")
       }
 
       // 9. Per creative: creative + ad + persist `ads` row.
@@ -429,12 +434,12 @@ export const launchCampaign = schemaTask({
         if (!c) continue
         const videoId = videoIds.get(c.id)
         if (!videoId) {
-          throw new LaunchError(`Estado interno inconsistente para creativo ${c.id}.`)
+          launchError("generic_fallback", `Estado interno inconsistente para creativo ${c.id}.`)
         }
         const angle = c.angle ?? "default"
         const copy = copyByAngle.get(angle)
         if (!copy) {
-          throw new LaunchError(`Falta copy para el ángulo ${angle}.`)
+          launchError("generic_fallback", `Falta copy para el ángulo ${angle}.`)
         }
 
         let metaCreativeId: string
@@ -466,8 +471,7 @@ export const launchCampaign = schemaTask({
             metaCreativeId,
           })
         } catch (err) {
-          const f = toFriendly(err, "Falló la creación del creative en Meta.")
-          throw new LaunchError(f.friendly, f.cause)
+          throwLaunchError(err, "generic_fallback", "Falló la creación del creative en Meta.")
         }
 
         let metaAdId: string
@@ -489,8 +493,7 @@ export const launchCampaign = schemaTask({
             metaAdId,
           })
         } catch (err) {
-          const f = toFriendly(err, "Falló la creación del ad en Meta.")
-          throw new LaunchError(f.friendly, f.cause)
+          throwLaunchError(err, "generic_fallback", "Falló la creación del ad en Meta.")
         }
 
         await withUser(userId, async (db) => {
@@ -518,6 +521,18 @@ export const launchCampaign = schemaTask({
           .where(and(eq(products.id, productId), eq(products.userId, userId)))
       })
 
+      // 11. Surface the Ads Manager deep-link in metadata so the UI can render
+      // a CTA on completion. We always have `metaCampaignId`; `act={…}` is
+      // included whenever the integration carries an `ad_account_id`. Without
+      // it, Meta resolves the campaign against the user's currently active
+      // business — still a valid (just less specific) deep link.
+      const adAccountId = creds.ad_account_id
+      const adsManagerUrl =
+        adAccountId.length > 0
+          ? `https://business.facebook.com/adsmanager/manage/campaigns?act=${encodeURIComponent(adAccountId)}&selected_campaign_ids=${encodeURIComponent(metaCampaignId)}`
+          : `https://business.facebook.com/adsmanager/manage/campaigns?selected_campaign_ids=${encodeURIComponent(metaCampaignId)}`
+      metadata.set("adsManagerUrl", adsManagerUrl)
+
       const result: LaunchResult = {
         campaignId: campaignRow.id,
         metaCampaignId,
@@ -529,7 +544,10 @@ export const launchCampaign = schemaTask({
       const reason = err instanceof Error ? err.message : String(err)
       logError("task.launch.fatal", { productId, userId, attempt, reason })
       await markProductFailed(userId, productId, reason, "launch-crashed")
-      throw err
+      if (err instanceof Error && parseTaskErrorPayload(err.message) !== null) {
+        throw err
+      }
+      launchError("generic_fallback", reason)
     }
   },
 })

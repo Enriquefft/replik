@@ -3,12 +3,13 @@
 import type { AnyRealtimeRun, RunStatus } from "@trigger.dev/core/v3"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { z } from "zod"
 import { useConnectionState } from "@/hooks/use-connection-state.ts"
 import { useRefreshOnComplete } from "@/hooks/use-refresh-on-complete.ts"
 import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
-import type { TranslatedError } from "@/lib/errors/translate.ts"
+import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { PhaseLabel } from "@/lib/phase.ts"
 import type { TaskKind } from "@/lib/task-kind.ts"
 import { isRunFailed } from "@/lib/trigger-status.ts"
@@ -42,6 +43,13 @@ export interface PhaseProgressProps<Phase extends string, Meta> {
   errorSlot?: (err: TranslatedError) => React.ReactNode
   /** Fires once when the run reaches `COMPLETED`. */
   onComplete?: () => void
+  /**
+   * Fires when the user clicks the retry action on the failure card. The
+   * caller is expected to re-invoke the originating server action and
+   * mount a fresh run — leave undefined to fall back to `router.refresh()`
+   * (whose button label switches to "Refrescar" to stay honest).
+   */
+  onRetry?: () => void
   /** Show a "stuck" banner if no metadata update lands within this window. */
   stuckThresholdMs?: number
   /** Extra className on the outer container. */
@@ -125,6 +133,7 @@ export function PhaseProgress<Phase extends string, Meta>(
     detailSlot,
     errorSlot,
     onComplete,
+    onRetry,
     stuckThresholdMs = DEFAULT_STUCK_MS,
     className,
   } = props
@@ -323,7 +332,13 @@ export function PhaseProgress<Phase extends string, Meta>(
 
       <ConnectionBanner state={connectionState} />
       {stuck ? <StuckBanner /> : null}
-      {failed ? <FailedCard translated={translatedError} errorSlot={errorSlot} /> : null}
+      {failed ? (
+        <FailedCard
+          translated={translatedError}
+          errorSlot={errorSlot}
+          {...(onRetry !== undefined && { onRetry })}
+        />
+      ) : null}
     </div>
   )
 }
@@ -422,9 +437,68 @@ function StuckBanner(): React.JSX.Element {
 interface FailedCardProps {
   translated: TranslatedError | null
   errorSlot: ((err: TranslatedError) => React.ReactNode) | undefined
+  onRetry?: () => void
 }
 
-function FailedCard({ translated, errorSlot }: FailedCardProps): React.JSX.Element {
+const SUPPORT_MAILTO = "mailto:soporte@usereplik.com?subject=Necesito%20ayuda%20con%20una%20tarea"
+
+interface ActionLabel {
+  label: string
+  href?: string
+  onClick?: () => void
+}
+
+function resolveActionLabel(
+  action: ErrorAction,
+  router: ReturnType<typeof useRouter>,
+  onRetry: (() => void) | undefined,
+): ActionLabel | null {
+  switch (action.kind) {
+    case "retry":
+      // If the parent passed `onRetry`, treat the click as a true restart of
+      // the originating server action (fresh runHandle, fresh wait surface).
+      // Otherwise fall back to a page refresh and rename the button to match
+      // — "Reintentar" promises behavior we can't deliver without the hook.
+      if (onRetry !== undefined) {
+        return {
+          label: "Reintentar",
+          onClick: onRetry,
+        }
+      }
+      return {
+        label: "Refrescar",
+        onClick: () => {
+          router.refresh()
+        },
+      }
+    case "reconnect_integration":
+      // The dashboard mounts both `<CredentialsModal provider="meta">` and
+      // `<CredentialsModal provider="shopify">` and auto-opens whichever is
+      // referenced via `?reconnect=<provider>` on first render (then strips
+      // the param). Meta surfaces from the "Refrescar métricas" flow and the
+      // per-product launch screen; Shopify surfaces from the per-product
+      // landing screen. Dashboard centralizes both so a single deep link
+      // works regardless of which flow surfaced the error.
+      return {
+        label: action.provider === "meta" ? "Reconectar Meta" : "Reconectar Shopify",
+        href: `/dashboard?reconnect=${action.provider}`,
+      }
+    case "contact_support":
+      return { label: "Contactar soporte", href: SUPPORT_MAILTO }
+    case "edit_input":
+      return {
+        label: "Volver y corregir",
+        onClick: () => {
+          router.back()
+        },
+      }
+    case "none":
+      return null
+  }
+}
+
+function FailedCard({ translated, errorSlot, onRetry }: FailedCardProps): React.JSX.Element {
+  const router = useRouter()
   if (translated === null) {
     return (
       <div className="mt-4 rounded-card border border-mode-traffic bg-mode-traffic-badge-bg p-3 flex items-start gap-2">
@@ -436,10 +510,31 @@ function FailedCard({ translated, errorSlot }: FailedCardProps): React.JSX.Eleme
   if (errorSlot !== undefined) {
     return <div className="mt-4">{errorSlot(translated)}</div>
   }
+  const actionLabel = resolveActionLabel(translated.action, router, onRetry)
   return (
     <div className="mt-4 rounded-card border border-mode-traffic bg-mode-traffic-badge-bg p-4">
       <p className="text-callout font-semibold text-mode-traffic">{translated.titleEs}</p>
       <p className="text-caption text-mode-traffic mt-1">{translated.bodyEs}</p>
+      {actionLabel !== null ? (
+        <div className="mt-3">
+          {actionLabel.href !== undefined ? (
+            <a
+              href={actionLabel.href}
+              className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-mode-traffic bg-surface text-sm font-medium text-mode-traffic hover:bg-surface-muted transition-colors"
+            >
+              {actionLabel.label}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={actionLabel.onClick}
+              className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-mode-traffic bg-surface text-sm font-medium text-mode-traffic hover:bg-surface-muted transition-colors"
+            >
+              {actionLabel.label}
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }

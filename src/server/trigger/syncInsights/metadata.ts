@@ -57,11 +57,14 @@ export const SyncInsightsErrorCodeSchema = z.enum(SYNC_INSIGHTS_ERROR_CODES)
 export type SyncInsightsErrorCode = z.infer<typeof SyncInsightsErrorCodeSchema>
 
 /**
- * Per-product progress block. The UI uses `done / total` for the bar and
- * `current` for the active row highlight on the dashboard.
+ * Per-product progress block. The UI uses `done / total` for the bar,
+ * `current` for the active row highlight on the dashboard, and
+ * `currentName` for the Spanish status line ("Sincronizando 3 de 7
+ * productos · Nike Pegasus").
  */
 export const SyncInsightsProductProgressSchema = z.object({
   current: z.uuid().optional(),
+  currentName: z.string().min(1).max(200).optional(),
   done: z.number().int().nonnegative(),
   total: z.number().int().nonnegative(),
 })

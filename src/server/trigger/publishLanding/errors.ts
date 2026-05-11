@@ -1,5 +1,20 @@
+import { taskError } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { PublishErrorCode } from "./metadata.ts"
+
+/**
+ * Per-task `taskError` helper bound to {@link PublishErrorCode}.
+ * Use inside the publishLanding task body so typos in the code argument
+ * fail at compile time instead of leaking through to the translator as
+ * `generic_fallback`.
+ *
+ * Declared as a `function` (not an arrow assigned to a const) so
+ * TypeScript's control-flow analysis narrows after
+ * `if (!x) publishError(...)`.
+ */
+export function publishError(code: PublishErrorCode, message: string): never {
+  taskError(code, message)
+}
 
 const RETRY: ErrorAction = { kind: "retry" }
 const RECONNECT_SHOPIFY: ErrorAction = { kind: "reconnect_integration", provider: "shopify" }

@@ -9,6 +9,7 @@ import { generateLandingBody } from "@/lib/ai/landing-body.ts"
 import { TemplatePickInputSchema } from "@/lib/ai/schemas.ts"
 import { pickTemplate } from "@/lib/ai/template-pick.ts"
 import { decrypt } from "@/lib/crypto"
+import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import { logError, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import type { ShopifyCreds } from "@/lib/shopify"
 import {
@@ -20,6 +21,7 @@ import {
   templateAssetKeyFor,
 } from "@/lib/shopify"
 import { requireIntegration } from "@/server/integrations"
+import { publishError } from "./errors.ts"
 import type { PublishPhase } from "./metadata.ts"
 
 interface PublishLandingPayload {
@@ -92,8 +94,8 @@ export const publishLandingTask = task({
       })
       const product = loaded.product
       const user = loaded.user
-      if (!product) throw new Error(`product not found: ${productId}`)
-      if (!user) throw new Error(`user not found: ${userId}`)
+      if (!product) publishError("generic_fallback", `product not found: ${productId}`)
+      if (!user) publishError("generic_fallback", `user not found: ${userId}`)
 
       // 2. Idempotency key. `attempt` is the Trigger.dev attempt number for the
       // current run — re-runs of the same attempt short-circuit to the persisted
@@ -133,7 +135,7 @@ export const publishLandingTask = task({
         ) {
           const tid = persisted.shopifyTemplateId
           if (tid !== 1 && tid !== 2 && tid !== 3) {
-            throw new Error(`invalid persisted template_id: ${tid.toString()}`)
+            publishError("generic_fallback", `invalid persisted template_id: ${tid.toString()}`)
           }
           return {
             shopify_product_id: persisted.shopifyProductId,
@@ -189,7 +191,7 @@ export const publishLandingTask = task({
       // 4. Resolve Shopify integration.
       const shopifyCreds = await requireIntegration(userId, "shopify")
       if (shopifyCreds.extra.provider !== "shopify") {
-        throw new Error("integration extra provider mismatch")
+        publishError("integration_incomplete", "integration extra provider mismatch")
       }
       const creds: ShopifyCreds = {
         token: shopifyCreds.token,
@@ -261,7 +263,8 @@ export const publishLandingTask = task({
       // payload smuggled past the action) we refuse to render with a missing
       // edited video instead of silently shipping an empty landing.
       if (editedAssets.length !== creativeIds.length) {
-        throw new Error(
+        publishError(
+          "missing_creatives",
           `burn_incomplete: ${editedAssets.length.toString()}/${creativeIds.length.toString()} edited_video assets present`,
         )
       }
@@ -271,7 +274,10 @@ export const publishLandingTask = task({
       // signal — fallback throws and the publish task surfaces via
       // `markProductFailed` rather than rendering an empty body.
       if (selectedCreatives.length === 0) {
-        throw new Error("publishLanding: no selected creatives — cannot generate landing body")
+        publishError(
+          "missing_creatives",
+          "publishLanding: no selected creatives, cannot generate landing body",
+        )
       }
       metadata.set("phase", "generating_body" satisfies PublishPhase)
       const landingBody = await withTiming(
@@ -312,7 +318,10 @@ export const publishLandingTask = task({
       // so this is defense-in-depth narrowing.
       const fallbackCandidate = heroVideoCandidates[0]
       if (!fallbackCandidate) {
-        throw new Error("publishLanding: no edited videos available for hero pick")
+        publishError(
+          "missing_creatives",
+          "publishLanding: no edited videos available for hero pick",
+        )
       }
       const productCategoryForHero = product.category
       let heroPicked: { pickedCreativeId: string; url: string }
@@ -374,7 +383,10 @@ export const publishLandingTask = task({
       if (!b1 || !b2 || !b3 || !f1 || !f2 || !f3 || !o1 || !o2) {
         // LandingBodySchema enforces length(3)/length(3)/length(2), so this
         // is unreachable in practice — kept as a typed narrowing.
-        throw new Error("publishLanding: landing body shape invariant violated")
+        publishError(
+          "landing_body_invalid",
+          "publishLanding: landing body shape invariant violated",
+        )
       }
       const vars = {
         title: overrides?.headline ?? product.name ?? "Producto",
@@ -448,7 +460,12 @@ export const publishLandingTask = task({
       const reason = err instanceof Error ? err.message : String(err)
       logError("task.publish.fatal", { productId, userId, reason })
       await markProductFailed(userId, productId, reason, "publish-crashed")
-      throw err
+      // Preserve structured TASK_ERROR envelopes; wrap anything else so the
+      // translator gets a deterministic code (`generic_fallback` → LLM path).
+      if (err instanceof Error && parseTaskErrorPayload(err.message) !== null) {
+        throw err
+      }
+      publishError("generic_fallback", reason)
     }
   },
 })

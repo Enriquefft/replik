@@ -1,5 +1,17 @@
+import { taskError } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { LaunchErrorCode } from "./metadata.ts"
+
+/**
+ * Per-task `taskError` helper bound to {@link LaunchErrorCode}. Use
+ * inside the launchCampaign task body so codes are type-checked against
+ * the enum at every call site.
+ *
+ * Function declaration (not an arrow const) preserves TS narrowing.
+ */
+export function launchError(code: LaunchErrorCode, message: string): never {
+  taskError(code, message)
+}
 
 const RETRY: ErrorAction = { kind: "retry" }
 const RECONNECT_META: ErrorAction = { kind: "reconnect_integration", provider: "meta" }

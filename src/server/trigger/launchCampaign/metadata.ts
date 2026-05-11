@@ -87,12 +87,19 @@ export type LaunchErrorCode = z.infer<typeof LaunchErrorCodeSchema>
  * Mirrors the existing `metadata.set` call sites in the task body — every
  * key the orchestrator broadcasts is enumerated here so the UI parses
  * with Zod instead of trusting `run.metadata` blindly.
+ *
+ * `adsManagerUrl` is emitted on the final phase so the UI can render a
+ * deep-link CTA to Meta's Ads Manager once the campaign id is known. The
+ * URL includes `act={ad_account_id}` whenever the integration extra has
+ * the account id; otherwise we fall back to a campaign-only deep link
+ * that Meta resolves against the currently logged-in business.
  */
 export const LaunchProgressMetadataSchema = z.object({
   phase: z.enum(LAUNCH_PHASES).optional(),
   videosTotal: z.number().int().nonnegative().optional(),
   videosUploaded: z.number().int().nonnegative().optional(),
   adsCreated: z.number().int().nonnegative().optional(),
+  adsManagerUrl: z.url().optional(),
 })
 
 export type LaunchProgressMetadata = z.infer<typeof LaunchProgressMetadataSchema>

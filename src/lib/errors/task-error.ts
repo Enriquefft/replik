@@ -1,6 +1,20 @@
 import { z } from "zod"
 
 /**
+ * Per-task error helper convention
+ *
+ * Each task's `errors.ts` declares its own `<task>Error(code, message)`
+ * helper as a **function declaration** (not an arrow assigned to a
+ * `const`) so TypeScript's control-flow analysis still narrows after
+ * `if (!x) <task>Error(...)`. The helper's `code` parameter is typed
+ * with the task's `ErrorCodeSchema`-derived literal union, giving each
+ * call site a compile-time check against typos. See
+ * `src/server/trigger/publishLanding/errors.ts` for the canonical
+ * shape.
+ *
+ * Raw `taskError` remains for migration and for the rare call site
+ * that synthesizes codes from a wider union.
+ *
  * Structured error envelope thrown from inside Trigger.dev tasks.
  *
  * Why a string-encoded payload instead of an Error subclass:
@@ -36,6 +50,12 @@ export type TaskErrorPayload = z.infer<typeof TaskErrorPayloadSchema>
  * the translator validates it on the read side. `message` is the
  * developer-facing detail (logs, LLM fallback context). Do not put PII or
  * secrets in `message` — it ends up in the run's persisted error record.
+ *
+ * Prefer per-task bound helpers built via `makeTaskError` (see
+ * `src/server/trigger/<task>/errors.ts`) — those are statically typed
+ * against the task's `ErrorCodeSchema` enum so typos in the code argument
+ * fail at compile time. Raw `taskError` remains for migration and for
+ * call sites that synthesize codes from a wider union.
  */
 export function taskError<Code extends string>(code: Code, message: string): never {
   const payload: TaskErrorPayload = { code, message }

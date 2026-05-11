@@ -1,5 +1,17 @@
+import { taskError } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { SyncInsightsErrorCode } from "./metadata.ts"
+
+/**
+ * Per-task `taskError` helper bound to {@link SyncInsightsErrorCode}.
+ * Use inside the syncInsights task body so error codes are constrained at
+ * compile time.
+ *
+ * Function declaration (not an arrow const) preserves TS narrowing.
+ */
+export function syncInsightsError(code: SyncInsightsErrorCode, message: string): never {
+  taskError(code, message)
+}
 
 const RETRY: ErrorAction = { kind: "retry" }
 const RECONNECT_META: ErrorAction = { kind: "reconnect_integration", provider: "meta" }

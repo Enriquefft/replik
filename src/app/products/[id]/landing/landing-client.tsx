@@ -11,7 +11,7 @@ import type { ChatMessage } from "@/components/chat-panel.tsx"
 import { ChatPanel } from "@/components/chat-panel.tsx"
 import { CredentialsModal } from "@/components/credentials-modal.tsx"
 import { IphonePreview } from "@/components/iphone-preview.tsx"
-import { TaskProgress } from "@/components/task-progress.tsx"
+import { PhaseProgress } from "@/components/phase-progress.tsx"
 import { TemplateCard } from "@/components/template-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form.tsx"
@@ -20,6 +20,13 @@ import { centsToSoles, SolesToCentsSchema } from "@/lib/pricing.ts"
 import type { TemplateId, TemplateMeta } from "@/lib/shopify/templates/index.ts"
 import { publishLanding } from "@/server/actions/landing.ts"
 import { adjustLandingCopy } from "@/server/actions/products.ts"
+import {
+  PUBLISH_PHASE_LABELS_ES,
+  PUBLISH_PHASE_WEIGHTS,
+  PUBLISH_PHASES,
+  type PublishProgressMetadata,
+  PublishProgressMetadataSchema,
+} from "@/server/trigger/publishLanding/metadata.ts"
 
 interface LandingClientProps {
   productId: string
@@ -143,8 +150,11 @@ export function LandingClient({
       return
     }
 
+    // Submit-receipt: fire BEFORE the wait surface mounts. See
+    // `src/components/wait/README.md` — present-progressive Spanish copy
+    // matches the verb on the wait rail.
+    toast.success("Publicando landing…")
     setRunHandle({ runId: result.data.runId, accessToken: result.data.accessToken })
-    toast.success("¡Publicación iniciada!")
   }
 
   function handleCredSaved() {
@@ -244,11 +254,22 @@ export function LandingClient({
 
           {/* Publish button */}
           {runHandle ? (
-            <TaskProgress
+            <PhaseProgress<(typeof PUBLISH_PHASES)[number], PublishProgressMetadata>
               runId={runHandle.runId}
               accessToken={runHandle.accessToken}
-              step="Publicando landing en Shopify…"
-              detail="Creando producto + página + aplicando template"
+              phases={PUBLISH_PHASES}
+              phaseWeights={PUBLISH_PHASE_WEIGHTS}
+              phaseLabels={PUBLISH_PHASE_LABELS_ES}
+              metadataSchema={PublishProgressMetadataSchema}
+              taskKind="publish_landing"
+              currentPhaseFromMeta={(m) => m.phase ?? null}
+              onRetry={() => {
+                // Drop the dead run handle so PhaseProgress unmounts cleanly
+                // before the form re-submits — the next setRunHandle below
+                // mounts a fresh component subscribed to the new run id.
+                setRunHandle(null)
+                void form.handleSubmit(onPublish)()
+              }}
             />
           ) : (
             <Button
