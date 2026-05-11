@@ -8,6 +8,8 @@
     "src/server/actions/**/*.ts",
     "src/lib/meta/index.ts",
     "src/lib/meta/endpoints.ts",
+    "src/__tests__/setup.ts",
+    "src/**/__tests__/**/*.test.{ts,tsx}",
     "trigger.config.ts"
   ],
   "project": ["src/**/*.{ts,tsx}"],
@@ -19,6 +21,5 @@
     "shadcn",
     "@trigger.dev/core"
   ],
-  "ignoreExportsUsedInFile": true,
-  "ignoreFiles": ["src/**/__tests__/**", "src/**/__smoke__.*"]
+  "ignoreExportsUsedInFile": true
 }

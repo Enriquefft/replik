@@ -6,6 +6,7 @@ export default defineConfig({
   dirs: ["./src/server/trigger"],
   maxDuration: 600,
   build: {
+    external: ["onnxruntime-node"],
     extensions: [
       ffmpeg(),
       aptGet({

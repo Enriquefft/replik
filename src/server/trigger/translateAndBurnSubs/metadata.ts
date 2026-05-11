@@ -17,4 +17,3 @@ export type BurnPhase = (typeof BURN_PHASES)[number]
 export const BurnProgressMetadataSchema = z.object({
   phase: z.enum(BURN_PHASES).optional(),
 })
-export type BurnProgressMetadata = z.infer<typeof BurnProgressMetadataSchema>
