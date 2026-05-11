@@ -6,7 +6,7 @@ import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { z } from "zod"
-import { useConnectionState } from "@/hooks/use-connection-state.ts"
+import { type ConnectionState, useConnectionState } from "@/hooks/use-connection-state.ts"
 import { useRefreshOnComplete } from "@/hooks/use-refresh-on-complete.ts"
 import { useTaskNarration } from "@/hooks/use-task-narration.ts"
 import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
@@ -194,8 +194,9 @@ export function PhaseProgress<Phase extends string, Meta>(
     }
   }, [startedAt, done, failed])
 
-  // ─── Connection banner ─────────────────────────────────────────────────────
-  const connectionState = useConnectionState({ realtimeError, lastUpdateAt })
+  // ─── Connection dot ────────────────────────────────────────────────────────
+  // Indicator only — task pace is handled separately by `<StuckBanner>`.
+  const connectionState = useConnectionState({ realtimeError })
 
   // ─── Stuck banner ──────────────────────────────────────────────────────────
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -261,9 +262,12 @@ export function PhaseProgress<Phase extends string, Meta>(
             meta={meta}
           />
         </div>
-        <span className="shrink-0 inline-flex items-center h-7 px-2.5 rounded-pill border border-border bg-surface-elevated text-caption font-mono text-fg-2 tabular-nums">
-          {formatElapsed(elapsedSec)}
-        </span>
+        <div className="shrink-0 flex items-center gap-2">
+          <ConnectionDot state={connectionState} />
+          <span className="inline-flex items-center h-7 px-2.5 rounded-pill border border-border bg-surface-elevated text-caption font-mono text-fg-2 tabular-nums">
+            {formatElapsed(elapsedSec)}
+          </span>
+        </div>
       </div>
 
       {/* Phase rail: flex-wrap fallback at <sm breaks rows when phase pills
@@ -337,7 +341,6 @@ export function PhaseProgress<Phase extends string, Meta>(
 
       {detailSlot !== undefined ? <div className="mt-4">{detailSlot(meta)}</div> : null}
 
-      <ConnectionBanner state={connectionState} />
       {stuck ? <StuckBanner /> : null}
       {failed ? (
         <FailedCard
@@ -442,25 +445,30 @@ function PhaseStatusLine<Phase extends string, Meta>(
   )
 }
 
-interface ConnectionBannerProps {
-  state: "live" | "polling" | "lost"
+interface ConnectionDotProps {
+  state: ConnectionState
 }
 
-function ConnectionBanner({ state }: ConnectionBannerProps): React.JSX.Element | null {
-  if (state === "live") return null
+function ConnectionDot({ state }: ConnectionDotProps): React.JSX.Element {
+  const live = state === "live"
   return (
-    <p className="mt-3 text-caption text-fg-3">
-      {state === "polling"
-        ? "Conexión en vivo intermitente — seguimos sondeando el estado."
-        : "Perdimos la conexión con el agente. Refresca si el progreso queda atascado."}
-    </p>
+    <span
+      role="status"
+      aria-label={live ? "Conexión en vivo" : "Sin conexión en vivo, reintentando"}
+      title={live ? "Conexión en vivo" : "Sin conexión en vivo. Reintentando…"}
+      className={cn(
+        "inline-block size-2 rounded-full shrink-0",
+        live ? "bg-mode-live" : "border border-fg-3 bg-transparent",
+      )}
+    />
   )
 }
 
 function StuckBanner(): React.JSX.Element {
   return (
     <p className="mt-3 text-caption text-mode-traffic">
-      El progreso lleva varios minutos sin actualizarse. Si persiste, refresca o contáctanos.
+      El agente lleva varios minutos en silencio. Suele resolverse solo; podés esperar o
+      escribirnos.
     </p>
   )
 }
