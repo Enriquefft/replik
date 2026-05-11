@@ -1,9 +1,9 @@
 import "server-only"
 
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
 
-import { requireUser, withUser } from "@/db/client"
+import { getDb } from "@/db/client"
 import { creatives } from "@/db/schema"
 import { APIFY_KVS_HOSTNAME } from "@/lib/apify/auth.ts"
 
@@ -14,7 +14,7 @@ interface RouteContext {
 }
 
 /**
- * Authenticated streaming proxy for creative previews that point at
+ * UUID-gated streaming proxy for creative previews that point at
  * private Apify Key-Value Store URLs (TikTok lane). Browsers cannot
  * fetch those URLs anonymously (HTTP 403) and we cannot embed the
  * APIFY_TOKEN client-side, so the route attaches an `Authorization:
@@ -24,6 +24,13 @@ interface RouteContext {
  *
  * For non-Apify hosts (FB CDN), the route 302-redirects directly so we
  * don't proxy bytes that the browser can fetch on its own.
+ *
+ * Auth model: the route is intentionally public (excluded from Clerk
+ * middleware) so Vercel's CDN can cache responses — Clerk's per-request
+ * `Set-Cookie` defeats `Cache-Control: public` caching on any protected
+ * route. Access is gated by the unguessable creative UUID, the same way
+ * Cloudinary / Mux / YouTube-unlisted protect asset URLs. Bytes are the
+ * only thing fetchable; no PII, no user data.
  */
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   const { id } = await context.params
@@ -31,16 +38,13 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   if (!idParsed.success) return new Response("invalid_id", { status: 400 })
   const creativeId = idParsed.data
 
-  const { userId } = await requireUser()
-
-  const scrapeUrl = await withUser(userId, async (db) => {
-    const rows = await db
-      .select({ scrapeUrl: creatives.scrapeUrl })
-      .from(creatives)
-      .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
-      .limit(1)
-    return rows[0]?.scrapeUrl ?? null
-  })
+  const db = getDb()
+  const rows = await db
+    .select({ scrapeUrl: creatives.scrapeUrl })
+    .from(creatives)
+    .where(eq(creatives.id, creativeId))
+    .limit(1)
+  const scrapeUrl = rows[0]?.scrapeUrl ?? null
 
   if (scrapeUrl === null) return new Response("not_found", { status: 404 })
 
