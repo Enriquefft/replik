@@ -81,22 +81,21 @@ function derive(
     }
   }
   if (phase === "finding_ads") {
-    const fetched = meta?.ads_fetched ?? meta?.ads_total
-    if (fetched === undefined) {
-      return {
-        title: "Buscando creativos en Meta Ad Library…",
-        detail: "Probando keywords en Perú.",
-        progress: 32,
-        activeIndex,
-      }
-    }
+    const total = meta?.ladder_total
+    const done = meta?.ladder_done ?? 0
+    const current = meta?.ladder_current_keyword
+    const fetched = meta?.ads_fetched
+    const ladderProgress = total !== undefined && total > 0 ? done / total : 0
     return {
-      title: `Encontré ${fetched.toString()} anuncios`,
+      title:
+        current !== undefined
+          ? `Probando "${current}" (${done.toString()}/${total?.toString() ?? "?"})`
+          : "Buscando creativos en Meta Ad Library…",
       detail:
-        fetched === 0
-          ? "Probando con Apify como respaldo."
-          : "Descargando los videos para transcribir.",
-      progress: 42,
+        fetched !== undefined
+          ? `${fetched.toString()} anuncios encontrados hasta ahora.`
+          : "Cada keyword toma 30-60 segundos.",
+      progress: 32 + Math.round(ladderProgress * 12),
       activeIndex,
     }
   }

@@ -186,6 +186,8 @@ async function findAds(ladder: LadderQuery[]): Promise<{ ads: FoundAd[]; source:
 
   const apifyAds = new Map<string, FoundAd>()
   const tried = ladder.slice(0, APIFY_MAX_QUERIES)
+  metadata.set("ladder_total", tried.length)
+  metadata.set("ladder_done", 0)
   for (const step of tried) {
     if (apifyAds.size >= MAX_ADS_FETCH) {
       logger.info("apify_ladder_circuit_break", {
@@ -195,6 +197,7 @@ async function findAds(ladder: LadderQuery[]): Promise<{ ads: FoundAd[]; source:
       })
       break
     }
+    metadata.set("ladder_current_keyword", step.keyword)
     const [fbResult, tiktokResult] = await Promise.allSettled([
       apify.searchFBAdsByKeyword(step.keyword),
       tiktokApify.searchTikTokByKeyword(step.keyword),
@@ -252,6 +255,8 @@ async function findAds(ladder: LadderQuery[]): Promise<{ ads: FoundAd[]; source:
       tiktokAdded: addedTiktok,
       total: apifyAds.size,
     })
+    metadata.increment("ladder_done", 1)
+    metadata.set("ads_fetched", apifyAds.size)
   }
   const ads = Array.from(apifyAds.values())
   return { ads, source: summarizeSources(ads) }

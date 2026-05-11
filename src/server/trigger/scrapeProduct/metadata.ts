@@ -14,6 +14,11 @@ export const ScrapeProgressMetadataSchema = z.object({
   ads_total: z.number().int().nonnegative().optional(),
   transcribed: z.number().int().nonnegative().optional(),
   classified: z.number().int().nonnegative().optional(),
+  // Apify ladder progress — emitted per ladder step inside findAds() so the UI
+  // can show "trying keyword K (n/m)" instead of a 3-5 min static spinner.
+  ladder_total: z.number().int().nonnegative().optional(),
+  ladder_done: z.number().int().nonnegative().optional(),
+  ladder_current_keyword: z.string().optional(),
   // Stage A signals — populated as soon as the scraper sees the page.
   productName: z.string().optional(),
   imageUrls: z.array(z.url()).optional(),
