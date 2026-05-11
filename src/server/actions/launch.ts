@@ -28,10 +28,9 @@ import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
-import { productTag } from "@/lib/trigger-tags.ts"
-import { toProductId } from "@/lib/types/ids.ts"
+import { productTag, userTag } from "@/lib/trigger-tags.ts"
+import { toProductId, toUserId } from "@/lib/types/ids.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
-import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
 
 export type LaunchResult =
@@ -161,15 +160,8 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
           attempt,
           budgetDailyCents,
         },
-        { tags: [productTag(toProductId(productId))] },
+        { tags: [productTag(toProductId(productId)), userTag(toUserId(userId))] },
       )
-
-      await recordTaskStart({
-        triggerRunId: handle.id,
-        userId,
-        productId,
-        kind: "launch_campaign",
-      })
 
       const accessToken = await auth.createPublicToken({
         scopes: { read: { runs: [handle.id] } },

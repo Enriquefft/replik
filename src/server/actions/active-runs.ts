@@ -1,11 +1,14 @@
 "use server"
 
-import { auth } from "@trigger.dev/sdk"
-import { and, desc, eq, inArray } from "drizzle-orm"
+import type { RunStatus } from "@trigger.dev/core/v3"
+import { auth, runs } from "@trigger.dev/sdk"
+import { and, eq, inArray } from "drizzle-orm"
 import { requireUser, UnauthenticatedError, withUser } from "@/db/client"
-import { products, taskRuns } from "@/db/schema"
+import { products } from "@/db/schema"
+import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import { logEvent } from "@/lib/observability/log.ts"
-import type { TaskKind } from "@/lib/task-kind.ts"
+import { type TaskKind, taskKindFromTriggerId } from "@/lib/task-kind.ts"
+import { isRunFailed } from "@/lib/trigger-status.ts"
 import { productTag, userTag } from "@/lib/trigger-tags.ts"
 import { toProductId, toUserId } from "@/lib/types/ids.ts"
 
@@ -29,15 +32,53 @@ export interface ActiveRunsResponse {
 
 const EMPTY: ActiveRunsResponse = { runs: [], accessToken: "" }
 
+// Hard cap on result-set size. Active runs per user are naturally bounded
+// (a user might have ~5 in flight at once); the cap is defensive.
+const LIST_LIMIT = 50
+
+const PRODUCT_TAG_PREFIX = "product:"
+
+/**
+ * The status enum we expose to the JobsDock client. Lossy projection of
+ * Trigger.dev's broader run-status enum onto the five cases the UI cares
+ * about: in-flight (queued/executing), terminal (completed/failed/canceled).
+ */
+type SimpleStatus = "completed" | "failed" | "canceled" | "queued" | "executing"
+
+function projectStatus(status: RunStatus): SimpleStatus | null {
+  if (status === "COMPLETED") return "completed"
+  if (status === "CANCELED") return "canceled"
+  if (isRunFailed(status)) return "failed"
+  if (status === "EXECUTING" || status === "WAITING") return "executing"
+  if (
+    status === "QUEUED" ||
+    status === "PENDING_VERSION" ||
+    status === "DEQUEUED" ||
+    status === "DELAYED"
+  ) {
+    return "queued"
+  }
+  return null
+}
+
+function productIdFromTags(tags: readonly string[]): string | null {
+  for (const tag of tags) {
+    if (tag.startsWith(PRODUCT_TAG_PREFIX)) {
+      return tag.slice(PRODUCT_TAG_PREFIX.length)
+    }
+  }
+  return null
+}
+
 /**
  * Server action consumed by `<JobsDock>` to list the current user's
  * in-flight task runs. Returns an empty response when unauthenticated so
  * the client doesn't have to special-case the signed-out branch.
  *
- * Auth: Clerk `auth()` is invoked via `requireUser`. Unauthenticated
- * callers get a fail-closed empty response. The Trigger.dev public token
- * scopes to the union of tags for runs the user actually owns — a token
- * minted under user A can never decode a run belonging to user B.
+ * Source of truth: Trigger.dev's `runs.list` API, filtered by
+ * `userTag(userId)` so the response is naturally tenant-scoped server-side.
+ * Every task trigger site in the codebase tags with `userTag(userId)` so
+ * this filter covers all run kinds.
  */
 export async function listActiveRuns(): Promise<ActiveRunsResponse> {
   let userId: string
@@ -49,30 +90,57 @@ export async function listActiveRuns(): Promise<ActiveRunsResponse> {
     throw err
   }
 
-  // Composite index `(user_id, status)` covers the WHERE clause. The
-  // status filter intentionally drops `completed`/`failed`/`canceled` so
-  // the dock only ever surfaces work that's still alive on Trigger.dev.
-  const rows = await withUser(userId, async (db) =>
-    db
-      .select({
-        triggerRunId: taskRuns.triggerRunId,
-        kind: taskRuns.kind,
-        productId: taskRuns.productId,
-        startedAt: taskRuns.startedAt,
-      })
-      .from(taskRuns)
-      .where(and(eq(taskRuns.userId, userId), inArray(taskRuns.status, ["queued", "executing"])))
-      .orderBy(desc(taskRuns.startedAt)),
-  )
+  const myUserTag = userTag(toUserId(userId))
+  type ListPage = Awaited<ReturnType<typeof runs.list>>
+  let page: ListPage
+  try {
+    page = await runs.list({
+      tag: myUserTag,
+      status: ["QUEUED", "EXECUTING"],
+      limit: LIST_LIMIT,
+    })
+  } catch (err) {
+    logEvent("action.active_runs.list_failed", {
+      userId,
+      reason: err instanceof Error ? err.message : String(err),
+    })
+    return EMPTY
+  }
 
-  if (rows.length === 0) return EMPTY
+  const items = page.data
+  if (items.length === 0) return EMPTY
 
-  // Resolve product names for runs that have a productId. One round-trip
-  // because Neon HTTP doesn't support transactions and we want to keep
-  // this server action cheap (the dock refetches every 30s).
-  const productIds = [...new Set(rows.flatMap((r) => (r.productId ? [r.productId] : [])))]
+  // Map Trigger.dev items → ActiveRunSummary, dropping any whose
+  // taskIdentifier isn't a known TaskKind (e.g., orphan child runs or
+  // tasks introduced without a label entry).
+  const summariesPartial: Array<{
+    triggerRunId: string
+    kind: TaskKind
+    productId: string | null
+    startedAt: Date
+  }> = []
+  const productIdSet = new Set<string>()
+
+  for (const item of items) {
+    const kind = taskKindFromTriggerId(item.taskIdentifier)
+    if (kind === null) continue
+    const productId = productIdFromTags(item.tags)
+    if (productId !== null) productIdSet.add(productId)
+    summariesPartial.push({
+      triggerRunId: item.id,
+      kind,
+      productId,
+      startedAt: item.startedAt ?? item.createdAt,
+    })
+  }
+
+  if (summariesPartial.length === 0) return EMPTY
+
+  // Resolve product names for runs that carry a `product:` tag. One
+  // round-trip — the dock refetches every 30s so cheap matters.
   const productNameById = new Map<string, string>()
-  if (productIds.length > 0) {
+  if (productIdSet.size > 0) {
+    const productIds = [...productIdSet]
     const productRows = await withUser(userId, async (db) =>
       db
         .select({ id: products.id, name: products.name })
@@ -84,27 +152,27 @@ export async function listActiveRuns(): Promise<ActiveRunsResponse> {
     }
   }
 
-  const runs: ActiveRunSummary[] = rows.map((r) => {
-    const summary: ActiveRunSummary = {
-      triggerRunId: r.triggerRunId,
-      kind: r.kind,
-      productId: r.productId,
-      startedAt: r.startedAt,
-    }
-    if (r.productId !== null) {
-      const name = productNameById.get(r.productId)
-      if (name !== undefined) summary.productName = name
-    }
-    return summary
-  })
+  const summaries: ActiveRunSummary[] = summariesPartial
+    .map((s) => {
+      const summary: ActiveRunSummary = {
+        triggerRunId: s.triggerRunId,
+        kind: s.kind,
+        productId: s.productId,
+        startedAt: s.startedAt,
+      }
+      if (s.productId !== null) {
+        const name = productNameById.get(s.productId)
+        if (name !== undefined) summary.productName = name
+      }
+      return summary
+    })
+    .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
 
   // Tag union: `productTag` for every product with an active run, plus
-  // `userTag` to catch `sync_insights` runs (which carry no productId).
-  // Defensive scoping — the token can ONLY decode runs whose tags the
-  // user actually owns.
+  // `userTag` so the token also covers product-less runs (`sync_insights`).
   const tagSet = new Set<string>()
-  tagSet.add(userTag(toUserId(userId)))
-  for (const pid of productIds) {
+  tagSet.add(myUserTag)
+  for (const pid of productIdSet) {
     tagSet.add(productTag(toProductId(pid)))
   }
 
@@ -126,52 +194,59 @@ export async function listActiveRuns(): Promise<ActiveRunsResponse> {
     })
   }
 
-  return { runs, accessToken }
+  return { runs: summaries, accessToken }
 }
 
 export interface RunFinalStatusResponse {
-  status: "completed" | "failed" | "canceled" | "queued" | "executing" | null
+  status: SimpleStatus | null
   errorCode: string | null
   taskKind: TaskKind | null
 }
 
+const NO_RUN: RunFinalStatusResponse = { status: null, errorCode: null, taskKind: null }
+
 /**
- * Look up the persisted terminal state of a single run by trigger run id.
+ * Look up the terminal state of a single run by Trigger.dev run id.
  * Used by `useRunCompletionToast` after a run disappears from the active
- * set: the active-runs feed only returns live rows, so we need a second
+ * set: the active-runs feed only reports live runs, so we need a second
  * trip to discover whether the run completed cleanly or failed.
  *
- * Defensive auth: the row is only returned if it belongs to the current
- * user. A null response covers both "no such row" and "row belongs to
- * another tenant" without leaking which case it was.
+ * Defensive auth: the run is only returned if its tags include
+ * `userTag(userId)`. The Trigger.dev secret key auto-scopes to the
+ * project, so this guard is what enforces tenant isolation across
+ * projects-with-multiple-users.
  */
 export async function getRunFinalStatus(triggerRunId: string): Promise<RunFinalStatusResponse> {
   if (typeof triggerRunId !== "string" || triggerRunId.length === 0) {
-    return { status: null, errorCode: null, taskKind: null }
+    return NO_RUN
   }
   let userId: string
   try {
     const session = await requireUser()
     userId = session.userId
   } catch (err) {
-    if (err instanceof UnauthenticatedError) {
-      return { status: null, errorCode: null, taskKind: null }
-    }
+    if (err instanceof UnauthenticatedError) return NO_RUN
     throw err
   }
 
-  const rows = await withUser(userId, async (db) =>
-    db
-      .select({
-        status: taskRuns.status,
-        errorCode: taskRuns.errorCode,
-        kind: taskRuns.kind,
-      })
-      .from(taskRuns)
-      .where(and(eq(taskRuns.triggerRunId, triggerRunId), eq(taskRuns.userId, userId)))
-      .limit(1),
-  )
-  const row = rows[0]
-  if (!row) return { status: null, errorCode: null, taskKind: null }
-  return { status: row.status, errorCode: row.errorCode, taskKind: row.kind }
+  type RetrievedRun = Awaited<ReturnType<typeof runs.retrieve>>
+  let run: RetrievedRun
+  try {
+    run = await runs.retrieve(triggerRunId)
+  } catch (err) {
+    logEvent("action.active_runs.retrieve_failed", {
+      userId,
+      triggerRunId,
+      reason: err instanceof Error ? err.message : String(err),
+    })
+    return NO_RUN
+  }
+
+  if (!run.tags.includes(userTag(toUserId(userId)))) return NO_RUN
+
+  const taskKind = taskKindFromTriggerId(run.taskIdentifier)
+  const status = projectStatus(run.status)
+  const errorCode = parseTaskErrorPayload(run.error?.message ?? "")?.code ?? null
+
+  return { status, errorCode, taskKind }
 }

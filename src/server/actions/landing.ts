@@ -6,10 +6,9 @@ import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products } from "@/db/schema"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
-import { productTag } from "@/lib/trigger-tags.ts"
-import { toProductId } from "@/lib/types/ids.ts"
+import { productTag, userTag } from "@/lib/trigger-tags.ts"
+import { toProductId, toUserId } from "@/lib/types/ids.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
-import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { publishLandingTask } from "@/server/trigger/publishLanding"
 import type { ActionResult } from "./types.ts"
 
@@ -169,15 +168,8 @@ export async function publishLanding(
           ...(templateId !== undefined && { templateId }),
           ...(overridesPayload !== undefined && { overrides: overridesPayload }),
         },
-        { tags: [productTag(toProductId(productId))] },
+        { tags: [productTag(toProductId(productId)), userTag(toUserId(userId))] },
       )
-
-      await recordTaskStart({
-        triggerRunId: handle.id,
-        userId,
-        productId,
-        kind: "publish_landing",
-      })
 
       const accessToken = await auth.createPublicToken({
         scopes: { read: { runs: [handle.id] } },

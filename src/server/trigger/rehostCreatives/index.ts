@@ -7,8 +7,8 @@ import { assets, creatives } from "@/db/schema"
 import { withApifyTokenIfKv } from "@/lib/apify/auth.ts"
 import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import { logEvent } from "@/lib/observability/log.ts"
-import { productTag } from "@/lib/trigger-tags.ts"
-import { toProductId } from "@/lib/types/ids.ts"
+import { productTag, userTag } from "@/lib/trigger-tags.ts"
+import { toProductId, toUserId } from "@/lib/types/ids.ts"
 import { type OriginalUploadInput, uploadOriginalsFromUrl } from "@/lib/video"
 import type { translateAndBurnSubsTask } from "@/server/trigger/translateAndBurnSubs"
 import { rehostError } from "./errors.ts"
@@ -59,7 +59,7 @@ export const rehostCreativesTask = task({
     const payload = RehostCreativesPayloadSchema.parse(rawPayload)
     const { creativeIds, userId, productId } = payload
     const startedAt = Date.now()
-    const burnTag = productTag(toProductId(productId))
+    const burnTags = [productTag(toProductId(productId)), userTag(toUserId(userId))]
 
     logger.info("rehost.start", { count: creativeIds.length })
 
@@ -194,21 +194,11 @@ export const rehostCreativesTask = task({
         // edited_video state without a race. Pin attempt=1 so re-runs of
         // rehostCreatives for the same creatives replay translateAndBurnSubs's
         // idempotency keys (loadPersistedAssets) instead of re-burning.
-        //
-        // TODO(telemetry): the per-creative burn runs spawned by
-        // `batchTriggerAndWait` here are not registered with
-        // `recordTaskStart`, so they don't surface in `<JobsDock>` and the
-        // `task_runs` table never sees their status transitions. Wiring this
-        // requires task-run telemetry to be emitted from INSIDE the
-        // Trigger.dev task body (we can't call `recordTaskStart` from a
-        // schemaTask context without a Clerk session). Tracked separately
-        // from Phase F — see task #12 ("Wire task_run status/phase telemetry
-        // from inside Trigger.dev tasks").
         const burnBatch = await tasks.batchTriggerAndWait<typeof translateAndBurnSubsTask>(
           "translateAndBurnSubs",
           [...burnIds].map((creativeId) => ({
             payload: { creativeId, userId, attempt: 1 },
-            options: { tags: [burnTag] },
+            options: { tags: burnTags },
           })),
         )
         for (const run of burnBatch.runs) {

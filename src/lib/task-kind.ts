@@ -1,12 +1,9 @@
 import { z } from "zod"
 
 /**
- * Branded enum of Trigger.dev task kinds. SSOT — matches the
- * `task_kind` pgEnum (`src/db/schema.ts`) and is the discriminator the
- * UI uses to look up phase weights, labels, and error-code maps.
- *
- * String literal members are the canonical persistence values; do NOT
- * change them without a Drizzle migration to remap the pgEnum.
+ * Branded enum of Trigger.dev task kinds. SSOT for the UI side — the
+ * discriminator the JobsDock pill, completion toast, and error-code
+ * maps use to look up labels and translations.
  */
 export const TASK_KINDS = [
   "scrape_product",
@@ -19,6 +16,26 @@ export const TASK_KINDS = [
 
 export const TaskKindSchema = z.enum(TASK_KINDS)
 export type TaskKind = z.infer<typeof TaskKindSchema>
+
+/**
+ * Maps Trigger.dev task identifiers (the `id:` string passed to `task({})`
+ * / `schemaTask({})`) to their canonical `TaskKind`. Used by
+ * `listActiveRuns` to label runs returned from `runs.list()` and by
+ * `getRunFinalStatus` to label the completion toast. Keep in lockstep
+ * with each task body's `id:` value.
+ */
+const TRIGGER_TASK_ID_TO_KIND: Readonly<Record<string, TaskKind>> = {
+  "scrape-product": "scrape_product",
+  translateAndBurnSubs: "translate_burn",
+  rehostCreatives: "rehost_creatives",
+  publishLanding: "publish_landing",
+  launchCampaign: "launch_campaign",
+  "sync-insights": "sync_insights",
+}
+
+export function taskKindFromTriggerId(triggerId: string): TaskKind | null {
+  return TRIGGER_TASK_ID_TO_KIND[triggerId] ?? null
+}
 
 /**
  * User-facing Spanish (Latin American) labels for each `TaskKind`. SSOT for

@@ -8,9 +8,8 @@ import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products, users } from "@/db/schema"
 import { logError, withTiming } from "@/lib/observability/log.ts"
-import { productTag } from "@/lib/trigger-tags.ts"
-import { type ProductId, toProductId } from "@/lib/types/ids.ts"
-import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
+import { productTag, userTag } from "@/lib/trigger-tags.ts"
+import { type ProductId, toProductId, toUserId } from "@/lib/types/ids.ts"
 import type { rehostCreativesTask } from "@/server/trigger/rehostCreatives"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import type { ActionResult } from "./types.ts"
@@ -121,7 +120,7 @@ export async function retryScrape(rawInput: unknown): Promise<ActionResult<null>
         // `scrape_${productId}_${attempt}` keys the dedup row. Every retry
         // MUST pass a fresh `attempt`, otherwise the run replays the cached
         // summary instead of re-scraping the (possibly new) URL.
-        const handle = await tasks.trigger<typeof scrapeProduct>(
+        await tasks.trigger<typeof scrapeProduct>(
           "scrape-product",
           {
             productId,
@@ -129,14 +128,8 @@ export async function retryScrape(rawInput: unknown): Promise<ActionResult<null>
             competitorUrl,
             attempt: Math.floor(Date.now() / 1000),
           },
-          { tags: [productTag(productId)] },
+          { tags: [productTag(productId), userTag(toUserId(userId))] },
         )
-        await recordTaskStart({
-          triggerRunId: handle.id,
-          userId,
-          productId,
-          kind: "scrape_product",
-        })
       } catch (err) {
         const reason = err instanceof Error ? err.message : "No se pudo reintentar el análisis."
         logError("action.product.retry_scrape.trigger_failed", { productId, reason })
@@ -215,21 +208,15 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
           const productId = toProductId(row.id)
 
           try {
-            const handle = await tasks.trigger<typeof scrapeProduct>(
+            await tasks.trigger<typeof scrapeProduct>(
               "scrape-product",
               {
                 productId: row.id,
                 userId,
                 competitorUrl: sourceUrl,
               },
-              { tags: [productTag(productId)] },
+              { tags: [productTag(productId), userTag(toUserId(userId))] },
             )
-            await recordTaskStart({
-              triggerRunId: handle.id,
-              userId,
-              productId,
-              kind: "scrape_product",
-            })
           } catch (err) {
             const reason = err instanceof Error ? err.message : "Error al iniciar el análisis."
             logError("action.product.create.trigger_failed", { productId, reason })
@@ -347,17 +334,11 @@ export async function selectCreatives(
           )
 
         try {
-          const handle = await tasks.trigger<typeof rehostCreativesTask>(
+          await tasks.trigger<typeof rehostCreativesTask>(
             "rehostCreatives",
             { creativeIds, userId, productId },
-            { tags: [productTag(toProductId(productId))] },
+            { tags: [productTag(toProductId(productId)), userTag(toUserId(userId))] },
           )
-          await recordTaskStart({
-            triggerRunId: handle.id,
-            userId,
-            productId,
-            kind: "rehost_creatives",
-          })
         } catch (err) {
           const reason =
             err instanceof Error ? err.message : "Error al iniciar la edición de video."

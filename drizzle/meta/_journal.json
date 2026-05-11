@@ -148,6 +148,13 @@
       "when": 1778469051414,
       "tag": "0020_whole_gamma_corps",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778473480749,
+      "tag": "0021_bizarre_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

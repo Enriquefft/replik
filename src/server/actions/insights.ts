@@ -5,7 +5,6 @@ import { requireUser } from "@/db/client"
 import { userTag } from "@/lib/trigger-tags.ts"
 import { toUserId } from "@/lib/types/ids.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
-import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { syncInsights } from "@/server/trigger/syncInsights"
 
 export type RefreshInsightsResult =
@@ -40,12 +39,6 @@ export async function refreshInsights(): Promise<RefreshInsightsResult> {
       { userId },
       { tags: [userTag(toUserId(userId))] },
     )
-    await recordTaskStart({
-      triggerRunId: handle.id,
-      userId,
-      productId: null,
-      kind: "sync_insights",
-    })
     const accessToken = await auth.createPublicToken({
       scopes: { read: { runs: [handle.id] } },
       expirationTime: "1h",
