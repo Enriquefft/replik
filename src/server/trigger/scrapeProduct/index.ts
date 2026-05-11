@@ -55,7 +55,7 @@ const TASK_ID = "scrape-product"
 // brand-tier calls when the brand actually advertises.
 const APIFY_MAX_QUERIES = 6
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024
-const TRANSCRIBE_CONCURRENCY = 10
+const TRANSCRIBE_CONCURRENCY = 20
 const IDEMPOTENCY_TTL_DAYS = 7
 
 type CreativeSource = "apify_fb" | "apify_tiktok"
@@ -166,20 +166,36 @@ export function buildQueryLadder(input: {
   return out
 }
 
+const BRAND_TIERS: ReadonlySet<LadderQuery["tier"]> = new Set([
+  "canonical_brand",
+  "raw_brand",
+  "brand_plus_name",
+])
+
 /**
  * Discover up to `MAX_ADS_FETCH` distinct video creatives by walking the
  * brand-first query ladder against BOTH source lanes (FB Ad Library +
- * TikTok) in parallel per step.
+ * TikTok).
  *
- * Per ladder step we fan out FB and TikTok concurrently; both pools merge
- * into the same dedup map keyed by `${source}:${ad_id}` to keep the two
- * id-namespaces from colliding. The pre-filter ceiling is `MAX_ADS_FETCH`
- * (50), not `MAX_ADS` (20) — the downstream blocklist + LLM relevance
- * gate trim back to `MAX_ADS` before any Whisper or DB cost.
+ * The ladder is split into two stages:
+ *   • brand stage    — canonical_brand, raw_brand, brand_plus_name
+ *   • category stage — broad_keyword, narrow_keyword
  *
- * Hard cap: `APIFY_MAX_QUERIES` ladder steps. Circuit breaker: stop the
- * ladder as soon as accumulated creatives reach `MAX_ADS_FETCH` — paying
- * for extra tiers once the brand call filled the bucket is waste.
+ * Within a stage all queries fan out in parallel, and per query FB +
+ * TikTok also run concurrently. Stages run sequentially: the category
+ * stage fires only if the brand stage failed to fill the bucket. That
+ * preserves the circuit-break savings (no category-tier Apify spend
+ * when the brand already returned ≥ MAX_ADS_FETCH ads) while collapsing
+ * the previous 1-3 sequential brand-tier waits into a single wall-clock
+ * window.
+ *
+ * Result ingest order follows ladder declaration order, so first-writer-
+ * wins dedup on `${source}:${ad_id}` still favours higher-signal tiers
+ * over lower ones, matching the prior loop's semantics.
+ *
+ * Hard cap: `APIFY_MAX_QUERIES` ladder steps. Pre-filter ceiling is
+ * `MAX_ADS_FETCH` (50), not `MAX_ADS` (20) — the downstream blocklist +
+ * LLM relevance gate trim back to `MAX_ADS` before any Whisper or DB cost.
  *
  * Worst-case spend: APIFY_MAX_QUERIES × 2 sources × per-keyword actor cap.
  */
@@ -190,76 +206,103 @@ async function findAds(ladder: LadderQuery[]): Promise<{ ads: FoundAd[]; source:
   const tried = ladder.slice(0, APIFY_MAX_QUERIES)
   metadata.set("ladder_total", tried.length)
   metadata.set("ladder_done", 0)
-  for (const step of tried) {
-    if (apifyAds.size >= MAX_ADS_FETCH) {
-      logger.info("apify_ladder_circuit_break", {
-        nextTier: step.tier,
-        nextKeyword: step.keyword,
-        total: apifyAds.size,
-      })
-      break
-    }
-    metadata.set("ladder_current_keyword", step.keyword)
-    const [fbResult, tiktokResult] = await Promise.allSettled([
-      apify.searchFBAdsByKeyword(step.keyword),
-      tiktokApify.searchTikTokByKeyword(step.keyword),
-    ])
 
-    const unwrapBatch = (
-      result: PromiseSettledResult<apify.RawCreative[]>,
-      source: CreativeSource,
-    ): apify.RawCreative[] => {
-      if (result.status === "fulfilled") return result.value
-      logger.warn("apify_ladder_failed", {
+  const brandStage = tried.filter((q) => BRAND_TIERS.has(q.tier))
+  const categoryStage = tried.filter((q) => !BRAND_TIERS.has(q.tier))
+
+  interface StepResult {
+    step: LadderQuery
+    fb: PromiseSettledResult<apify.RawCreative[]>
+    tiktok: PromiseSettledResult<apify.RawCreative[]>
+  }
+
+  const fanOut = async (steps: readonly LadderQuery[]): Promise<StepResult[]> =>
+    Promise.all(
+      steps.map(async (step) => {
+        const [fb, tiktok] = await Promise.allSettled([
+          apify.searchFBAdsByKeyword(step.keyword),
+          tiktokApify.searchTikTokByKeyword(step.keyword),
+        ])
+        return { step, fb, tiktok }
+      }),
+    )
+
+  const ingest = (raw: apify.RawCreative, source: CreativeSource): boolean => {
+    if (!raw.video_url) return false
+    const key = `${source}:${raw.ad_id}`
+    if (apifyAds.has(key)) return false
+    const found: FoundAd = {
+      source,
+      ad_id: raw.ad_id,
+      scrape_url: raw.video_url,
+    }
+    if (raw.page_name !== undefined) found.page_name = raw.page_name
+    if (raw.ad_text !== undefined && raw.ad_text.length > 0) found.ad_text = raw.ad_text
+    if (raw.engagement !== undefined) found.engagement = raw.engagement
+    apifyAds.set(key, found)
+    return true
+  }
+
+  const drain = (results: readonly StepResult[]): void => {
+    for (const { step, fb, tiktok } of results) {
+      metadata.set("ladder_current_keyword", step.keyword)
+      const unwrapBatch = (
+        result: PromiseSettledResult<apify.RawCreative[]>,
+        source: CreativeSource,
+      ): apify.RawCreative[] => {
+        if (result.status === "fulfilled") return result.value
+        logger.warn("apify_ladder_failed", {
+          tier: step.tier,
+          keyword: step.keyword,
+          source,
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        })
+        return []
+      }
+      const fbBatch = unwrapBatch(fb, "apify_fb")
+      const tiktokBatch = unwrapBatch(tiktok, "apify_tiktok")
+
+      let addedFb = 0
+      let addedTiktok = 0
+      for (const ad of fbBatch) {
+        if (apifyAds.size >= MAX_ADS_FETCH) break
+        if (ingest(ad, "apify_fb")) addedFb += 1
+      }
+      for (const ad of tiktokBatch) {
+        if (apifyAds.size >= MAX_ADS_FETCH) break
+        if (ingest(ad, "apify_tiktok")) addedTiktok += 1
+      }
+
+      logger.info("apify_ladder_step", {
         tier: step.tier,
         keyword: step.keyword,
-        source,
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        fbRaw: fbBatch.length,
+        fbAdded: addedFb,
+        tiktokRaw: tiktokBatch.length,
+        tiktokAdded: addedTiktok,
+        total: apifyAds.size,
       })
-      return []
+      metadata.increment("ladder_done", 1)
+      metadata.set("ads_fetched", apifyAds.size)
     }
-    const fbBatch = unwrapBatch(fbResult, "apify_fb")
-    const tiktokBatch = unwrapBatch(tiktokResult, "apify_tiktok")
-
-    let addedFb = 0
-    let addedTiktok = 0
-    const ingest = (raw: apify.RawCreative, source: CreativeSource): boolean => {
-      if (!raw.video_url) return false
-      const key = `${source}:${raw.ad_id}`
-      if (apifyAds.has(key)) return false
-      const found: FoundAd = {
-        source,
-        ad_id: raw.ad_id,
-        scrape_url: raw.video_url,
-      }
-      if (raw.page_name !== undefined) found.page_name = raw.page_name
-      if (raw.ad_text !== undefined && raw.ad_text.length > 0) found.ad_text = raw.ad_text
-      if (raw.engagement !== undefined) found.engagement = raw.engagement
-      apifyAds.set(key, found)
-      return true
-    }
-
-    for (const ad of fbBatch) {
-      if (apifyAds.size >= MAX_ADS_FETCH) break
-      if (ingest(ad, "apify_fb")) addedFb += 1
-    }
-    for (const ad of tiktokBatch) {
-      if (apifyAds.size >= MAX_ADS_FETCH) break
-      if (ingest(ad, "apify_tiktok")) addedTiktok += 1
-    }
-
-    logger.info("apify_ladder_step", {
-      tier: step.tier,
-      keyword: step.keyword,
-      fbRaw: fbBatch.length,
-      fbAdded: addedFb,
-      tiktokRaw: tiktokBatch.length,
-      tiktokAdded: addedTiktok,
-      total: apifyAds.size,
-    })
-    metadata.increment("ladder_done", 1)
-    metadata.set("ads_fetched", apifyAds.size)
   }
+
+  if (brandStage.length > 0) {
+    drain(await fanOut(brandStage))
+  }
+
+  if (categoryStage.length > 0) {
+    if (apifyAds.size >= MAX_ADS_FETCH) {
+      logger.info("apify_ladder_circuit_break", {
+        nextStage: "category",
+        skipped: categoryStage.length,
+        total: apifyAds.size,
+      })
+    } else {
+      drain(await fanOut(categoryStage))
+    }
+  }
+
   const ads = Array.from(apifyAds.values())
   return { ads, source: summarizeSources(ads) }
 }

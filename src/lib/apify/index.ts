@@ -19,7 +19,7 @@ import { type EngagementSignals, EngagementSignalsSchema } from "@/lib/apify/eng
 
 const ACTOR_ID = "apify/facebook-ads-scraper"
 const DEFAULT_COUNTRY = "PE"
-const RUN_TIMEOUT_SECS = 300
+const RUN_TIMEOUT_SECS = 150
 const RESULT_CAP = 20
 // Hard upper bound on per-run spend. The actor is pay-per-event
 // (`apify-default-dataset-item` ≈ $0.0058/ad). 20 ads × $0.0058 ≈ $0.116

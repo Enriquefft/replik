@@ -22,7 +22,7 @@ import { parseHumanInt } from "@/lib/apify/parse-human-int.ts"
 
 const ACTOR_ID = "clockworks/tiktok-scraper"
 const DEFAULT_COUNTRY = "PE"
-const RUN_TIMEOUT_SECS = 300
+const RUN_TIMEOUT_SECS = 150
 const RESULT_CAP = 20
 // Hard upper bound on per-run spend. clockworks/tiktok-scraper bills per
 // dataset item, with a $0.50 platform floor enforced by Apify. We keep
