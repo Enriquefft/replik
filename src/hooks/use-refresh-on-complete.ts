@@ -11,10 +11,10 @@ import { useEffect, useRef } from "react"
  * the persisted DB state back into the RSC snapshot when the underlying
  * Trigger.dev run completes (the asset / status rows may not be visible
  * on the SSR snapshot the user is looking at). Each surface used to keep
- * its own `refreshFiredRef` + `useEffect` — see:
- *   - `src/components/scrape-progress.tsx` (refreshFiredRef pattern)
- *   - `src/app/products/[id]/edit/edit-page-client.tsx` (refreshFiredRef pattern)
- * Phase C will replace those duplicated guards with calls to this hook.
+ * its own `refreshFiredRef` + `useEffect`; Phase C consolidated them into
+ * this single hook (called both inside `<PhaseProgress>` for run-level
+ * completion and at the page level for polling-fallback or aggregate
+ * gates like "every creative done").
  *
  * Side-effect only; returns nothing.
  */

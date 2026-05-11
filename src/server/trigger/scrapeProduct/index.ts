@@ -36,12 +36,14 @@ import * as apify from "@/lib/apify"
 import { withApifyTokenIfKv } from "@/lib/apify/auth.ts"
 import type { EngagementSignals } from "@/lib/apify/engagement.ts"
 import * as tiktokApify from "@/lib/apify/tiktok.ts"
+import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import { logEvent, markProductFailed, withTiming } from "@/lib/observability/log.ts"
 import { isBlocked } from "@/lib/scrape-blocklist.ts"
 import { MAX_ADS, MAX_ADS_FETCH } from "@/lib/scrape-limits.ts"
 import { normalizeScrapeReason } from "@/lib/scrape-reason.ts"
 import { uploadSrt } from "@/lib/video"
 import { normalizeVideoUrl } from "@/lib/video-url.ts"
+import { scrapeError } from "./errors.ts"
 import type { ScrapePhase } from "./metadata.ts"
 
 const TASK_ID = "scrape-product"
@@ -1089,7 +1091,12 @@ export const scrapeProduct = task({
       const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : null
       const reason = cause ? `${top} | cause: ${cause}` : top
       await markProductFailed(userId, productId, reason, "task-crashed")
-      throw err
+      // Preserve structured TASK_ERROR envelopes; wrap anything else so the
+      // translator gets a deterministic code (`generic_fallback` → LLM path).
+      if (err instanceof Error && parseTaskErrorPayload(err.message) !== null) {
+        throw err
+      }
+      scrapeError("generic_fallback", reason)
     }
   },
 })

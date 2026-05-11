@@ -9,6 +9,7 @@ import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { cuesToSrt, parseSrt, translateSrt } from "@/lib/ai/srt-translate.ts"
 import type { BurnedSubsBand } from "@/lib/ai/taxonomies.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
+import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import { logError, withTiming } from "@/lib/observability/log.ts"
 import {
   burnSubs,
@@ -18,6 +19,7 @@ import {
   uploadEditedVideo,
   uploadSrt,
 } from "@/lib/video"
+import { burnError } from "./errors.ts"
 import type { BurnPhase } from "./metadata.ts"
 
 interface TranslateAndBurnSubsPayload {
@@ -99,12 +101,12 @@ export const translateAndBurnSubsTask = task({
           .limit(1)
         return rows[0]
       })
-      if (!creative) throw new Error(`creative not found: ${creativeId}`)
+      if (!creative) burnError("generic_fallback", `creative not found: ${creativeId}`)
       if (!creative.selectedBool) {
-        throw new Error(`creative not selected: ${creativeId}`)
+        burnError("generic_fallback", `creative not selected: ${creativeId}`)
       }
       if (creative.transcriptText === null) {
-        throw new Error(`creative transcript missing: ${creativeId}`)
+        burnError("generic_fallback", `creative transcript missing: ${creativeId}`)
       }
 
       // 2b. Load product for brand tokens (§10 brand-token preservation).
@@ -116,7 +118,7 @@ export const translateAndBurnSubsTask = task({
           .limit(1)
         return rows[0]
       })
-      if (!product) throw new Error(`product not found for creative: ${creativeId}`)
+      if (!product) burnError("generic_fallback", `product not found for creative: ${creativeId}`)
 
       // 3. Resolve original video + source SRT assets in one round-trip.
       const ownedAssets = await withUser(userId, async (db) => {
@@ -128,7 +130,7 @@ export const translateAndBurnSubsTask = task({
       const originalAsset = ownedAssets.find((a) => a.kind === "original_video")
       const sourceSrtAsset = ownedAssets.find((a) => a.kind === "srt")
       if (!originalAsset) {
-        throw new Error(`original_video asset missing for creative ${creativeId}`)
+        burnError("source_unavailable", `original_video asset missing for creative ${creativeId}`)
       }
 
       // Music-only fast-path: Whisper found no speech (transcriptText === "")
@@ -184,13 +186,14 @@ export const translateAndBurnSubsTask = task({
         logger.info("source_srt_load_started", { creativeId })
         const srtResponse = await fetch(sourceSrtAsset.url, { redirect: "follow" })
         if (!srtResponse.ok) {
-          throw new Error(
+          burnError(
+            "source_unavailable",
             `source srt download failed ${srtResponse.status.toString()} ${srtResponse.statusText}`,
           )
         }
         sourceSrt = await srtResponse.text()
         if (sourceSrt.length === 0) {
-          throw new Error(`source srt empty for creative ${creativeId}`)
+          burnError("source_unavailable", `source srt empty for creative ${creativeId}`)
         }
         logger.info("source_srt_loaded", {
           creativeId,
@@ -201,7 +204,8 @@ export const translateAndBurnSubsTask = task({
         logger.info("source_srt_backfill_started", { creativeId })
         const videoResponse = await fetch(originalAsset.url, { redirect: "follow" })
         if (!videoResponse.ok) {
-          throw new Error(
+          burnError(
+            "source_unavailable",
             `original video download failed ${videoResponse.status.toString()} ${videoResponse.statusText}`,
           )
         }
@@ -212,7 +216,10 @@ export const translateAndBurnSubsTask = task({
           { creativeId },
         )
         if (transcribed.srt === null || transcribed.srt.length === 0) {
-          throw new Error(`backfill transcribe returned empty SRT for creative ${creativeId}`)
+          burnError(
+            "whisper_timeout",
+            `backfill transcribe returned empty SRT for creative ${creativeId}`,
+          )
         }
         sourceSrt = transcribed.srt
         logger.info("source_srt_backfilled", {
@@ -300,7 +307,8 @@ export const translateAndBurnSubsTask = task({
       try {
         const videoResp = await fetch(originalAsset.url, { redirect: "follow" })
         if (!videoResp.ok) {
-          throw new Error(
+          burnError(
+            "source_unavailable",
             `original video download failed ${videoResp.status.toString()} ${videoResp.statusText}`,
           )
         }
@@ -415,7 +423,12 @@ export const translateAndBurnSubsTask = task({
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err)
       logError("task.translateAndBurn.fatal", { creativeId, userId, attempt, reason })
-      throw err
+      // Preserve structured TASK_ERROR envelopes; wrap anything else so the
+      // translator gets a deterministic code (`generic_fallback` → LLM path).
+      if (err instanceof Error && parseTaskErrorPayload(err.message) !== null) {
+        throw err
+      }
+      burnError("generic_fallback", reason)
     }
   },
 })

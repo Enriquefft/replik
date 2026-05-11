@@ -1,5 +1,15 @@
+import { taskError } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { BurnErrorCode } from "./metadata.ts"
+
+/**
+ * Per-task `taskError` helper bound to {@link BurnErrorCode}.
+ * Declared as a `function` (not an arrow) so TypeScript's control-flow
+ * analysis narrows after `if (!x) burnError(...)`.
+ */
+export function burnError(code: BurnErrorCode, message: string): never {
+  taskError(code, message)
+}
 
 const RETRY: ErrorAction = { kind: "retry" }
 

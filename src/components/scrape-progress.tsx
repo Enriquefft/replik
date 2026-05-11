@@ -1,14 +1,15 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import type { RealtimeRun, RunStatus } from "@trigger.dev/core/v3"
+import type { RealtimeRun } from "@trigger.dev/core/v3"
 import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
-import { Check, Image as ImageIcon, Loader2 } from "lucide-react"
+import { Image as ImageIcon, Loader2 } from "lucide-react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo } from "react"
+import { PhaseProgress } from "@/components/phase-progress.tsx"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { Skeleton } from "@/components/ui/skeleton.tsx"
+import { useRefreshOnComplete } from "@/hooks/use-refresh-on-complete.ts"
 import { MAX_ADS } from "@/lib/scrape-limits.ts"
 import { isRunFailed } from "@/lib/trigger-status.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
@@ -17,6 +18,9 @@ import { cn } from "@/lib/utils.ts"
 import { getProductStatus } from "@/server/actions/products.ts"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import {
+  SCRAPE_PHASE_LABELS_ES,
+  SCRAPE_PHASE_WEIGHTS,
+  SCRAPE_PHASES,
   type ScrapePhase,
   type ScrapeProgressMetadata,
   ScrapeProgressMetadataSchema,
@@ -24,123 +28,11 @@ import {
 
 type ScrapeRun = RealtimeRun<typeof scrapeProduct>
 
-interface StepDef {
-  id: ScrapePhase
-  label: string
-}
-
-const STEPS: readonly StepDef[] = [
-  { id: "scraping", label: "Producto" },
-  { id: "finding_ads", label: "Anuncios" },
-  { id: "relevance_gating", label: "Relevancia" },
-  { id: "transcribing", label: "Transcripción" },
-  { id: "classifying", label: "Ángulos" },
-]
-
-function phaseIndex(phase: ScrapePhase): number {
-  return STEPS.findIndex((s) => s.id === phase)
-}
-
-interface DerivedProgress {
-  title: string
-  detail: string
-  progress: number
-  activeIndex: number
-}
-
-function derive(
-  runStatus: RunStatus | undefined,
-  meta: ScrapeProgressMetadata | null,
-): DerivedProgress {
-  if (!runStatus || runStatus === "QUEUED" || runStatus === "PENDING_VERSION") {
-    return {
-      title: "Iniciando análisis…",
-      detail: "Conectando con el agente de scraping.",
-      progress: 4,
-      activeIndex: 0,
-    }
-  }
-  if (runStatus === "DELAYED" || runStatus === "DEQUEUED") {
-    return {
-      title: "En cola…",
-      detail: "El agente arrancará en unos segundos.",
-      progress: 8,
-      activeIndex: 0,
-    }
-  }
-
-  const phase = meta?.phase ?? "scraping"
-  const activeIndex = phaseIndex(phase)
-
-  if (phase === "scraping") {
-    return {
-      title: "Analizando la página del competidor…",
-      detail: "Extrayendo nombre, imagen, categoría y keywords.",
-      progress: 18,
-      activeIndex,
-    }
-  }
-  if (phase === "finding_ads") {
-    const total = meta?.ladder_total
-    const done = meta?.ladder_done ?? 0
-    const current = meta?.ladder_current_keyword
-    const fetched = meta?.ads_fetched
-    const ladderProgress = total !== undefined && total > 0 ? done / total : 0
-    return {
-      title:
-        current !== undefined
-          ? `Probando "${current}" (${done.toString()}/${total?.toString() ?? "?"})`
-          : "Buscando creativos en Meta Ad Library…",
-      detail:
-        fetched !== undefined
-          ? `${fetched.toString()} anuncios encontrados hasta ahora.`
-          : "Cada keyword toma 30-60 segundos.",
-      progress: 32 + Math.round(ladderProgress * 12),
-      activeIndex,
-    }
-  }
-  if (phase === "relevance_gating") {
-    const fetched = meta?.ads_fetched ?? 0
-    const kept = meta?.ads_total
-    return {
-      title:
-        kept === undefined
-          ? `Filtrando ${fetched.toString()} anuncios por relevancia…`
-          : `Filtrados ${kept.toString()} de ${fetched.toString()} anuncios`,
-      detail: "Descartando spam y categorías no relacionadas.",
-      progress: 44,
-      activeIndex,
-    }
-  }
-  if (phase === "transcribing") {
-    const done = meta?.transcribed ?? 0
-    const total = meta?.ads_total ?? 0
-    const ratio = total > 0 ? Math.min(1, done / total) : 0
-    return {
-      title: `Transcribiendo videos (${done.toString()}/${total.toString()})`,
-      detail: "Whisper está leyendo el audio de cada anuncio.",
-      progress: 50 + Math.round(ratio * 40),
-      activeIndex,
-    }
-  }
-  return {
-    title: "Clasificando ángulos creativos…",
-    detail: "Cinco votos de Sonnet por anuncio para mayoría.",
-    progress: 92,
-    activeIndex,
-  }
-}
-
 function pickLatestRun(runs: ScrapeRun[]): ScrapeRun | undefined {
   return runs.reduce<ScrapeRun | undefined>((latest, r) => {
     if (!latest) return r
     return new Date(r.createdAt).getTime() > new Date(latest.createdAt).getTime() ? r : latest
   }, undefined)
-}
-
-function parseMetadata(value: unknown): ScrapeProgressMetadata | null {
-  const parsed = ScrapeProgressMetadataSchema.safeParse(value)
-  return parsed.success ? parsed.data : null
 }
 
 interface ScrapeProgressProps {
@@ -150,22 +42,26 @@ interface ScrapeProgressProps {
 }
 
 export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProgressProps) {
-  const router = useRouter()
-  const [startedAt] = useState(() => Date.now())
-  const [elapsedSec, setElapsedSec] = useState(0)
-  const refreshFiredRef = useRef(false)
-
+  // Subscribe by tag — the run is already in flight when the user lands on
+  // this page (status===SCRAPING in SSR); we don't have a server-supplied
+  // runId. The latest tagged run becomes the canonical run id we pass into
+  // `<PhaseProgress>`. `<PhaseProgress>` re-subscribes to that run id; the
+  // tag-subscription stream and the run-subscription stream share the same
+  // backend socket so this is cheap.
   const { runs, error: realtimeError } = useRealtimeRunsWithTag<typeof scrapeProduct>(
     productTag(productId),
     { accessToken },
   )
 
   const run = useMemo(() => pickLatestRun(runs), [runs])
-  const meta = useMemo(() => parseMetadata(run?.metadata), [run?.metadata])
   const status = run?.status
-
   const failed = isRunFailed(status)
 
+  // Polling fallback — covers the case where realtime stops emitting before
+  // the run flips to COMPLETED. The product row's `status` column is the
+  // ultimate source of truth: anything other than `SCRAPING` means the task
+  // wrote a terminal state and the RSC snapshot needs to be refetched so
+  // the page can re-render past this client.
   const { data: statusData } = useQuery({
     queryKey: ["product-status", productId],
     queryFn: async () => {
@@ -173,30 +69,13 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
       if (!result.ok) throw new Error(result.error)
       return result.data
     },
-    refetchInterval: realtimeError ? 5_000 : 15_000,
+    refetchInterval: realtimeError !== undefined ? 5_000 : 15_000,
     refetchIntervalInBackground: true,
-    enabled: !refreshFiredRef.current,
   })
 
   const dbStatus = statusData?.status
-  const shouldRefresh =
-    status === "COMPLETED" || (dbStatus !== undefined && dbStatus !== "SCRAPING")
-
-  useEffect(() => {
-    if (shouldRefresh && !refreshFiredRef.current) {
-      refreshFiredRef.current = true
-      router.refresh()
-    }
-  }, [shouldRefresh, router])
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setElapsedSec(Math.floor((Date.now() - startedAt) / 1000))
-    }, 1000)
-    return () => {
-      clearInterval(id)
-    }
-  }, [startedAt])
+  const dbStatusDone = dbStatus !== undefined && dbStatus !== "SCRAPING"
+  useRefreshOnComplete(dbStatusDone)
 
   if (failed) {
     // The DB write may not have landed yet. The next status poll fires
@@ -204,84 +83,40 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
     return <RetryScrapeCard productId={productId} sourceUrl={sourceUrl} reason={null} />
   }
 
-  const { title, detail, progress, activeIndex } = derive(status, meta)
-  const elapsedLabel = formatElapsed(elapsedSec)
   const displayUrl = formatSourceUrl(sourceUrl)
+  const adsTotalForSkeletons = parseAdsTotalFromMeta(run?.metadata) ?? MAX_ADS
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page px-4 py-10">
       <div className="mx-auto w-full max-w-3xl flex flex-col gap-6">
-        <div className="rounded-card bg-surface glass shadow-card border border-border p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-caption font-semibold uppercase tracking-widest text-mode-system-badge-fg mb-2">
-                Paso 2 · Buscando creativos
-              </p>
-              <h2 className="text-title truncate">{title}</h2>
-              <p className="text-body text-fg-2 mt-1">{detail}</p>
-              <p className="text-caption text-fg-3 mt-1 font-mono truncate" title={sourceUrl}>
-                Analizando: {displayUrl}
-              </p>
-            </div>
-            <span className="shrink-0 inline-flex items-center h-7 px-2.5 rounded-pill border border-border bg-surface-elevated text-caption font-mono text-fg-2 tabular-nums">
-              {elapsedLabel}
-            </span>
-          </div>
-
-          <ol className="mt-5 grid grid-cols-5 gap-2">
-            {STEPS.map((step, idx) => {
-              const state = idx < activeIndex ? "done" : idx === activeIndex ? "active" : "pending"
-              return (
-                <li
-                  key={step.id}
-                  className={cn(
-                    "flex items-center gap-2 rounded-pill border px-3 h-9 text-caption font-medium transition-colors",
-                    state === "done" && "border-mode-web text-mode-web bg-mode-web-badge-bg",
-                    state === "active" &&
-                      "border-mode-live text-mode-live bg-mode-live-badge-bg shadow-tight",
-                    state === "pending" && "border-border text-fg-3 bg-surface-elevated",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "inline-flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0",
-                      state === "done" && "bg-mode-web text-white",
-                      state === "active" && "bg-mode-live text-white",
-                      state === "pending" && "bg-surface-muted text-fg-3",
-                    )}
-                  >
-                    {state === "done" ? (
-                      <Check className="size-3" strokeWidth={3} />
-                    ) : state === "active" ? (
-                      <Loader2 className="size-3 animate-spin" strokeWidth={3} />
-                    ) : (
-                      idx + 1
-                    )}
-                  </span>
-                  <span className="truncate">{step.label}</span>
-                </li>
-              )
-            })}
-          </ol>
-
-          <DetectedPanel meta={meta} />
-
-          <div className="mt-5 h-1.5 w-full rounded-pill bg-surface-muted overflow-hidden">
-            <div
-              className="h-full rounded-pill bg-mode-live transition-all duration-700 ease-out"
-              style={{ width: `${progress.toString()}%` }}
-            />
-          </div>
-
-          {realtimeError !== undefined ? (
-            <p className="mt-3 text-caption text-fg-3">
-              Conexión en vivo intermitente — seguimos sondeando el estado.
-            </p>
-          ) : null}
+        <div className="flex flex-col gap-1">
+          <p className="text-caption font-semibold uppercase tracking-widest text-mode-system-badge-fg">
+            Paso 2 · Buscando creativos
+          </p>
+          <p className="text-caption text-fg-3 font-mono truncate" title={sourceUrl}>
+            Analizando: {displayUrl}
+          </p>
         </div>
 
+        {run !== undefined ? (
+          <PhaseProgress<ScrapePhase, ScrapeProgressMetadata>
+            runId={run.id}
+            accessToken={accessToken}
+            phases={SCRAPE_PHASES}
+            phaseWeights={SCRAPE_PHASE_WEIGHTS}
+            phaseLabels={SCRAPE_PHASE_LABELS_ES}
+            metadataSchema={ScrapeProgressMetadataSchema}
+            taskKind="scrape_product"
+            currentPhaseFromMeta={(m) => m.phase ?? null}
+            headerSlot={(meta) => <DetectedPanel meta={meta} />}
+            detailSlot={(meta) => <ScrapeDetail meta={meta} />}
+          />
+        ) : (
+          <BootstrapCard />
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: meta?.ads_total ?? MAX_ADS }, (_, i) => `skel-${i.toString()}`).map(
+          {Array.from({ length: adsTotalForSkeletons }, (_, i) => `skel-${i.toString()}`).map(
             (skelId) => (
               <Skeleton key={skelId} className="aspect-[9/16] rounded-card" />
             ),
@@ -292,10 +127,15 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
   )
 }
 
-function formatElapsed(totalSec: number): string {
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
-  return `${m.toString()}:${s.toString().padStart(2, "0")}`
+/**
+ * Parse `meta.ads_total` off the unsanitized realtime payload so the skeleton
+ * grid can size itself even before `<PhaseProgress>`'s first parse lands.
+ * Uses the same SSOT Zod schema the inner component uses, then projects to
+ * the single field this caller cares about.
+ */
+function parseAdsTotalFromMeta(value: unknown): number | undefined {
+  const parsed = ScrapeProgressMetadataSchema.safeParse(value)
+  return parsed.success ? parsed.data.ads_total : undefined
 }
 
 function formatSourceUrl(url: string): string {
@@ -306,6 +146,105 @@ function formatSourceUrl(url: string): string {
   } catch {
     return url
   }
+}
+
+/**
+ * Tiny stand-in card shown for the first ~second between SSR landing on the
+ * SCRAPING status and the tag-stream surfacing the in-flight run id. Keeps
+ * the layout stable so the page doesn't shift when `<PhaseProgress>` mounts.
+ */
+function BootstrapCard(): React.JSX.Element {
+  return (
+    <div
+      className="rounded-card bg-surface glass shadow-card border border-border p-6 flex items-center gap-3"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <Loader2 className="size-5 animate-spin text-mode-live" strokeWidth={1.8} />
+      <div className="min-w-0">
+        <p className="text-caption font-semibold uppercase tracking-widest text-mode-system-badge-fg mb-1">
+          Iniciando
+        </p>
+        <h2 className="text-title truncate">Conectando con el agente de scraping…</h2>
+      </div>
+    </div>
+  )
+}
+
+interface ScrapeDetailProps {
+  meta: ScrapeProgressMetadata | null
+}
+
+/**
+ * Phase-specific contextual narration rendered below the progress bar. Reads
+ * the same SSOT phase descriptions as `<PhaseProgress>` from
+ * `SCRAPE_PHASE_LABELS_ES`, then augments with per-counter detail when the
+ * task has emitted enough to be specific:
+ *
+ *   - `finding_ads`     → "Probando '{kw}' ({done}/{total})" + ads-fetched badge.
+ *   - `relevance_gating`→ "Filtrados X de Y" or pre-verdict "Filtrando…".
+ *   - `transcribing`    → "{done}/{total} videos transcritos".
+ *   - `classifying`     → static description.
+ *   - `scraping` / null → static description.
+ */
+function ScrapeDetail({ meta }: ScrapeDetailProps): React.JSX.Element | null {
+  if (meta === null) return null
+  const phase = meta.phase
+
+  if (phase === "finding_ads") {
+    const total = meta.ladder_total
+    const done = meta.ladder_done ?? 0
+    const current = meta.ladder_current_keyword
+    const fetched = meta.ads_fetched
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-body text-fg-2">
+          {current !== undefined
+            ? `Probando "${current}" (${done.toString()}/${total?.toString() ?? "?"})`
+            : "Buscando creativos en Meta Ad Library y TikTok…"}
+        </p>
+        {fetched !== undefined ? <AdCountBadge count={fetched} /> : null}
+      </div>
+    )
+  }
+
+  if (phase === "relevance_gating") {
+    const fetched = meta.ads_fetched ?? 0
+    const kept = meta.ads_total
+    return (
+      <p className="text-body text-fg-2">
+        {kept === undefined
+          ? `Filtrando ${fetched.toString()} anuncios por relevancia…`
+          : `Filtrados ${kept.toString()} de ${fetched.toString()} anuncios`}
+      </p>
+    )
+  }
+
+  if (phase === "transcribing") {
+    const done = meta.transcribed ?? 0
+    const total = meta.ads_total ?? 0
+    return (
+      <p className="text-body text-fg-2">
+        Transcribiendo videos ({done.toString()}/{total.toString()})
+      </p>
+    )
+  }
+
+  // `scraping` and `classifying` already have their static SSOT description
+  // surfaced by `<PhaseProgress>`'s status line — no extra detail to add.
+  return null
+}
+
+interface AdCountBadgeProps {
+  count: number
+}
+
+function AdCountBadge({ count }: AdCountBadgeProps): React.JSX.Element {
+  return (
+    <span className="self-start inline-flex items-center h-6 px-2 rounded-pill border border-border bg-surface-elevated text-caption font-mono text-fg-2 tabular-nums">
+      {count.toString()} anuncios
+    </span>
+  )
 }
 
 interface DetectedPanelProps {
@@ -319,7 +258,7 @@ function DetectedPanel({ meta }: DetectedPanelProps): React.JSX.Element {
   const hasAny = productName !== undefined || imageUrl !== undefined
 
   return (
-    <div className="mt-5 flex items-start gap-3 rounded-card border border-border bg-surface-elevated p-3 transition-opacity duration-300">
+    <div className="flex items-start gap-3 rounded-card border border-border bg-surface-elevated p-3 transition-opacity duration-300">
       <div className="size-14 rounded-card overflow-hidden bg-surface-muted flex items-center justify-center shrink-0 border border-border relative">
         {imageUrl !== undefined ? (
           <Image

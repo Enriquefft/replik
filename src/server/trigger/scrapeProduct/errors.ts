@@ -1,5 +1,15 @@
+import { taskError } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { ScrapeErrorCode } from "./metadata.ts"
+
+/**
+ * Per-task `taskError` helper bound to {@link ScrapeErrorCode}.
+ * Declared as a `function` (not an arrow) so TypeScript's control-flow
+ * analysis narrows after `if (!x) scrapeError(...)`.
+ */
+export function scrapeError(code: ScrapeErrorCode, message: string): never {
+  taskError(code, message)
+}
 
 const RETRY: ErrorAction = { kind: "retry" }
 const EDIT_INPUT: ErrorAction = { kind: "edit_input" }

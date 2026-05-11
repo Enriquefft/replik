@@ -1,5 +1,15 @@
+import { taskError } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { RehostErrorCode } from "./metadata.ts"
+
+/**
+ * Per-task `taskError` helper bound to {@link RehostErrorCode}.
+ * Declared as a `function` (not an arrow) so TypeScript's control-flow
+ * analysis narrows after `if (!x) rehostError(...)`.
+ */
+export function rehostError(code: RehostErrorCode, message: string): never {
+  taskError(code, message)
+}
 
 const RETRY: ErrorAction = { kind: "retry" }
 const SUPPORT: ErrorAction = { kind: "contact_support" }
