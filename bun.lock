@@ -59,9 +59,6 @@
   "trustedDependencies": [
     "sharp",
   ],
-  "patchedDependencies": {
-    "uploadthing@7.7.4": "patches/uploadthing@7.7.4.patch",
-  },
   "packages": {
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@3.0.72", "", { "dependencies": { "@ai-sdk/provider": "3.0.9", "@ai-sdk/provider-utils": "4.0.24" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-t0j9mggxylA9uP0hi12NlRk2npYh4QkE7JIpws2MdV/18QzHcsT6+TNGIjbOPayLQDjrmRKx78Ym7iZkg9qRxQ=="],
 
