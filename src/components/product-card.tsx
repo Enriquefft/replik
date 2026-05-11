@@ -40,8 +40,8 @@ export function ProductCard({ product }: ProductCardProps) {
       className={cn("group relative overflow-hidden transition-all duration-200 hover:shadow-card")}
     >
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex w-full min-w-0 items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {product.imageUrls[0] ? (
               <Image
                 src={product.imageUrls[0]}
