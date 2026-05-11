@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   customType,
+  index,
   integer,
   jsonb,
   numeric,
@@ -18,6 +19,8 @@ import type { z } from "zod"
 import type { CopyContent } from "@/lib/ai/copy-schema.ts"
 import type { BurnedSubsBand, InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
 import type { EngagementSignals } from "@/lib/apify/engagement.ts"
+import type { TranslatedError } from "@/lib/errors/translate.ts"
+import { TASK_KINDS } from "@/lib/task-kind.ts"
 
 type SalesAngleT = z.infer<typeof SalesAngle>
 type InterestCategoryT = z.infer<typeof InterestCategory>
@@ -278,3 +281,65 @@ export type OrderInsert = typeof orders.$inferInsert
 
 export type IdempotencyKey = typeof idempotencyKeys.$inferSelect
 export type IdempotencyKeyInsert = typeof idempotencyKeys.$inferInsert
+
+// ─── Telemetry: Trigger.dev task runs ────────────────────────────────────────
+
+/**
+ * `TASK_KINDS` is the SSOT tuple in `src/lib/task-kind.ts`. The pgEnum is
+ * declared with the same tuple here so the DB literally cannot store a
+ * task kind the codebase doesn't know about.
+ */
+export const taskKindEnum = pgEnum("task_kind", TASK_KINDS)
+
+export const taskRunStatusEnum = pgEnum("task_run_status", [
+  "queued",
+  "executing",
+  "completed",
+  "failed",
+  "canceled",
+])
+
+export const taskRuns = pgTable(
+  "task_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    triggerRunId: text("trigger_run_id").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }),
+    kind: taskKindEnum("kind").notNull(),
+    status: taskRunStatusEnum("status").notNull().default("queued"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    phaseTransitions: jsonb("phase_transitions")
+      .$type<Array<{ phase: string; at: string }>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    errorCode: text("error_code"),
+  },
+  // JobsDock queries the active rows for a user with
+  // `WHERE user_id = ? AND status IN ('queued','executing')`; the composite
+  // index keeps that lookup index-only as the table grows. `started_at` is
+  // not in the index because the row count per (user, status) is small
+  // enough that an in-memory sort is cheaper than a wider index.
+  (t) => [index("task_runs_user_status_idx").on(t.userId, t.status)],
+)
+
+export type TaskRun = typeof taskRuns.$inferSelect
+export type TaskRunInsert = typeof taskRuns.$inferInsert
+
+/**
+ * 24h-TTL cache of LLM-translated error messages, keyed by SHA256 of the
+ * raw error string. Reads filter out rows older than the TTL — we keep
+ * the row physically (cheap) to amortize one-off blips, but never serve
+ * stale copy. See `src/lib/errors/translate.ts`.
+ */
+export const errorTranslations = pgTable("error_translations", {
+  hash: text("hash").primaryKey(),
+  translated: jsonb("translated").$type<TranslatedError>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type ErrorTranslation = typeof errorTranslations.$inferSelect
+export type ErrorTranslationInsert = typeof errorTranslations.$inferInsert

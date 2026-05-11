@@ -22,6 +22,7 @@ import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
+import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
 
 export type LaunchResult =
@@ -143,6 +144,13 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
         userId,
         attempt,
         budgetDailyCents,
+      })
+
+      await recordTaskStart({
+        triggerRunId: handle.id,
+        userId,
+        productId,
+        kind: "launch_campaign",
       })
 
       const accessToken = await auth.createPublicToken({

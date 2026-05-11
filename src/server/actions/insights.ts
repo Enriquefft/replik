@@ -3,6 +3,7 @@
 import { auth, tasks } from "@trigger.dev/sdk"
 import { requireUser } from "@/db/client"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
+import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { syncInsights } from "@/server/trigger/syncInsights"
 
 export type RefreshInsightsResult =
@@ -30,6 +31,12 @@ export async function refreshInsights(): Promise<RefreshInsightsResult> {
   try {
     const handle = await tasks.trigger<typeof syncInsights>("sync-insights", {
       userId,
+    })
+    await recordTaskStart({
+      triggerRunId: handle.id,
+      userId,
+      productId: null,
+      kind: "sync_insights",
     })
     const accessToken = await auth.createPublicToken({
       scopes: { read: { runs: [handle.id] } },

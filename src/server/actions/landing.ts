@@ -7,6 +7,7 @@ import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, products } from "@/db/schema"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
+import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { publishLandingTask } from "@/server/trigger/publishLanding"
 import type { ActionResult } from "./types.ts"
 
@@ -161,6 +162,13 @@ export async function publishLanding(
         userId,
         ...(templateId !== undefined && { templateId }),
         ...(overridesPayload !== undefined && { overrides: overridesPayload }),
+      })
+
+      await recordTaskStart({
+        triggerRunId: handle.id,
+        userId,
+        productId,
+        kind: "publish_landing",
       })
 
       const accessToken = await auth.createPublicToken({

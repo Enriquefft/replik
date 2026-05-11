@@ -10,6 +10,7 @@ import { assets, creatives, idempotencyKeys, products, users } from "@/db/schema
 import { logError, withTiming } from "@/lib/observability/log.ts"
 import { productTag } from "@/lib/trigger-tags.ts"
 import { type ProductId, toProductId } from "@/lib/types/ids.ts"
+import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { rehostCreativesTask } from "@/server/trigger/rehostCreatives"
 import type { scrapeProduct } from "@/server/trigger/scrapeProduct"
 import type { ActionResult } from "./types.ts"
@@ -120,7 +121,7 @@ export async function retryScrape(rawInput: unknown): Promise<ActionResult<null>
         // `scrape_${productId}_${attempt}` keys the dedup row. Every retry
         // MUST pass a fresh `attempt`, otherwise the run replays the cached
         // summary instead of re-scraping the (possibly new) URL.
-        await tasks.trigger<typeof scrapeProduct>(
+        const handle = await tasks.trigger<typeof scrapeProduct>(
           "scrape-product",
           {
             productId,
@@ -130,6 +131,12 @@ export async function retryScrape(rawInput: unknown): Promise<ActionResult<null>
           },
           { tags: [productTag(productId)] },
         )
+        await recordTaskStart({
+          triggerRunId: handle.id,
+          userId,
+          productId,
+          kind: "scrape_product",
+        })
       } catch (err) {
         const reason = err instanceof Error ? err.message : "No se pudo reintentar el análisis."
         logError("action.product.retry_scrape.trigger_failed", { productId, reason })
@@ -208,7 +215,7 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
           const productId = toProductId(row.id)
 
           try {
-            await tasks.trigger<typeof scrapeProduct>(
+            const handle = await tasks.trigger<typeof scrapeProduct>(
               "scrape-product",
               {
                 productId: row.id,
@@ -217,6 +224,12 @@ export async function createProduct(rawInput: unknown): Promise<ActionResult<{ i
               },
               { tags: [productTag(productId)] },
             )
+            await recordTaskStart({
+              triggerRunId: handle.id,
+              userId,
+              productId,
+              kind: "scrape_product",
+            })
           } catch (err) {
             const reason = err instanceof Error ? err.message : "Error al iniciar el análisis."
             logError("action.product.create.trigger_failed", { productId, reason })
@@ -334,11 +347,17 @@ export async function selectCreatives(
           )
 
         try {
-          await tasks.trigger<typeof rehostCreativesTask>(
+          const handle = await tasks.trigger<typeof rehostCreativesTask>(
             "rehostCreatives",
             { creativeIds, userId, productId },
             { tags: [productTag(toProductId(productId))] },
           )
+          await recordTaskStart({
+            triggerRunId: handle.id,
+            userId,
+            productId,
+            kind: "rehost_creatives",
+          })
         } catch (err) {
           const reason =
             err instanceof Error ? err.message : "Error al iniciar la edición de video."
