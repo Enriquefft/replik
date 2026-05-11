@@ -1,5 +1,14 @@
 import type { ProductId, UserId } from "@/lib/types/ids.ts"
 
+/**
+ * Product-scoped Trigger.dev tag.
+ *
+ * Invariant: every `products` row belongs to exactly one user (FK
+ * `products.user_id`), so any run tagged with `productTag(p)` is
+ * transitively owned by that user. This is what lets `listActiveRuns`
+ * mint a single public read token over the union of `productTag` values
+ * for the user's products without leaking cross-tenant runs.
+ */
 export function productTag(id: ProductId): string {
   return `product:${id}`
 }

@@ -123,7 +123,16 @@ export async function listActiveRuns(): Promise<ActiveRunsResponse> {
 
   for (const item of items) {
     const kind = taskKindFromTriggerId(item.taskIdentifier)
-    if (kind === null) continue
+    if (kind === null) {
+      // Silently dropping would mask a forgotten label entry in
+      // `TRIGGER_TASK_ID_TO_KIND` — log it so the gap is visible.
+      logEvent("action.active_runs.unknown_task_identifier", {
+        userId,
+        triggerRunId: item.id,
+        taskIdentifier: item.taskIdentifier,
+      })
+      continue
+    }
     const productId = productIdFromTags(item.tags)
     if (productId !== null) productIdSet.add(productId)
     summariesPartial.push({
