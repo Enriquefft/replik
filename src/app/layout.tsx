@@ -1,5 +1,7 @@
 import { ClerkProvider, Show } from "@clerk/nextjs"
 import type { Metadata } from "next"
+import { JobsDock } from "@/components/jobs-dock.tsx"
+import { JobsDockProvider } from "@/components/jobs-dock-provider.tsx"
 import { Nav } from "@/components/nav.tsx"
 import { QueryProvider } from "@/components/providers/query-provider.tsx"
 import { Toaster } from "@/components/ui/sonner.tsx"
@@ -21,8 +23,11 @@ export default function RootLayout({
         <body className="min-h-full flex flex-col">
           <QueryProvider>
             <Show when="signed-in" fallback={children}>
-              <Nav />
-              <main className="flex-1">{children}</main>
+              <JobsDockProvider>
+                <Nav />
+                <main className="flex-1">{children}</main>
+                <JobsDock />
+              </JobsDockProvider>
             </Show>
           </QueryProvider>
           <Toaster richColors position="top-right" />

@@ -141,6 +141,13 @@
       "when": 1778465485661,
       "tag": "0019_bored_sugar_man",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778469051414,
+      "tag": "0020_whole_gamma_corps",
+      "breakpoints": true
     }
   ]
 }

@@ -21,6 +21,8 @@ import { z } from "zod"
 import { requireUser, withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
 import { logEvent, withTiming } from "@/lib/observability/log.ts"
+import { productTag } from "@/lib/trigger-tags.ts"
+import { toProductId } from "@/lib/types/ids.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
 import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { launchCampaign as launchCampaignTask } from "@/server/trigger/launchCampaign"
@@ -138,13 +140,20 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
         return prior + 1
       })
 
-      // 4. Fire-and-forget the durable launch task.
-      const handle = await tasks.trigger<typeof launchCampaignTask>("launchCampaign", {
-        productId,
-        userId,
-        attempt,
-        budgetDailyCents,
-      })
+      // 4. Fire-and-forget the durable launch task. Tagged with
+      // `productTag` so the JobsDock realtime subscription can pick it up
+      // under the user-scoped public token without needing the runId
+      // up-front.
+      const handle = await tasks.trigger<typeof launchCampaignTask>(
+        "launchCampaign",
+        {
+          productId,
+          userId,
+          attempt,
+          budgetDailyCents,
+        },
+        { tags: [productTag(toProductId(productId))] },
+      )
 
       await recordTaskStart({
         triggerRunId: handle.id,

@@ -2,6 +2,8 @@
 
 import { auth, tasks } from "@trigger.dev/sdk"
 import { requireUser } from "@/db/client"
+import { userTag } from "@/lib/trigger-tags.ts"
+import { toUserId } from "@/lib/types/ids.ts"
 import { IntegrationMissingError, requireIntegration } from "@/server/integrations"
 import { recordTaskStart } from "@/server/telemetry/task-runs.ts"
 import type { syncInsights } from "@/server/trigger/syncInsights"
@@ -29,9 +31,15 @@ export async function refreshInsights(): Promise<RefreshInsightsResult> {
   }
 
   try {
-    const handle = await tasks.trigger<typeof syncInsights>("sync-insights", {
-      userId,
-    })
+    // Tagging the run with `userTag(userId)` lets `JobsDock` mint a public
+    // read token scoped to all of the user's runs without needing to know
+    // each run id ahead of time. `sync_insights` has no `productId` so
+    // without this tag the dock would have to special-case it.
+    const handle = await tasks.trigger<typeof syncInsights>(
+      "sync-insights",
+      { userId },
+      { tags: [userTag(toUserId(userId))] },
+    )
     await recordTaskStart({
       triggerRunId: handle.id,
       userId,

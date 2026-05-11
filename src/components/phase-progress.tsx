@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { z } from "zod"
 import { useConnectionState } from "@/hooks/use-connection-state.ts"
 import { useRefreshOnComplete } from "@/hooks/use-refresh-on-complete.ts"
+import { useTaskNarration } from "@/hooks/use-task-narration.ts"
 import { parseTaskErrorPayload } from "@/lib/errors/task-error.ts"
 import type { ErrorAction, TranslatedError } from "@/lib/errors/translate.ts"
 import type { PhaseLabel } from "@/lib/phase.ts"
@@ -256,6 +257,8 @@ export function PhaseProgress<Phase extends string, Meta>(
             status={status}
             done={done}
             failed={failed}
+            taskKind={taskKind}
+            meta={meta}
           />
         </div>
         <span className="shrink-0 inline-flex items-center h-7 px-2.5 rounded-pill border border-border bg-surface-elevated text-caption font-mono text-fg-2 tabular-nums">
@@ -345,18 +348,38 @@ export function PhaseProgress<Phase extends string, Meta>(
 
 // ─── Subviews ────────────────────────────────────────────────────────────────
 
-interface PhaseStatusLineProps<Phase extends string> {
+interface PhaseStatusLineProps<Phase extends string, Meta> {
   currentPhase: Phase | null
   phaseLabels: Record<Phase, PhaseLabel>
   status: RunStatus | undefined
   done: boolean
   failed: boolean
+  taskKind: TaskKind
+  meta: Meta | null
 }
 
-function PhaseStatusLine<Phase extends string>(
-  props: PhaseStatusLineProps<Phase>,
+function PhaseStatusLine<Phase extends string, Meta>(
+  props: PhaseStatusLineProps<Phase, Meta>,
 ): React.JSX.Element {
-  const { currentPhase, phaseLabels, status, done, failed } = props
+  const { currentPhase, phaseLabels, status, done, failed, taskKind, meta } = props
+  // The narration hook is called unconditionally (rules-of-hooks). It
+  // returns the deterministic template until the LLM lands a contextual
+  // sentence, then swaps to the LLM text. We only render the result
+  // inside the "in process" branch — the failed/done/queued branches
+  // have fixed copy that doesn't benefit from narration.
+  const metadataJson = useMemo(() => {
+    if (meta === null) return "{}"
+    try {
+      return JSON.stringify(meta)
+    } catch {
+      return "{}"
+    }
+  }, [meta])
+  const narration = useTaskNarration({
+    taskKind,
+    phase: currentPhase,
+    metadataJson,
+  })
   if (failed) {
     return (
       <>
@@ -398,14 +421,18 @@ function PhaseStatusLine<Phase extends string>(
     )
   }
   const label = phaseLabels[currentPhase]
+  // Prefer the LLM narration when available, fall back to the static
+  // description, fall back to nothing. The narration hook already
+  // template-fallbacks internally to `label.description`, so by the time
+  // it returns we always have either an LLM line or the SSOT description.
   return (
     <>
       <p className="text-caption font-semibold uppercase tracking-widest text-mode-live mb-2">
         En proceso
       </p>
       <h2 className="text-title truncate">{label.label}</h2>
-      {label.description !== undefined ? (
-        <p className="text-body text-fg-2 mt-1">{label.description}</p>
+      {narration.text !== null ? (
+        <p className="text-body text-fg-2 mt-1">{narration.text}</p>
       ) : null}
     </>
   )

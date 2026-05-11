@@ -343,3 +343,20 @@ export const errorTranslations = pgTable("error_translations", {
 
 export type ErrorTranslation = typeof errorTranslations.$inferSelect
 export type ErrorTranslationInsert = typeof errorTranslations.$inferInsert
+
+/**
+ * 1h-TTL cache of LLM-narrated progress strings, keyed by SHA256 of
+ * `(taskKind + phase + serializedMetadata)`. The narration is contextual
+ * UX prose ("Vamos por el creativo 3 de 7…") layered on top of the
+ * deterministic phase label. Reads filter rows by `createdAt` against
+ * a 1h cutoff so we never serve stale copy. See
+ * `src/server/actions/narrate-progress.ts`.
+ */
+export const narrationCache = pgTable("narration_cache", {
+  hash: text("hash").primaryKey(),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type NarrationCache = typeof narrationCache.$inferSelect
+export type NarrationCacheInsert = typeof narrationCache.$inferInsert
