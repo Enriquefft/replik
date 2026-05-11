@@ -31,14 +31,18 @@ const BURN_TASK_ID = "translateAndBurnSubs"
 const PHASE_LABEL: Record<BurnPhase, string> = {
   transcribe: "Transcribiendo audio",
   translate: "Traduciendo subtítulos",
+  detect: "Analizando subtítulos del original",
+  segment: "Preparando subtítulos virales",
   burn: "Quemando subtítulos",
   upload: "Subiendo video final",
 }
 
 const PHASE_PROGRESS: Record<BurnPhase, number> = {
-  transcribe: 25,
-  translate: 50,
-  burn: 75,
+  transcribe: 20,
+  translate: 40,
+  detect: 55,
+  segment: 65,
+  burn: 80,
   upload: 92,
 }
 

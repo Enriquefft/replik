@@ -120,6 +120,20 @@
       "when": 1778378379366,
       "tag": "0016_short_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1778445684069,
+      "tag": "0017_smooth_big_bertha",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778461489000,
+      "tag": "0018_burned_subs_bands",
+      "breakpoints": true
     }
   ]
 }

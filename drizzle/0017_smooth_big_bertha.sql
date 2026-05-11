@@ -1,0 +1,1 @@
+ALTER TABLE "creatives" ADD COLUMN "burned_subs_region" text;

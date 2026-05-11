@@ -16,7 +16,7 @@ import {
 import type { z } from "zod"
 
 import type { CopyContent } from "@/lib/ai/copy-schema.ts"
-import type { InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
+import type { BurnedSubsBand, InterestCategory, SalesAngle } from "@/lib/ai/taxonomies.ts"
 import type { EngagementSignals } from "@/lib/apify/engagement.ts"
 
 type SalesAngleT = z.infer<typeof SalesAngle>
@@ -145,6 +145,13 @@ export const creatives = pgTable("creatives", {
    *  as a hard boost: own-brand ads sort to the top of their tier. */
   brandMatched: boolean("brand_matched").notNull().default(false),
   engagementJson: jsonb("engagement_json").$type<EngagementSignals>(),
+  /** Detection result from `detectBurnedSubs` — null when not yet probed,
+   *  empty array when probed and clean. Each element is a normalised band
+   *  `{ topFraction, heightFraction, confidence }` describing a stretch of
+   *  the source frame that holds burned-in captions to mask before our own
+   *  overlay is drawn. Persisted so retries skip the vision call and the
+   *  publish-time burn is deterministic across attempts. */
+  burnedSubsBands: jsonb("burned_subs_bands").$type<BurnedSubsBand[]>(),
 })
 
 export const assets = pgTable(

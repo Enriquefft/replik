@@ -1,11 +1,23 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+
 import { logger, metadata, task } from "@trigger.dev/sdk"
 import { and, eq } from "drizzle-orm"
 import { withUser } from "@/db/client"
 import { assets, creatives, idempotencyKeys, products } from "@/db/schema"
-import { cuesToSrt, translateSrt } from "@/lib/ai/srt-translate.ts"
+import { cuesToSrt, parseSrt, translateSrt } from "@/lib/ai/srt-translate.ts"
+import type { BurnedSubsBand } from "@/lib/ai/taxonomies.ts"
 import { transcribe } from "@/lib/ai/transcribe.ts"
 import { logError, withTiming } from "@/lib/observability/log.ts"
-import { burnSubs, uploadEditedVideo, uploadSrt } from "@/lib/video"
+import {
+  burnSubs,
+  detectBurnedSubs,
+  probeDimensions,
+  reSegmentCues,
+  uploadEditedVideo,
+  uploadSrt,
+} from "@/lib/video"
 import type { BurnPhase } from "./metadata.ts"
 
 interface TranslateAndBurnSubsPayload {
@@ -242,12 +254,23 @@ export const translateAndBurnSubsTask = task({
         })
       }
 
-      // 6. Upload the final (possibly translated) SRT and persist as the
-      // canonical SRT asset for this creative. Scrape pass already inserted a
-      // source-language SRT under the same `(ownerType, ownerId, srt)` key;
-      // overwrite so downstream readers see the SRT that's actually burned
-      // into the video.
-      const srtUpload = await uploadSrt(finalSrt, `${creativeId}.srt`)
+      // 6. Re-segment cues for viral, single-band burn-in (≤4 words/cue,
+      // UPPERCASE). Source cues parse from `finalSrt` regardless of
+      // translation path so the segmenter sees the same shape on both
+      // branches.
+      metadata.set("phase", "segment" satisfies BurnPhase)
+      const finalSrtForBurn = cuesToSrt(reSegmentCues(parseSrt(finalSrt)))
+      logger.info("segment_done", {
+        creativeId,
+        srtBytes: finalSrtForBurn.length,
+      })
+
+      // 6b. Upload the final (re-segmented, possibly translated) SRT and
+      // persist as the canonical SRT asset for this creative. Scrape pass
+      // already inserted a source-language SRT under the same
+      // `(ownerType, ownerId, srt)` key; overwrite so downstream readers
+      // see the SRT that's actually burned into the video.
+      const srtUpload = await uploadSrt(finalSrtForBurn, `${creativeId}.srt`)
       await withUser(userId, async (db) => {
         await db
           .insert(assets)
@@ -256,31 +279,98 @@ export const translateAndBurnSubsTask = task({
             ownerId: creativeId,
             kind: "srt",
             url: srtUpload.url,
-            bytes: Buffer.byteLength(finalSrt, "utf8"),
+            bytes: Buffer.byteLength(finalSrtForBurn, "utf8"),
             mime: "text/plain",
           })
           .onConflictDoUpdate({
             target: [assets.ownerType, assets.ownerId, assets.kind],
             set: {
               url: srtUpload.url,
-              bytes: Buffer.byteLength(finalSrt, "utf8"),
+              bytes: Buffer.byteLength(finalSrtForBurn, "utf8"),
               mime: "text/plain",
             },
           })
       })
 
-      // 7. Burn the SRT into the video.
-      metadata.set("phase", "burn" satisfies BurnPhase)
-      logger.info("burn_started", { creativeId })
-      const burned = await withTiming(
-        "task.translateAndBurn.burn",
-        () => burnSubs({ videoUrl: originalAsset.url, srt: finalSrt }),
-        { creativeId },
-      )
-      logger.info("burn_done", {
-        creativeId,
-        bytes: burned.buffer.byteLength,
-      })
+      // 7. Download the original once, then probe + detect + burn off the
+      // local copy so we don't fetch the same URL three times.
+      const burnWorkdir = await mkdtemp(join(tmpdir(), "replik-burn-input-"))
+      const sourceVideoPath = join(burnWorkdir, "source.mp4")
+      let burned: { buffer: Buffer; mime: "video/mp4" }
+      try {
+        const videoResp = await fetch(originalAsset.url, { redirect: "follow" })
+        if (!videoResp.ok) {
+          throw new Error(
+            `original video download failed ${videoResp.status.toString()} ${videoResp.statusText}`,
+          )
+        }
+        await writeFile(sourceVideoPath, Buffer.from(await videoResp.arrayBuffer()))
+
+        const dimensions = await withTiming(
+          "task.translateAndBurn.probe_dimensions",
+          () => probeDimensions(sourceVideoPath),
+          { creativeId },
+        )
+        logger.info("probe_dimensions_done", {
+          creativeId,
+          width: dimensions.width,
+          height: dimensions.height,
+          durationSec: dimensions.durationSec,
+        })
+
+        // 7b. Detect burned-in subtitle bands on the source. Persisted bands
+        // short-circuit re-runs after a retry.
+        metadata.set("phase", "detect" satisfies BurnPhase)
+        const persistedBands = await loadPersistedBands(userId, creativeId)
+        const bands: BurnedSubsBand[] =
+          persistedBands ??
+          (await withTiming(
+            "task.translateAndBurn.detect_burned_subs",
+            async () => {
+              const verdict = await detectBurnedSubs({
+                inputPath: sourceVideoPath,
+                durationSec: dimensions.durationSec,
+              })
+              logger.info("detect_burned_subs_done", {
+                creativeId,
+                bandCount: verdict.bands.length,
+                passThrough: verdict.passThrough === true,
+              })
+              return verdict.bands
+            },
+            { creativeId },
+          ))
+
+        if (persistedBands === null) {
+          await withUser(userId, async (db) => {
+            await db
+              .update(creatives)
+              .set({ burnedSubsBands: bands })
+              .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
+          })
+        }
+
+        // 7c. Burn the SRT into the video.
+        metadata.set("phase", "burn" satisfies BurnPhase)
+        logger.info("burn_started", { creativeId, bandCount: bands.length })
+        burned = await withTiming(
+          "task.translateAndBurn.burn",
+          () =>
+            burnSubs({
+              inputPath: sourceVideoPath,
+              srt: finalSrtForBurn,
+              dimensions: { width: dimensions.width, height: dimensions.height },
+              ...(bands.length > 0 ? { mask: { bands } } : {}),
+            }),
+          { creativeId },
+        )
+        logger.info("burn_done", {
+          creativeId,
+          bytes: burned.buffer.byteLength,
+        })
+      } finally {
+        await rm(burnWorkdir, { recursive: true, force: true })
+      }
 
       // 8. Upload the edited video.
       metadata.set("phase", "upload" satisfies BurnPhase)
@@ -329,6 +419,20 @@ export const translateAndBurnSubsTask = task({
     }
   },
 })
+
+async function loadPersistedBands(
+  userId: string,
+  creativeId: string,
+): Promise<BurnedSubsBand[] | null> {
+  return withUser(userId, async (db) => {
+    const rows = await db
+      .select({ bands: creatives.burnedSubsBands })
+      .from(creatives)
+      .where(and(eq(creatives.id, creativeId), eq(creatives.userId, userId)))
+      .limit(1)
+    return rows[0]?.bands ?? null
+  })
+}
 
 async function loadPersistedAssets(
   userId: string,
