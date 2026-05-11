@@ -7,8 +7,7 @@ import { requireUser, withUser } from "@/db/client"
 import { creatives } from "@/db/schema"
 import { APIFY_KVS_HOSTNAME } from "@/lib/apify/auth.ts"
 
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+export const runtime = "edge"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -70,7 +69,6 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const upstream = await fetch(scrapeUrl, {
     headers: upstreamHeaders,
     redirect: "follow",
-    cache: "no-store",
   })
 
   if (upstream.body === null) {
@@ -85,7 +83,10 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const contentRange = upstream.headers.get("content-range")
   if (contentRange !== null) respHeaders.set("Content-Range", contentRange)
   respHeaders.set("Accept-Ranges", "bytes")
-  respHeaders.set("Cache-Control", "private, max-age=60")
+  respHeaders.set(
+    "Cache-Control",
+    "public, s-maxage=604800, max-age=3600, stale-while-revalidate=86400",
+  )
 
   return new Response(upstream.body, {
     status: upstream.status,
