@@ -4,6 +4,7 @@ import { ffmpeg, aptGet } from "@trigger.dev/build/extensions/core";
 export default defineConfig({
   project: "proj_ogygdrycynllnhadsrwq",
   dirs: ["./src/server/trigger"],
+  runtime: "bun",
   maxDuration: 600,
   build: {
     external: ["onnxruntime-node"],
