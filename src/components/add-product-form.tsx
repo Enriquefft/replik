@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link2, Loader2, Package, Phone } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -30,6 +31,13 @@ const AddProductSchema = z.object({
 type AddProductFormInput = z.input<typeof AddProductSchema>
 type AddProductFormOutput = z.output<typeof AddProductSchema>
 
+/**
+ * Submit-stage indicator. Drives the inline status line under the URL field
+ * and the CTA's label/spinner. Kept as a discriminated literal so the markup
+ * stays exhaustive without any boolean cross-products.
+ */
+type SubmitStage = "idle" | "probing" | "creating"
+
 interface AddProductFormProps {
   initialWhatsapp?: string | null
 }
@@ -37,6 +45,7 @@ interface AddProductFormProps {
 export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
   const router = useRouter()
   const needsWhatsapp = !initialWhatsapp
+  const [stage, setStage] = useState<SubmitStage>("idle")
 
   const form = useForm<AddProductFormInput, unknown, AddProductFormOutput>({
     resolver: zodResolver(AddProductSchema),
@@ -50,20 +59,29 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
   })
 
   async function onSubmit(values: AddProductFormOutput) {
+    setStage("probing")
     const probe = await validateUrl(values.source_url)
     if (!probe.ok) {
+      setStage("idle")
       form.setError("source_url", { type: "manual", message: probe.error ?? "URL inválida." })
       return
     }
+    setStage("creating")
     const result = await createProduct({
       source_url: probe.data.finalUrl,
       pricing_cents: values.pricing,
       ...(values.whatsapp_number !== undefined && { whatsapp_number: values.whatsapp_number }),
     })
     if (!result.ok) {
+      setStage("idle")
       toast.error(result.error ?? "Error al crear el producto.")
       return
     }
+    // Submit-receipt toast (see src/components/wait/README.md). Fires BEFORE
+    // the route change so sonner's portal renders on the current route — the
+    // wait surface that mounts on /products/[id] assumes the receipt is
+    // already on screen.
+    toast.success("Analizando producto…")
     router.push(`/products/${result.data.id}`)
   }
 
@@ -140,6 +158,15 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                       Tip: pega la URL de un producto individual, no de la colección.
                     </span>
                   </FormDescription>
+                  {stage === "probing" ? (
+                    <p
+                      aria-live="polite"
+                      className="mt-1 flex items-center gap-1.5 text-caption text-fg-2"
+                    >
+                      <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
+                      Verificando enlace…
+                    </p>
+                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}
@@ -205,10 +232,12 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
               className="w-full mt-2"
               disabled={form.formState.isSubmitting}
             >
-              {form.formState.isSubmitting ? (
-                <Loader2 className="size-4 animate-spin mr-2" />
-              ) : null}
-              Analizar y crear campaña
+              {stage !== "idle" ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              {stage === "probing"
+                ? "Verificando enlace…"
+                : stage === "creating"
+                  ? "Creando producto…"
+                  : "Analizar y crear campaña"}
             </Button>
           </form>
         </Form>
