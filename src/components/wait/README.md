@@ -68,7 +68,7 @@ if (!result.ok) {
   return
 }
 toast.success("Lanzando campaña…")          // ← BEFORE the route change
-router.push(`/products/${productId}/launching`)
+router.push(`/products/${productId}/launch`)
 ```
 
 Order matters: sonner's portal renders on the **current** route. If the

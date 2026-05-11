@@ -28,6 +28,14 @@ import {
 
 type ScrapeRun = RealtimeRun<typeof scrapeProduct>
 
+/**
+ * Maximum skeleton cards rendered on `<sm` viewports. The desktop grid is
+ * 4-up so 4 rows = 16 cards comfortably fit; phones are 2-up, so 6 cards
+ * (= 3 rows) keeps the skeleton bounded to one viewport-ish without
+ * dwarfing the actual progress card above.
+ */
+const MOBILE_SKELETON_CAP = 6
+
 function pickLatestRun(runs: ScrapeRun[]): ScrapeRun | undefined {
   return runs.reduce<ScrapeRun | undefined>((latest, r) => {
     if (!latest) return r
@@ -98,29 +106,46 @@ export function ScrapeProgress({ productId, accessToken, sourceUrl }: ScrapeProg
           </p>
         </div>
 
-        {run !== undefined ? (
-          <PhaseProgress<ScrapePhase, ScrapeProgressMetadata>
-            runId={run.id}
-            accessToken={accessToken}
-            phases={SCRAPE_PHASES}
-            phaseWeights={SCRAPE_PHASE_WEIGHTS}
-            phaseLabels={SCRAPE_PHASE_LABELS_ES}
-            metadataSchema={ScrapeProgressMetadataSchema}
-            taskKind="scrape_product"
-            currentPhaseFromMeta={(m) => m.phase ?? null}
-            headerSlot={(meta) => <DetectedPanel meta={meta} />}
-            detailSlot={(meta) => <ScrapeDetail meta={meta} />}
-          />
-        ) : (
-          <BootstrapCard />
-        )}
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: adsTotalForSkeletons }, (_, i) => `skel-${i.toString()}`).map(
-            (skelId) => (
-              <Skeleton key={skelId} className="aspect-[9/16] rounded-card" />
-            ),
+        {/* Stable aria-live wrapper across the bootstrap → phase-progress
+            handoff. Without this, screen readers see two distinct live
+            regions appear and disappear (one on BootstrapCard, one on
+            PhaseProgress), which can drop or duplicate announcements during
+            the swap. Wrapping both in a single persistent `aria-live="polite"`
+            container makes the transition feel like a single region whose
+            *content* changes — which is what the user actually perceives. */}
+        <div aria-live="polite" aria-busy={run === undefined || !isRunFailed(status)}>
+          {run !== undefined ? (
+            <PhaseProgress<ScrapePhase, ScrapeProgressMetadata>
+              runId={run.id}
+              accessToken={accessToken}
+              phases={SCRAPE_PHASES}
+              phaseWeights={SCRAPE_PHASE_WEIGHTS}
+              phaseLabels={SCRAPE_PHASE_LABELS_ES}
+              metadataSchema={ScrapeProgressMetadataSchema}
+              taskKind="scrape_product"
+              currentPhaseFromMeta={(m) => m.phase ?? null}
+              headerSlot={(meta) => <DetectedPanel meta={meta} />}
+              detailSlot={(meta) => <ScrapeDetail meta={meta} />}
+            />
+          ) : (
+            <BootstrapCard />
           )}
+        </div>
+
+        {/* Cap to MOBILE_SKELETON_CAP on `<sm` so a typical phone (≥1 viewport
+            height of skeletons) doesn't drown the progress card. On sm+ we
+            render the full ladder count so the layout matches what the
+            results grid will look like once ads land. */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {Array.from({ length: adsTotalForSkeletons }, (_, i) => ({
+            id: `skel-${i.toString()}`,
+            mobileVisible: i < MOBILE_SKELETON_CAP,
+          })).map((skel) => (
+            <Skeleton
+              key={skel.id}
+              className={cn("aspect-[9/16] rounded-card", !skel.mobileVisible && "hidden sm:block")}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -154,11 +179,13 @@ function formatSourceUrl(url: string): string {
  * the layout stable so the page doesn't shift when `<PhaseProgress>` mounts.
  */
 function BootstrapCard(): React.JSX.Element {
+  // No `aria-live` here — the parent in `<ScrapeProgress>` owns a single
+  // stable `aria-live="polite"` region that wraps both BootstrapCard and
+  // PhaseProgress so the handoff doesn't drop announcements.
   return (
     <div
       className="rounded-card bg-surface glass shadow-card border border-border p-6 flex items-center gap-3"
       aria-busy="true"
-      aria-live="polite"
     >
       <Loader2 className="size-5 animate-spin text-mode-live" strokeWidth={1.8} />
       <div className="min-w-0">

@@ -121,8 +121,17 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             <RefreshCw className="size-3.5 mr-1.5" />
             Actualizar
           </Button>
-          <Button size="sm" onClick={() => void handleRefreshMetrics()} disabled={isRefreshing}>
-            {isRefreshing ? (
+          {/* Gate on BOTH the in-flight server action (isRefreshing) AND
+              the live PhaseProgress handle. `isRefreshing` only covers the
+              ~ms-long server action call; once the handle is set the
+              Trigger.dev run can still be running for minutes, and a second
+              click would spawn a concurrent sync. */}
+          <Button
+            size="sm"
+            onClick={() => void handleRefreshMetrics()}
+            disabled={isRefreshing || refreshRunHandle !== null}
+          >
+            {isRefreshing || refreshRunHandle !== null ? (
               <Loader2 className="size-3.5 animate-spin mr-1.5" />
             ) : (
               <RefreshCw className="size-3.5 mr-1.5" />
@@ -143,6 +152,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           metadataSchema={SyncInsightsProgressMetadataSchema}
           taskKind="sync_insights"
           currentPhaseFromMeta={(m) => m.phase ?? null}
+          onComplete={() => {
+            // Re-enable the "Refrescar métricas" CTA once the run terminates.
+            // useRefreshOnComplete inside PhaseProgress will refetch the RSC
+            // snapshot, so the underlying dashboard data refreshes too.
+            setRefreshRunHandle(null)
+          }}
           onRetry={() => {
             // Drop the dead handle so PhaseProgress unmounts cleanly, then
             // re-invoke the server action — the next setRefreshRunHandle

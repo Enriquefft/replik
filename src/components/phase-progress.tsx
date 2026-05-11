@@ -266,8 +266,12 @@ export function PhaseProgress<Phase extends string, Meta>(
         </span>
       </div>
 
+      {/* Phase rail: flex-wrap fallback at <sm breaks rows when phase pills
+          can't fit on a single line (e.g. 5–7 phases on a 360px device).
+          On sm+ the equal-width grid template kicks in so all pills share
+          the same width — preserves the canonical desktop look. */}
       <ol
-        className="mt-5 grid gap-2"
+        className="mt-5 flex flex-wrap gap-2 sm:grid"
         style={{ gridTemplateColumns: `repeat(${phases.length.toString()}, minmax(0, 1fr))` }}
       >
         {phases.map((phase, idx) => {

@@ -110,9 +110,14 @@ export async function listActiveRuns(): Promise<ActiveRunsResponse> {
 
   let accessToken = ""
   try {
+    // 4h TTL covers worst-case long-running tasks: rehost+burn can stretch
+    // 30–90 min, and a user who opens JobsDock partway through, navigates
+    // away, then reconnects to resume monitoring should not hit an expired
+    // token mid-stream. The token is still scoped to user-owned tags only,
+    // so a longer TTL doesn't widen the blast radius if it leaks.
     accessToken = await auth.createPublicToken({
       scopes: { read: { tags: [...tagSet] } },
-      expirationTime: "1h",
+      expirationTime: "4h",
     })
   } catch (err) {
     logEvent("action.active_runs.token_mint_failed", {

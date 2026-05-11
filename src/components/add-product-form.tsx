@@ -166,6 +166,14 @@ export function AddProductForm({ initialWhatsapp }: AddProductFormProps) {
                       <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
                       Verificando enlace…
                     </p>
+                  ) : stage === "creating" ? (
+                    <p
+                      aria-live="polite"
+                      className="mt-1 flex items-center gap-1.5 text-caption text-fg-2"
+                    >
+                      <Loader2 className="size-3.5 animate-spin" strokeWidth={2} />
+                      Creando producto…
+                    </p>
                   ) : null}
                   <FormMessage />
                 </FormItem>

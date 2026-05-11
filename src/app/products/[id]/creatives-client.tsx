@@ -91,6 +91,11 @@ export function CreativesClient({ productId, creatives, counts }: CreativesClien
       toast.error(result.error ?? "Error al seleccionar creativos.")
       return
     }
+    // Submit-receipt toast (see src/components/wait/README.md). Fires BEFORE
+    // the route change so sonner's portal renders on the current route — the
+    // wait surface that mounts on /products/[id]/edit assumes the receipt is
+    // already on screen.
+    toast.success("Procesando creativos…")
     router.push(`/products/${productId}/edit`)
   }
 

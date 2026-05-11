@@ -86,12 +86,17 @@ export function LaunchClient({
     })
 
     if (!result.ok) {
-      if (result.needs === "meta") {
-        setCredError(result.error)
+      if (result.kind === "needs-credentials") {
+        // The JIT modal opens for both `meta` and `shopify` — the launch
+        // action only ever returns `meta`, but the modal accepts either so
+        // the conditional is honest about the union.
+        setCredError(result.message)
         setCredModalOpen(true)
         return
       }
-      toast.error(result.error ?? "Error al lanzar la campaña.")
+      // `kind === "validation"` — user-correctable error. Surface inline on
+      // the same surface; the CTA stays active so the user can fix and retry.
+      toast.error(result.message)
       return
     }
 

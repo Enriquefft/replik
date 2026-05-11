@@ -57,9 +57,13 @@ export default async function EditPage({ params }: PageProps) {
   // Realtime read scope is the same `productTag` already used by the scrape
   // pipeline — rehostCreatives + every translateAndBurnSubs run is tagged
   // with it, so one subscription covers all per-creative work.
+  //
+  // 4h TTL because rehost+burn can stretch 30–90 min in the worst case and
+  // a user who reconnects to monitor (e.g. via JobsDock-driven return)
+  // should not hit an expired token mid-stream.
   const accessToken = await auth.createPublicToken({
     scopes: { read: { tags: [productTag(productId)] } },
-    expirationTime: "1h",
+    expirationTime: "4h",
   })
 
   return (

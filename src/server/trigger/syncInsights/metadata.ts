@@ -69,8 +69,6 @@ export const SyncInsightsProductProgressSchema = z.object({
   total: z.number().int().nonnegative(),
 })
 
-export type SyncInsightsProductProgress = z.infer<typeof SyncInsightsProductProgressSchema>
-
 /**
  * Realtime metadata published by `syncInsights`. Phase B will wire
  * `metadata.set` against this shape so the UI parses with Zod.

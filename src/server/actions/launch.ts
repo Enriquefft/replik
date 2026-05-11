@@ -10,9 +10,16 @@
  * fresh `attempt` number for the idempotency key, and (4) hand off the heavy
  * orchestration to the `launchCampaign` Trigger.dev task.
  *
- * Failure shape `{ ok:false, needs:'meta'|'shopify' }` matches the JIT modal
- * contract used by `saveIntegration` so the UI can pop the connect modal
- * without bespoke error plumbing.
+ * Failure is a discriminated union with two `kind`s:
+ *   - `kind:"validation"`  — user-correctable input error (bad bid, missing
+ *     creative, wrong product status). Surfaces as an inline toast; CTA stays
+ *     active so the user can fix and retry on the same surface.
+ *   - `kind:"needs-credentials"` — missing or incomplete Meta integration.
+ *     Surfaces as the `CredentialsModal` JIT-connect flow.
+ *
+ * The `needs:'meta'|'shopify'` field on the second branch matches the JIT
+ * modal contract used by `saveIntegration` so the UI can pop the connect
+ * modal without bespoke error plumbing.
  */
 
 import { auth, tasks } from "@trigger.dev/sdk"
@@ -29,7 +36,8 @@ import type { launchCampaign as launchCampaignTask } from "@/server/trigger/laun
 
 export type LaunchResult =
   | { ok: true; data: { runId: string; accessToken: string } }
-  | { ok: false; needs: "meta" | "shopify"; error?: string }
+  | { ok: false; kind: "validation"; message: string }
+  | { ok: false; kind: "needs-credentials"; needs: "meta" | "shopify"; message?: string }
 
 const LaunchInput = z.object({
   productId: z.uuid(),
@@ -43,8 +51,8 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
   if (!parsed.success) {
     return {
       ok: false,
-      needs: "meta",
-      error: parsed.error.issues[0]?.message ?? "Datos inválidos.",
+      kind: "validation",
+      message: parsed.error.issues[0]?.message ?? "Datos inválidos.",
     }
   }
   const { productId, budgetDailyCents } = parsed.data
@@ -60,15 +68,16 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
         meta = await requireIntegration(userId, "meta")
       } catch (err) {
         if (err instanceof IntegrationMissingError) {
-          return { ok: false, needs: "meta" }
+          return { ok: false, kind: "needs-credentials", needs: "meta" }
         }
         throw err
       }
       if (meta.extra.provider !== "meta" || !meta.extra.pixel_id) {
         return {
           ok: false,
+          kind: "needs-credentials",
           needs: "meta",
-          error: "Falta el pixel en la integración Meta.",
+          message: "Falta el pixel en la integración Meta.",
         }
       }
 
@@ -108,20 +117,20 @@ export async function launchCampaign(rawInput: unknown): Promise<LaunchResult> {
         return { ownsProduct: true, validStatus: true, hasCreative: creativeRows.length > 0 }
       })
       if (!ready.ownsProduct) {
-        return { ok: false, needs: "meta", error: "Producto no encontrado." }
+        return { ok: false, kind: "validation", message: "Producto no encontrado." }
       }
       if (!ready.validStatus) {
         return {
           ok: false,
-          needs: "meta",
-          error: "Publica la landing antes de lanzar la campaña.",
+          kind: "validation",
+          message: "Publica la landing antes de lanzar la campaña.",
         }
       }
       if (!ready.hasCreative) {
         return {
           ok: false,
-          needs: "meta",
-          error: "No hay creativos editados listos.",
+          kind: "validation",
+          message: "No hay creativos editados listos.",
         }
       }
 

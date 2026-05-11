@@ -194,6 +194,16 @@ export const rehostCreativesTask = task({
         // edited_video state without a race. Pin attempt=1 so re-runs of
         // rehostCreatives for the same creatives replay translateAndBurnSubs's
         // idempotency keys (loadPersistedAssets) instead of re-burning.
+        //
+        // TODO(telemetry): the per-creative burn runs spawned by
+        // `batchTriggerAndWait` here are not registered with
+        // `recordTaskStart`, so they don't surface in `<JobsDock>` and the
+        // `task_runs` table never sees their status transitions. Wiring this
+        // requires task-run telemetry to be emitted from INSIDE the
+        // Trigger.dev task body (we can't call `recordTaskStart` from a
+        // schemaTask context without a Clerk session). Tracked separately
+        // from Phase F — see task #12 ("Wire task_run status/phase telemetry
+        // from inside Trigger.dev tasks").
         const burnBatch = await tasks.batchTriggerAndWait<typeof translateAndBurnSubsTask>(
           "translateAndBurnSubs",
           [...burnIds].map((creativeId) => ({
