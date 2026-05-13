@@ -54,15 +54,24 @@ function ShopifyForm({ onError }: { onError: (msg: string) => void }) {
     resolver: zodResolver(ShopifySchema),
     defaultValues: { shop_domain: "" },
   })
+  // `redirecting` covers the gap between a successful authorize-URL response
+  // and the browser navigation actually starting — react-hook-form's
+  // `isSubmitting` clears as soon as onSubmit returns, which leaves the
+  // button momentarily in a no-loader state. The state never flips back
+  // because the page is unloading.
+  const [redirecting, setRedirecting] = React.useState(false)
 
   async function onSubmit(values: ShopifyFormValues) {
     const result = await startShopifyOAuth({ shop_domain: values.shop_domain })
     if (result.ok) {
+      setRedirecting(true)
       window.location.href = result.data.authorizeUrl
       return
     }
     onError(result.error ?? "No se pudo iniciar la conexión.")
   }
+
+  const busy = form.formState.isSubmitting || redirecting
 
   return (
     <Form {...form}>
@@ -77,20 +86,21 @@ function ShopifyForm({ onError }: { onError: (msg: string) => void }) {
           name="shop_domain"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Dominio de tu tienda</FormLabel>
+              <FormLabel>URL de tu tienda</FormLabel>
               <FormControl>
-                <Input placeholder="mitienda.myshopify.com" {...field} />
+                <Input placeholder="mitienda.myshopify.com" {...field} disabled={busy} />
               </FormControl>
               <FormDescription>
-                Te llevaremos al panel de Shopify para autorizar la app.
+                Termina en <code className="font-mono text-fg-1">.myshopify.com</code>. La
+                encuentras en Configuración → Dominios.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full mt-2" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
-          Conectar Shopify
+        <Button type="submit" className="w-full mt-2" disabled={busy}>
+          {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+          {redirecting ? "Abriendo Shopify…" : "Iniciar sesión con Shopify"}
         </Button>
       </form>
     </Form>
@@ -205,10 +215,10 @@ export function CredentialsModal({
 
   const displayError = internalError ?? errorMessage
 
-  const title = provider === "shopify" ? "Conectar Shopify" : "Conectar Meta Ads"
+  const title = provider === "shopify" ? "Conecta tu tienda Shopify" : "Conectar Meta Ads"
   const description =
     provider === "shopify"
-      ? "Ingresa tu dominio de tienda. Te llevaremos a Shopify para autorizar la app."
+      ? "Necesitamos tu tienda para publicar tu landing. Tomará 10 segundos."
       : "Ingresa tu token de Meta y datos de la cuenta para lanzar la campaña."
 
   function handleSaved() {

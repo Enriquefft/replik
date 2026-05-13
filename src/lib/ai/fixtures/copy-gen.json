@@ -24,7 +24,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/1.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -110,7 +111,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/2.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -196,7 +198,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/3.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -282,7 +285,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/4.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -368,7 +372,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/5.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -454,7 +459,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/6.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -540,7 +546,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/7.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -626,7 +633,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/8.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -712,7 +720,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/9.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -798,7 +807,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/10.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -884,7 +894,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/11.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -970,7 +981,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/12.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1056,7 +1068,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/13.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1142,7 +1155,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/14.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1228,7 +1242,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/15.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1314,7 +1329,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/16.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1400,7 +1416,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/17.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1486,7 +1503,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/18.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1572,7 +1590,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/100.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1652,7 +1671,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/101.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1732,7 +1752,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/102.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1812,7 +1833,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/103.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1892,7 +1914,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/104.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -1972,7 +1995,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/105.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -2052,7 +2076,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/200.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -2126,7 +2151,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/201.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -2200,7 +2226,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/202.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -2274,7 +2301,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/203.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -2348,7 +2376,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/204.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {
@@ -2422,7 +2451,8 @@
           "keywords": [],
           "imageUrls": ["https://cdn.example.com/205.jpg"],
           "brand": null,
-          "canonicalBrand": null
+          "canonicalBrand": null,
+          "storefrontUrl": null
         },
         "creatives": [
           {

@@ -20,6 +20,7 @@ import {
   renderTemplate,
   templateAssetKeyFor,
 } from "@/lib/shopify"
+import { buildStorefrontUrl } from "@/lib/shopify/storefront-url.ts"
 import { requireIntegration } from "@/server/integrations"
 import { publishError } from "./errors.ts"
 import type { PublishPhase } from "./metadata.ts"
@@ -197,6 +198,10 @@ export const publishLandingTask = task({
         token: shopifyCreds.token,
         shop_domain: shopifyCreds.extra.shop_domain,
       }
+      // Host used to build the public storefront URL. Prefer the merchant's
+      // custom primary_domain (set on OAuth callback when available);
+      // falls back to *.myshopify.com.
+      const storefrontHost = shopifyCreds.extra.primary_domain ?? shopifyCreds.extra.shop_domain
 
       // 5. Create product + page on Shopify. We forward ALL imageUrls so the
       // Shopify product gallery mirrors the landing hero gallery (1–3 photos
@@ -438,7 +443,10 @@ export const publishLandingTask = task({
         assetKey,
       })
 
-      // 8. Persist final state.
+      // 8. Persist final state — including the public storefront URL so the
+      // dashboard, product card, and product-detail surfaces can render the
+      // live link without a join + decrypt on every read.
+      const storefrontUrl = buildStorefrontUrl(storefrontHost, published.shopify_page_handle)
       await withUser(userId, async (db) => {
         await db
           .update(products)
@@ -447,9 +455,13 @@ export const publishLandingTask = task({
             shopifyProductId: published.shopify_product_id,
             shopifyPageHandle: published.shopify_page_handle,
             shopifyTemplateId: templateId,
+            storefrontUrl,
           })
           .where(eq(products.id, productId))
       })
+      // Broadcast AFTER persistence so the UI never shows a URL pointing at
+      // a half-built landing if a later phase crashes.
+      metadata.set("storefrontUrl", storefrontUrl)
 
       return {
         shopify_product_id: published.shopify_product_id,

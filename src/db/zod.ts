@@ -65,7 +65,11 @@ export const IdempotencyKeyInsert = createInsertSchema(idempotencyKeys)
 export type IdempotencyKeyInsert = z.infer<typeof IdempotencyKeyInsert>
 
 export const EncryptedExtraJson = z.discriminatedUnion("provider", [
-  z.object({ provider: z.literal("shopify"), shop_domain: z.string() }),
+  z.object({
+    provider: z.literal("shopify"),
+    shop_domain: z.string(),
+    primary_domain: z.string().optional(),
+  }),
   z.object({
     provider: z.literal("meta"),
     ad_account_id: z.string(),

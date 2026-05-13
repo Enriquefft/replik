@@ -12,6 +12,7 @@ import { ChatPanel } from "@/components/chat-panel.tsx"
 import { CredentialsModal } from "@/components/credentials-modal.tsx"
 import { IphonePreview } from "@/components/iphone-preview.tsx"
 import { PhaseProgress } from "@/components/phase-progress.tsx"
+import { PublishSuccessPanel } from "@/components/publish-success-panel.tsx"
 import { TemplateCard } from "@/components/template-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form.tsx"
@@ -263,6 +264,11 @@ export function LandingClient({
               metadataSchema={PublishProgressMetadataSchema}
               taskKind="publish_landing"
               currentPhaseFromMeta={(m) => m.phase ?? null}
+              detailSlot={(meta) =>
+                meta?.storefrontUrl !== undefined ? (
+                  <PublishSuccessPanel url={meta.storefrontUrl} />
+                ) : null
+              }
               onRetry={() => {
                 // Drop the dead run handle so PhaseProgress unmounts cleanly
                 // before the form re-submits — the next setRunHandle below

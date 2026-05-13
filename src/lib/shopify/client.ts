@@ -161,6 +161,30 @@ const ThemeListResponseSchema = z.object({
   themes: z.array(z.object({ id: z.number(), role: z.string(), name: z.string() })),
 })
 
+const ShopInfoResponseSchema = z.object({
+  shop: z.object({
+    primary_domain: z.object({
+      host: z.string().min(1),
+    }),
+  }),
+})
+
+export interface ShopInfo {
+  /** Primary storefront host (custom domain when set, else `*.myshopify.com`). */
+  primary_domain: string
+}
+
+/**
+ * Returns the shop's `primary_domain.host` — the canonical hostname for the
+ * merchant's live storefront. May equal `shop_domain` (no custom domain) or
+ * a custom domain like `mitienda.com`. Used to build the public landing URL
+ * post-publish.
+ */
+export async function fetchShopInfo(creds: ShopifyCreds): Promise<ShopInfo> {
+  const resp = await shopifyFetch(creds, "GET", "shop.json", ShopInfoResponseSchema)
+  return { primary_domain: resp.shop.primary_domain.host }
+}
+
 function centsToPriceString(cents: number): string {
   if (!Number.isFinite(cents) || cents < 0) {
     throw new Error(`Invalid price (cents): ${cents.toString()}`)

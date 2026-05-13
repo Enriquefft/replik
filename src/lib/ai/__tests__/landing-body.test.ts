@@ -79,6 +79,7 @@ const baseInput: LandingBodyInput = {
     shopifyTemplateId: 1,
     description: "Set de tres ollas antiadherentes con tapa de vidrio.",
     scrapeReason: null,
+    storefrontUrl: null,
     createdAt: new Date("2026-04-30T00:00:00.000Z"),
   },
   creatives: [

@@ -358,6 +358,7 @@ describe("generateCopy — explicit semantics", () => {
       shopifyTemplateId: 1,
       description: null,
       scrapeReason: null,
+      storefrontUrl: null,
       createdAt: new Date("2026-04-30T00:00:00.000Z"),
     },
     creatives: [

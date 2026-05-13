@@ -85,6 +85,7 @@ export type PublishErrorCode = z.infer<typeof PublishErrorCodeSchema>
 export const PublishProgressMetadataSchema = z.object({
   phase: z.enum(PUBLISH_PHASES).optional(),
   templateId: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  storefrontUrl: z.string().url().optional(),
 })
 
 export type PublishProgressMetadata = z.infer<typeof PublishProgressMetadataSchema>

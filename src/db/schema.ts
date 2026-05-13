@@ -106,6 +106,7 @@ export const products = pgTable("products", {
   shopifyProductId: text("shopify_product_id"),
   shopifyPageHandle: text("shopify_page_handle"),
   shopifyTemplateId: integer("shopify_template_id"),
+  storefrontUrl: text("storefront_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 

@@ -1,9 +1,10 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Loader2, RefreshCw } from "lucide-react"
+import { ChevronDown, Loader2, RefreshCw, Store } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import * as React from "react"
 import { toast } from "sonner"
 import { CredentialsModal } from "@/components/credentials-modal.tsx"
@@ -12,7 +13,8 @@ import { ProductCard } from "@/components/product-card.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import { getDashboard } from "@/server/actions/dashboard.ts"
 import { refreshInsights } from "@/server/actions/insights.ts"
-import type { DashboardData } from "@/server/dashboard"
+import { disconnectIntegration } from "@/server/actions/integrations.ts"
+import type { DashboardData, DashboardProduct } from "@/server/dashboard"
 import {
   SYNC_INSIGHTS_PHASE_LABELS_ES,
   SYNC_INSIGHTS_PHASE_WEIGHTS,
@@ -29,6 +31,24 @@ type ReconnectProvider = "meta" | "shopify"
 
 function parseReconnectProvider(raw: string | null): ReconnectProvider | null {
   if (raw === "meta" || raw === "shopify") return raw
+  return null
+}
+
+/**
+ * Reads the connected Shopify host straight off the first product that has
+ * a populated storefront URL. Avoids a separate decrypt-on-read of the
+ * integrations row purely to display a pill — we already persist the URL
+ * with the canonical host at publish time.
+ */
+function pickConnectedShopifyHost(products: DashboardProduct[]): string | null {
+  for (const p of products) {
+    if (p.storefrontUrl === null) continue
+    try {
+      return new URL(p.storefrontUrl).host
+    } catch {
+      return null
+    }
+  }
   return null
 }
 
@@ -105,17 +125,66 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     // we just close the modal and let the user navigate back.
   }
 
+  async function handleDisconnectShopify() {
+    const result = await disconnectIntegration({ provider: "shopify" })
+    if (!result.ok) {
+      toast.error(result.error ?? "No se pudo desconectar la tienda.")
+      return
+    }
+    toast.success("Tienda desconectada")
+    await refetch()
+  }
+
   const products = data.products
+  const shopifyHost = pickConnectedShopifyHost(products)
 
   return (
     <div className="flex flex-col gap-6">
       {/* Actions bar */}
       <div className="flex items-center justify-between gap-4">
-        <p className="text-callout text-fg-2">
-          {products.length > 0
-            ? `${products.length.toString()} producto${products.length !== 1 ? "s" : ""}`
-            : "Sin productos aún"}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-callout text-fg-2">
+            {products.length > 0
+              ? `${products.length.toString()} producto${products.length !== 1 ? "s" : ""}`
+              : "Sin productos aún"}
+          </p>
+          {shopifyHost !== null && (
+            <DropdownMenuPrimitive.Root>
+              <DropdownMenuPrimitive.Trigger
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-caption text-fg-2 transition-colors hover:bg-bg-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-bg-2"
+                aria-label="Menú de tienda conectada"
+              >
+                <Store className="size-3.5" strokeWidth={1.8} />
+                <span className="font-mono">{shopifyHost}</span>
+                <ChevronDown className="size-3" strokeWidth={2} />
+              </DropdownMenuPrimitive.Trigger>
+              <DropdownMenuPrimitive.Portal>
+                <DropdownMenuPrimitive.Content
+                  align="start"
+                  sideOffset={6}
+                  className="z-50 min-w-40 overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+                >
+                  <DropdownMenuPrimitive.Item
+                    onSelect={() => {
+                      setShopifyModalOpen(true)
+                    }}
+                    className="flex w-full cursor-default items-center rounded-md px-2 py-1.5 text-sm outline-none select-none focus:bg-accent focus:text-accent-foreground"
+                  >
+                    Reconectar
+                  </DropdownMenuPrimitive.Item>
+                  <DropdownMenuPrimitive.Item
+                    onSelect={() => {
+                      void handleDisconnectShopify()
+                    }}
+                    className="flex w-full cursor-default items-center rounded-md px-2 py-1.5 text-sm text-mode-traffic outline-none select-none focus:bg-mode-traffic/10 focus:text-mode-traffic"
+                  >
+                    Desconectar
+                  </DropdownMenuPrimitive.Item>
+                </DropdownMenuPrimitive.Content>
+              </DropdownMenuPrimitive.Portal>
+            </DropdownMenuPrimitive.Root>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void refetch()}>
             <RefreshCw className="size-3.5 mr-1.5" />

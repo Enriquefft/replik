@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { requireUser } from "@/db/client"
 import { accountsList, MetaAuthError, pixelsList } from "@/lib/meta"
-import { saveIntegration as persistIntegration } from "@/server/integrations"
+import { deleteIntegration, saveIntegration as persistIntegration } from "@/server/integrations"
 import type { ActionResult } from "./types.ts"
 
 const MetaFormInput = z.object({
@@ -72,4 +72,25 @@ export async function saveMetaIntegration(rawInput: unknown): Promise<ActionResu
       err instanceof MetaAuthError ? err.message : "Token Meta inválido o sin permisos"
     return { ok: false, needs: "meta", error: friendly }
   }
+}
+
+const DisconnectInput = z.object({
+  provider: z.union([z.literal("meta"), z.literal("shopify")]),
+})
+
+/**
+ * Removes a provider integration for the current user. The next publish or
+ * sync attempt for that provider will surface the standard missing-integration
+ * error, triggering the JIT credentials modal again.
+ */
+export async function disconnectIntegration(
+  rawInput: unknown,
+): Promise<ActionResult<{ ok: true }>> {
+  const parsed = DisconnectInput.safeParse(rawInput)
+  if (!parsed.success) {
+    return { ok: false, error: "Proveedor inválido." }
+  }
+  const { userId } = await requireUser()
+  await deleteIntegration(userId, parsed.data.provider)
+  return { ok: true, data: { ok: true } }
 }

@@ -1,8 +1,9 @@
 "use client"
 
-import { ExternalLink, Package, ShoppingBag, TrendingUp } from "lucide-react"
+import { Copy, ExternalLink, Package, ShoppingBag, TrendingUp } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge.tsx"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx"
 import { cn } from "@/lib/utils.ts"
@@ -120,15 +121,31 @@ export function ProductCard({ product }: ProductCardProps) {
           >
             Ver producto →
           </Link>
-          {product.shopifyPageHandle && (
-            <a
-              href={`https://${product.shopifyPageHandle}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-caption text-fg-2 hover:text-fg-1"
-            >
-              Landing <ExternalLink className="size-3" />
-            </a>
+          {product.storefrontUrl !== null && (
+            <div className="flex items-center gap-2">
+              <a
+                href={product.storefrontUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-caption text-fg-2 hover:text-fg-1"
+              >
+                Ver landing en vivo <ExternalLink className="size-3" />
+              </a>
+              <button
+                type="button"
+                aria-label="Copiar enlace"
+                onClick={() => {
+                  if (product.storefrontUrl === null) return
+                  void navigator.clipboard
+                    .writeText(product.storefrontUrl)
+                    .then(() => toast.success("Enlace copiado"))
+                    .catch(() => toast.error("No se pudo copiar el enlace"))
+                }}
+                className="inline-flex items-center text-fg-2 hover:text-fg-1"
+              >
+                <Copy className="size-3.5" strokeWidth={1.8} />
+              </button>
+            </div>
           )}
         </div>
       </CardContent>

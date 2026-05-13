@@ -18,6 +18,7 @@ export type ProductId = Brand<string, "ProductId">
 export type CreativeId = Brand<string, "CreativeId">
 export type CampaignId = Brand<string, "CampaignId">
 export type AssetId = Brand<string, "AssetId">
+export type StorefrontUrl = Brand<string, "StorefrontUrl">
 
 export function toProductId(id: string): ProductId {
   return id as ProductId

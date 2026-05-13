@@ -2,6 +2,7 @@ import { auth } from "@trigger.dev/sdk"
 import { and, eq, inArray } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { CreativesEmptyState } from "@/components/creatives-empty-state.tsx"
+import { PublishSuccessPanel } from "@/components/publish-success-panel.tsx"
 import { RetryScrapeCard } from "@/components/retry-scrape-card.tsx"
 import { KeywordChips, ScrapeProgress } from "@/components/scrape-progress.tsx"
 import { requireUser, withUser } from "@/db/client"
@@ -155,6 +156,11 @@ export default async function ProductPage({ params }: PageProps) {
           </p>
           <KeywordChips keywords={productData.keywords} className="mt-3" />
         </div>
+        {productData.storefrontUrl !== null && (
+          <div className="mb-6">
+            <PublishSuccessPanel url={productData.storefrontUrl} />
+          </div>
+        )}
         <CreativesClient productId={productId} creatives={creativesWithVideo} counts={counts} />
       </div>
     </div>

@@ -17,6 +17,7 @@ export interface DashboardProduct {
   imageUrls: string[]
   status: Product["status"]
   shopifyPageHandle: string | null
+  storefrontUrl: string | null
   metrics: DashboardProductMetrics
   ordersCount: number
   createdAt: Date
@@ -44,6 +45,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
           imageUrls: products.imageUrls,
           status: products.status,
           shopifyPageHandle: products.shopifyPageHandle,
+          storefrontUrl: products.storefrontUrl,
           createdAt: products.createdAt,
         })
         .from(products)
@@ -91,6 +93,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
         imageUrls: p.imageUrls,
         status: p.status,
         shopifyPageHandle: p.shopifyPageHandle,
+        storefrontUrl: p.storefrontUrl,
         metrics: {
           spendCents: m?.spendCents ?? 0,
           results: m?.results ?? 0,

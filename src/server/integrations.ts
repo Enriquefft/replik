@@ -85,3 +85,14 @@ export async function saveIntegration(
       })
   })
 }
+
+export async function deleteIntegration(
+  userId: string,
+  provider: "meta" | "shopify",
+): Promise<void> {
+  await withUser(userId, async (db) => {
+    await db
+      .delete(integrations)
+      .where(and(eq(integrations.userId, userId), eq(integrations.provider, provider)))
+  })
+}

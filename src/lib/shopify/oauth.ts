@@ -4,6 +4,7 @@ import crypto from "node:crypto"
 import { z } from "zod"
 
 const SHOP_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.myshopify\.com$/
+const BARE_SUBDOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 
 export const SHOPIFY_OAUTH_STATE_COOKIE = "shopify_oauth_state"
 
@@ -16,8 +17,18 @@ export class ShopifyOAuthError extends Error {
 
 /**
  * Coerces user-pasted input into a canonical `*.myshopify.com` domain.
- * Strips protocol/path so `https://mistore.myshopify.com/admin` reduces to
- * `mistore.myshopify.com`. Throws `ShopifyOAuthError` on any other shape.
+ *
+ * Accepts:
+ * - Full canonical: `mitienda.myshopify.com`
+ * - URL form: `https://mitienda.myshopify.com/admin` (protocol + path stripped)
+ * - Bare subdomain: `mitienda` → auto-appends `.myshopify.com`
+ *
+ * Rejects:
+ * - `www.`-prefixed inputs (almost always the merchant's storefront domain,
+ *   not the shop subdomain).
+ * - Anything ambiguous (mixed dots that don't match `*.myshopify.com`).
+ *
+ * Throws `ShopifyOAuthError` with a friendly Spanish message on any other shape.
  */
 export function normalizeShopDomain(input: string): string {
   const stripped = input
@@ -25,6 +36,14 @@ export function normalizeShopDomain(input: string): string {
     .toLowerCase()
     .replace(/^https?:\/\//, "")
     .replace(/\/.*$/, "")
+  if (stripped.startsWith("www.")) {
+    throw new ShopifyOAuthError("Quita el `www.`. Usa <tienda>.myshopify.com")
+  }
+  // Bare subdomain → append the suffix. Keeps the canonical form a single
+  // SSOT downstream while letting merchants paste just the store handle.
+  if (!stripped.includes(".") && BARE_SUBDOMAIN_RE.test(stripped)) {
+    return `${stripped}.myshopify.com`
+  }
   if (!SHOP_DOMAIN_RE.test(stripped)) {
     throw new ShopifyOAuthError("Dominio inválido. Usa <tienda>.myshopify.com")
   }

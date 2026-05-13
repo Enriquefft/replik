@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { requireUser, UnauthenticatedError } from "@/db/client"
 import { logError, logEvent } from "@/lib/observability/log.ts"
+import { fetchShopInfo } from "@/lib/shopify/client"
 import {
   exchangeCode,
   normalizeShopDomain,
@@ -96,7 +97,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // 5. Exchange code → token, then persist via the existing integrations
-  // helper (encrypts at rest).
+  // helper (encrypts at rest). After exchange, opportunistically fetch
+  // `shop.primary_domain.host` so we can persist the merchant's live
+  // storefront host (custom domain or *.myshopify.com) — used post-publish
+  // to build the public landing URL.
   try {
     const exchanged = await exchangeCode({
       shop,
@@ -104,12 +108,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       clientId,
       clientSecret,
     })
+
+    let primaryDomain: string | undefined
+    try {
+      const info = await fetchShopInfo({ token: exchanged.token, shop_domain: shop })
+      primaryDomain = info.primary_domain
+    } catch (err) {
+      logError("shopify.oauth.shop_fetch_failed", {
+        userId,
+        shop,
+        message: err instanceof Error ? err.message : "unknown",
+      })
+    }
+
     await saveIntegration(userId, {
       provider: "shopify",
       token: exchanged.token,
-      extra: { provider: "shopify", shop_domain: shop },
+      extra:
+        primaryDomain !== undefined
+          ? { provider: "shopify", shop_domain: shop, primary_domain: primaryDomain }
+          : { provider: "shopify", shop_domain: shop },
     })
-    logEvent("shopify.oauth.connected", { userId, shop, scope: exchanged.scope })
+    logEvent("shopify.oauth.connected", {
+      userId,
+      shop,
+      scope: exchanged.scope,
+      hasPrimaryDomain: primaryDomain !== undefined,
+    })
     return redirectSuccess(origin)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido"
