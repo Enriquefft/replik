@@ -44,7 +44,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Deploy to Trigger.dev
-        run: bunx trigger.dev@latest deploy
+        run: bunx trigger.dev deploy
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
           # ffmpeg + apt-get extensions require a build environment;
