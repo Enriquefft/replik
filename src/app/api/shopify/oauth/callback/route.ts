@@ -12,6 +12,7 @@ import {
   ShopifyOAuthError,
   verifyHmac,
 } from "@/lib/shopify/oauth"
+import { isValidStorefrontHost } from "@/lib/shopify/storefront-url.ts"
 import { saveIntegration } from "@/server/integrations"
 
 export const runtime = "nodejs"
@@ -112,7 +113,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let primaryDomain: string | undefined
     try {
       const info = await fetchShopInfo({ token: exchanged.token, shop_domain: shop })
-      primaryDomain = info.primary_domain
+      // Gate on the same host validator the publish task uses. Anything that
+      // would later trip `buildStorefrontUrl` is dropped here so the publish
+      // task can rely on `extra.primary_domain ?? extra.shop_domain` being a
+      // valid host. `shop_domain` itself already passed `normalizeShopDomain`.
+      if (isValidStorefrontHost(info.primary_domain)) {
+        primaryDomain = info.primary_domain
+      } else {
+        logError("shopify.oauth.primary_domain_invalid", {
+          userId,
+          shop,
+          host: info.primary_domain,
+        })
+      }
     } catch (err) {
       logError("shopify.oauth.shop_fetch_failed", {
         userId,

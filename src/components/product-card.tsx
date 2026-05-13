@@ -136,6 +136,13 @@ export function ProductCard({ product }: ProductCardProps) {
                 aria-label="Copiar enlace"
                 onClick={() => {
                   if (product.storefrontUrl === null) return
+                  // `navigator.clipboard` is undefined on insecure-context
+                  // pages and very old browsers; accessing `.writeText` would
+                  // throw synchronously and skip the `.catch`.
+                  if (typeof navigator === "undefined" || !navigator.clipboard) {
+                    toast.error("Tu navegador no permite copiar al portapapeles")
+                    return
+                  }
                   void navigator.clipboard
                     .writeText(product.storefrontUrl)
                     .then(() => toast.success("Enlace copiado"))

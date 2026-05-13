@@ -20,6 +20,13 @@ export function PublishSuccessPanel({ url }: PublishSuccessPanelProps) {
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(`Mira mi nuevo producto: ${url}`)}`
 
   function handleCopy() {
+    // `navigator.clipboard` is undefined on insecure-context pages (file://,
+    // http://) and very old browsers — accessing `.writeText` on it would
+    // throw synchronously and skip the `.catch`. Surface the error explicitly.
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      toast.error("Tu navegador no permite copiar al portapapeles")
+      return
+    }
     void navigator.clipboard
       .writeText(url)
       .then(() => toast.success("Enlace copiado"))

@@ -217,22 +217,28 @@ export const launchCampaign = schemaTask({
       const pageId = metaIntegration.extra.page_id
       const pixelId = metaIntegration.extra.pixel_id
 
-      // Resolve landing URL — Shopify integration should already exist (publish
-      // precedes launch in the user flow). If absent, fall back to example.com
-      // so the wrapper still has a valid CTA link, then fail loudly when there
-      // is also no shopifyPageHandle to point at.
-      const shopifyIntegration = await getIntegration(userId, "shopify")
-      const shopDomain =
-        shopifyIntegration?.extra.provider === "shopify"
-          ? shopifyIntegration.extra.shop_domain
-          : null
+      // Resolve landing URL — `storefrontUrl` is the SSOT written by the
+      // publish task at the same UPDATE that sets `shopifyPageHandle`, so it
+      // already uses the merchant's custom `primary_domain` when present.
+      // Fall back to deriving from `shop_domain` only if publish ran before
+      // this column existed (NULL row pre-0022 migration).
       const pageHandle = product.shopifyPageHandle
       if (!pageHandle) {
         launchError("landing_not_published", "Publica la landing antes de lanzar la campaña.")
       }
-      const landingUrl = shopDomain
-        ? `https://${shopDomain}/pages/${pageHandle}`
-        : `https://example.com/${pageHandle}`
+      let landingUrl: string
+      if (product.storefrontUrl !== null) {
+        landingUrl = product.storefrontUrl
+      } else {
+        const shopifyIntegration = await getIntegration(userId, "shopify")
+        const shopDomain =
+          shopifyIntegration?.extra.provider === "shopify"
+            ? shopifyIntegration.extra.shop_domain
+            : null
+        landingUrl = shopDomain
+          ? `https://${shopDomain}/pages/${pageHandle}`
+          : `https://example.com/${pageHandle}`
+      }
 
       // 4. Copy generation — §11 best-of-5 + Opus judge + post-check.
       // One copy unit per distinct angle so A/B variants run differentiated

@@ -25,6 +25,17 @@ export class InvalidStorefrontUrlError extends Error {
   }
 }
 
+/**
+ * True when `host` would be accepted by `buildStorefrontUrl`. Exported so the
+ * OAuth callback can pre-validate `shop.primary_domain.host` before persisting
+ * it into `extra` — keeps the publish task's `buildStorefrontUrl` call from
+ * ever throwing on a server-controlled value and marking an already-live
+ * Shopify Page as a failed publish.
+ */
+export function isValidStorefrontHost(host: string): boolean {
+  return HOST_RE.test(host)
+}
+
 export function buildStorefrontUrl(host: string, pageHandle: string): StorefrontUrl {
   if (!HOST_RE.test(host)) {
     throw new InvalidStorefrontUrlError(`Invalid storefront host: ${JSON.stringify(host)}`)
